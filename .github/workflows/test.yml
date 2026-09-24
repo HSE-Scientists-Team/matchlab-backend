@@ -1,0 +1,25 @@
+name: Tests and coverage
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test all packages and report service coverage
+        run: bash scripts/ci/test-coverage.sh
+      - name: Upload coverage profile
+        uses: actions/upload-artifact@v4
+        with:
+          name: internal-coverage
+          path: coverage/coverage.out
