@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package matchlab.mail.v1;
+
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/mail/v1;mailv1";
+
+service EmailService {
+  // Enqueue is idempotent for a given token and returns after durable storage.
+  rpc SendVerificationEmail(SendVerificationEmailRequest) returns (SendVerificationEmailResponse);
+}
+
+message SendVerificationEmailRequest {
+  string recipient = 1;
+  string token = 2;
+  int64 expires_at_unix = 3;
+}
+
+message SendVerificationEmailResponse {
+  bool queued = 1;
+}

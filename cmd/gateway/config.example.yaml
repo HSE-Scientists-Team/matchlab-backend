@@ -1,7 +1,9 @@
 http:
   host: 127.0.0.1
   port: 8080
-redis:
+auth:
   host: localhost
-  port: 6379
-  db: 0
+  port: 8081
+user:
+  host: localhost
+  port: 8082

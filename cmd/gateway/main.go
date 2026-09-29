@@ -15,11 +15,12 @@ import (
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/config"
 	delivery "github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/delivery/http"
-	redisrepo "github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/repository/redis"
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/usecase"
+	authv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
+	userv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/gorilla/mux"
-	"github.com/redis/go-redis/v9"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -38,28 +39,37 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 
-	client := redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Address(),
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	})
-	defer func(client *redis.Client) {
-		err := client.Close()
+	dial := func(address string) (*grpc.ClientConn, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		conn, err := grpc.DialContext(ctx, address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err != nil {
-			logger.Error(fmt.Sprintf("%v", err))
+			return nil, fmt.Errorf("connect to %s: %w", address, err)
 		}
-	}(client)
-	pingCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	err = client.Ping(pingCtx).Err()
-	cancel()
+		return conn, nil
+	}
+	authConn, err := dial(cfg.Auth.Address())
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := authConn.Close(); err != nil {
+			logger.Error("close auth connection", "error", err)
+		}
+	}()
+	userConn, err := dial(cfg.User.Address())
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := userConn.Close(); err != nil {
+			logger.Error("close user connection", "error", err)
+		}
+	}()
 
-	sessions := usecase.NewSessionService(redisrepo.NewSessionStore(redisrepo.NewClientAdapter(client)))
 	router := mux.NewRouter()
 	healthcheck.RegisterHTTP(router)
-	delivery.Register(router, sessions, logger)
+	delivery.Register(router, authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
 	server := &http.Server{
 		Handler:           delivery.Middleware(logger, router),
 		ReadHeaderTimeout: 5 * time.Second,
@@ -76,7 +86,6 @@ func run(logger *slog.Logger) error {
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
 	logger.Info("gateway started", "address", listener.Addr().String())
-
 	select {
 	case err := <-serveErr:
 		if errors.Is(err, http.ErrServerClosed) {

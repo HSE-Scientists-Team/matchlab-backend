@@ -1,0 +1,20 @@
+grpc:
+  host: 0.0.0.0
+  port: 8083
+postgres:
+  host: localhost
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+smtp:
+  host: smtp.example.com
+  port: 587
+  from: no-reply@example.com
+  verification_url: https://matchlab.example.com/verify-email
+  require_starttls: true
+worker:
+  poll_interval: 2s
+  lease: 60s
+  max_attempts: 8
+  retention: 168h

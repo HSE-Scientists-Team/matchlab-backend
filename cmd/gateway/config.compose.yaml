@@ -1,0 +1,9 @@
+http:
+  host: 0.0.0.0
+  port: 8080
+auth:
+  host: auth
+  port: 8081
+user:
+  host: user
+  port: 8082
