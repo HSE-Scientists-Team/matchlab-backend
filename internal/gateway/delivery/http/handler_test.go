@@ -73,13 +73,13 @@ func TestRegisterAndLoginRoutes(t *testing.T) {
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusCreated || user.registerRequest.GetLogin() != "test_user" || !strings.Contains(response.Body.String(), `"user_id"`) {
-		t.Fatalf("register response %d %q", response.Code, response.Body.String())
+		t.Fatalf("ответ регистрации %d %q", response.Code, response.Body.String())
 	}
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"login":"test_user","password":"long-password"}`))
 	response = httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"access_token":"secret-token"`) {
-		t.Fatalf("login response %d %q", response.Code, response.Body.String())
+		t.Fatalf("ответ входа %d %q", response.Code, response.Body.String())
 	}
 }
 
@@ -92,7 +92,7 @@ func TestEmailVerificationRoutes(t *testing.T) {
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusAccepted || user.emailRequest.GetUserId() != "4f9a4c95-6144-4ec8-89e8-3866207d7561" {
-		t.Fatalf("request email response %d %q, request %#v", response.Code, response.Body.String(), user.emailRequest)
+		t.Fatalf("ответ запроса письма %d %q, запрос %#v", response.Code, response.Body.String(), user.emailRequest)
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/users/me/email", nil)
@@ -100,14 +100,14 @@ func TestEmailVerificationRoutes(t *testing.T) {
 	response = httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"status":"pending"`) {
-		t.Fatalf("email status response %d %q", response.Code, response.Body.String())
+		t.Fatalf("ответ о состоянии адреса %d %q", response.Code, response.Body.String())
 	}
 
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/email/confirm", strings.NewReader(`{"token":"verification-token"}`))
 	response = httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusNoContent || user.confirmRequest.GetToken() != "verification-token" {
-		t.Fatalf("confirm email response %d %q", response.Code, response.Body.String())
+		t.Fatalf("ответ подтверждения адреса %d %q", response.Code, response.Body.String())
 	}
 }
 
@@ -127,7 +127,7 @@ func TestSessionRoutesDelegateToAuth(t *testing.T) {
 		}
 	}
 	if auth.validateRequest.GetToken() != "session-token" || auth.revokeRequest.GetToken() != "session-token" {
-		t.Fatalf("session token was not delegated to Auth: validate %#v revoke %#v", auth.validateRequest, auth.revokeRequest)
+		t.Fatalf("токен сеанса не передан в Auth: проверка %#v, отзыв %#v", auth.validateRequest, auth.revokeRequest)
 	}
 }
 
@@ -144,7 +144,7 @@ func TestAuthenticatedSubrouterAddsUserIDToContext(t *testing.T) {
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "4f9a4c95-6144-4ec8-89e8-3866207d7561") {
-		t.Fatalf("protected response status %d body %q", response.Code, response.Body.String())
+		t.Fatalf("ответ защищённого маршрута: статус %d, тело %q", response.Code, response.Body.String())
 	}
 }
 
@@ -155,13 +155,13 @@ func TestMapsServiceErrorsAndRejectsBadJSON(t *testing.T) {
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusConflict {
-		t.Fatalf("duplicate registration status %d", response.Code)
+		t.Fatalf("статус повторной регистрации %d", response.Code)
 	}
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"email":`))
 	response = httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusBadRequest {
-		t.Fatalf("invalid JSON status %d", response.Code)
+		t.Fatalf("статус некорректного JSON %d", response.Code)
 	}
 }
 
@@ -169,13 +169,13 @@ func TestMiddlewareRecoversAndAddsRequestID(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	handler := Middleware(logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if RequestID(r.Context()) == "" {
-			t.Error("request ID missing from context")
+			t.Error("в контексте отсутствует идентификатор запроса")
 		}
-		panic("test panic")
+		panic("тестовая паника")
 	}))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/panic", nil))
 	if response.Code != http.StatusInternalServerError || response.Header().Get("X-Request-ID") == "" {
-		t.Fatalf("status %d, request ID %q", response.Code, response.Header().Get("X-Request-ID"))
+		t.Fatalf("статус %d, идентификатор запроса %q", response.Code, response.Header().Get("X-Request-ID"))
 	}
 }

@@ -25,13 +25,13 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if err := run(logger); err != nil {
-		logger.Error("auth service stopped", "error", err)
+		logger.Error("сервис Auth остановлен", "error", err)
 		os.Exit(1)
 	}
 }
 
 func run(logger *slog.Logger) error {
-	configPath := flag.String("config", "/etc/app/config.yaml", "path to YAML configuration")
+	configPath := flag.String("config", "/etc/app/config.yaml", "путь к конфигурации YAML")
 	flag.Parse()
 	cfg, err := config.Load(*configPath)
 	if err != nil {
@@ -41,19 +41,19 @@ func run(logger *slog.Logger) error {
 	client := redis.NewClient(&redis.Options{Addr: cfg.Redis.Address(), Password: cfg.Redis.Password, DB: cfg.Redis.DB})
 	defer func() {
 		if err := client.Close(); err != nil {
-			logger.Error("close Redis", "error", err)
+			logger.Error("закрытие соединения с Redis", "error", err)
 		}
 	}()
 	pingCtx, cancelPing := context.WithTimeout(context.Background(), 3*time.Second)
 	err = client.Ping(pingCtx).Err()
 	cancelPing()
 	if err != nil {
-		return fmt.Errorf("connect to Redis: %w", err)
+		return fmt.Errorf("подключение к Redis: %w", err)
 	}
 
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
-		return fmt.Errorf("listen for gRPC: %w", err)
+		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
 	server := grpc.NewServer()
 	health := healthcheck.RegisterGRPC(server)
@@ -63,7 +63,7 @@ func run(logger *slog.Logger) error {
 	defer stop()
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
-	logger.Info("auth service started", "address", listener.Addr().String())
+	logger.Info("сервис Auth запущен", "address", listener.Addr().String())
 
 	select {
 	case err := <-serveErr:

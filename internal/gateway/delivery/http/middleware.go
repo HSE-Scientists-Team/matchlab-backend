@@ -41,7 +41,7 @@ func Middleware(logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var random [16]byte
 		if _, err := rand.Read(random[:]); err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			http.Error(w, "внутренняя ошибка сервера", http.StatusInternalServerError)
 			return
 		}
 		id := hex.EncodeToString(random[:])
@@ -51,15 +51,15 @@ func Middleware(logger *slog.Logger, next http.Handler) http.Handler {
 		started := time.Now()
 		defer func() {
 			if recovered := recover(); recovered != nil {
-				logger.ErrorContext(r.Context(), "request panic", "request_id", id, "stack", string(debug.Stack()))
+				logger.ErrorContext(r.Context(), "паника при обработке запроса", "request_id", id, "stack", string(debug.Stack()))
 				if wrapped.status == 0 {
-					http.Error(wrapped, "internal server error", http.StatusInternalServerError)
+					http.Error(wrapped, "внутренняя ошибка сервера", http.StatusInternalServerError)
 				}
 			}
 			if wrapped.status == 0 {
 				wrapped.status = http.StatusOK
 			}
-			logger.InfoContext(r.Context(), "http request", "request_id", id, "method", r.Method, "path", r.URL.Path, "status", wrapped.status, "duration", time.Since(started))
+			logger.InfoContext(r.Context(), "HTTP-запрос", "request_id", id, "method", r.Method, "path", r.URL.Path, "status", wrapped.status, "duration", time.Since(started))
 		}()
 		next.ServeHTTP(wrapped, r)
 	})

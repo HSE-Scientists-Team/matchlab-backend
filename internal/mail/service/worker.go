@@ -41,13 +41,13 @@ func (w *Worker) Run(ctx context.Context) {
 			return
 		case <-cleanup.C:
 			if err := w.outbox.Cleanup(ctx, w.config.Retention); err != nil {
-				w.logger.ErrorContext(ctx, "clean email outbox", "error", err)
+				w.logger.ErrorContext(ctx, "очистка очереди писем", "error", err)
 			}
 		default:
 		}
 		processed, err := w.RunOnce(ctx)
 		if err != nil {
-			w.logger.ErrorContext(ctx, "process email outbox", "error", err)
+			w.logger.ErrorContext(ctx, "обработка очереди писем", "error", err)
 			processed = false
 		}
 		if processed {
@@ -75,7 +75,7 @@ func (w *Worker) RunOnce(ctx context.Context) (bool, error) {
 	if err != nil {
 		delay := retryDelay(job.Attempts)
 		markErr := w.outbox.MarkFailed(ctx, job.ID, job.Attempts, delay, err.Error())
-		w.logger.ErrorContext(ctx, "email delivery failed", "job_id", job.ID, "attempt", job.Attempts, "error", err)
+		w.logger.ErrorContext(ctx, "не удалось доставить письмо", "job_id", job.ID, "attempt", job.Attempts, "error", err)
 		if markErr != nil {
 			return true, markErr
 		}

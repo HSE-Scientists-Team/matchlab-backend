@@ -51,17 +51,17 @@ func TestMailMigrationsAndOutbox(t *testing.T) {
 		}
 		select {
 		case <-ctx.Done():
-			t.Fatalf("PostgreSQL did not become ready: %v", ctx.Err())
+			t.Fatalf("PostgreSQL не стал готовым: %v", ctx.Err())
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
 	version, err := Up(ctx, db)
 	if err != nil || version != 1 {
-		t.Fatalf("apply mail migration version %d: %v", version, err)
+		t.Fatalf("применение миграции Mail версии %d: %v", version, err)
 	}
 	version, err = Up(ctx, db)
 	if err != nil || version != 1 {
-		t.Fatalf("reapply mail migration version %d: %v", version, err)
+		t.Fatalf("повторное применение миграции Mail версии %d: %v", version, err)
 	}
 
 	outbox := repository.NewPostgres(db)
@@ -77,17 +77,17 @@ func TestMailMigrationsAndOutbox(t *testing.T) {
 		t.Fatal(err)
 	}
 	if count != 1 {
-		t.Fatalf("idempotent enqueue created %d rows, want 1", count)
+		t.Fatalf("идемпотентная постановка в очередь создала %d строк, ожидалась 1", count)
 	}
 	job, err := outbox.Claim(ctx, time.Minute)
 	if err != nil || job == nil || job.Attempts != 1 {
-		t.Fatalf("claim outbox job %#v: %v", job, err)
+		t.Fatalf("получение задания очереди %#v: %v", job, err)
 	}
 	if err := outbox.MarkSent(ctx, job.ID); err != nil {
 		t.Fatal(err)
 	}
 	var tokenIsErased bool
 	if err := db.QueryRowContext(ctx, `SELECT token_ciphertext IS NULL AND token_nonce IS NULL FROM mail.email_outbox WHERE id = $1`, job.ID).Scan(&tokenIsErased); err != nil || !tokenIsErased {
-		t.Fatalf("sent token payload was not erased: %v", err)
+		t.Fatalf("токен отправленного письма не удалён: %v", err)
 	}
 }

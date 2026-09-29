@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var ErrNotFound = errors.New("session not found")
+var ErrNotFound = errors.New("сеанс не найден")
 
 type SessionStore interface {
 	Save(context.Context, string, string, time.Duration) error

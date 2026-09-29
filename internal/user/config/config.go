@@ -46,29 +46,29 @@ func Load(path string) (Config, error) {
 	v.SetConfigFile(path)
 	var cfg Config
 	if err := v.ReadInConfig(); err != nil {
-		return cfg, fmt.Errorf("read config %q: %w", path, err)
+		return cfg, fmt.Errorf("чтение конфигурации %q: %w", path, err)
 	}
 	if v.InConfig("postgres.password") {
-		return cfg, fmt.Errorf("postgres.password must be supplied through POSTGRES_PASSWORD, not YAML")
+		return cfg, fmt.Errorf("postgres.password нужно передавать через POSTGRES_PASSWORD, а не через YAML")
 	}
 	if err := v.BindEnv("postgres.password", "POSTGRES_PASSWORD"); err != nil {
-		return cfg, fmt.Errorf("bind POSTGRES_PASSWORD: %w", err)
+		return cfg, fmt.Errorf("привязка POSTGRES_PASSWORD: %w", err)
 	}
 	if err := v.Unmarshal(&cfg); err != nil {
-		return cfg, fmt.Errorf("parse config %q: %w", path, err)
+		return cfg, fmt.Errorf("разбор конфигурации %q: %w", path, err)
 	}
 	cfg.DB.Password = v.GetString("postgres.password")
 	if strings.TrimSpace(cfg.GRPC.Host) == "" || cfg.GRPC.Port < 1 || cfg.GRPC.Port > 65535 {
-		return Config{}, fmt.Errorf("grpc.host and grpc.port (1-65535) are required")
+		return Config{}, fmt.Errorf("требуются grpc.host и grpc.port (1–65535)")
 	}
 	if strings.TrimSpace(cfg.Auth.Host) == "" || cfg.Auth.Port < 1 || cfg.Auth.Port > 65535 {
-		return Config{}, fmt.Errorf("auth.host and auth.port (1-65535) are required")
+		return Config{}, fmt.Errorf("требуются auth.host и auth.port (1–65535)")
 	}
 	if strings.TrimSpace(cfg.Mail.Host) == "" || cfg.Mail.Port < 1 || cfg.Mail.Port > 65535 {
-		return Config{}, fmt.Errorf("mail.host and mail.port (1-65535) are required")
+		return Config{}, fmt.Errorf("требуются mail.host и mail.port (1–65535)")
 	}
 	if strings.TrimSpace(cfg.DB.Host) == "" || cfg.DB.Port < 1 || cfg.DB.Port > 65535 || strings.TrimSpace(cfg.DB.Database) == "" || strings.TrimSpace(cfg.DB.User) == "" || cfg.DB.Password == "" {
-		return Config{}, fmt.Errorf("postgres.host, port, database, user, and POSTGRES_PASSWORD are required")
+		return Config{}, fmt.Errorf("требуются postgres.host, postgres.port, postgres.database, postgres.user и POSTGRES_PASSWORD")
 	}
 	if cfg.DB.SSLMode == "" {
 		cfg.DB.SSLMode = "disable"

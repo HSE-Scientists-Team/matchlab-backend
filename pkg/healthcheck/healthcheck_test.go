@@ -64,7 +64,7 @@ func TestRegisterGRPC(t *testing.T) {
 			t.Fatal(err)
 		}
 		if response.Status != want {
-			t.Fatalf("health status = %s, want %s", response.Status, want)
+			t.Fatalf("состояние здоровья = %s, ожидалось %s", response.Status, want)
 		}
 	}
 }

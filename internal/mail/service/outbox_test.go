@@ -62,7 +62,7 @@ func TestEnqueueEncryptsTokenAndWorkerDeliversIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	if store.recipient != "person@example.org" || len(store.ciphertext) == 0 || strings.Contains(string(store.ciphertext), token) {
-		t.Fatal("outbox did not normalize recipient or encrypt token")
+		t.Fatal("очередь не нормализовала получателя или не зашифровала токен")
 	}
 	job := &repository.Job{ID: 17, IdempotencyKey: store.key, Recipient: store.recipient, Ciphertext: store.ciphertext, Nonce: store.nonce, ExpiresAt: expiresAt, Attempts: 1}
 	store.job = job
@@ -70,7 +70,7 @@ func TestEnqueueEncryptsTokenAndWorkerDeliversIt(t *testing.T) {
 	worker := NewWorker(store, queue, sender, WorkerConfig{Lease: time.Minute, MaxAttempts: 8, PollInterval: time.Second, Retention: time.Hour}, slog.Default())
 	processed, err := worker.RunOnce(context.Background())
 	if err != nil || !processed || !store.sent || sender.token != token || sender.recipient != store.recipient {
-		t.Fatalf("worker delivery: processed %v sent %v recipient %q error %v", processed, store.sent, sender.recipient, err)
+		t.Fatalf("доставка обработчиком: обработано %v, отправлено %v, получатель %q, ошибка %v", processed, store.sent, sender.recipient, err)
 	}
 }
 
@@ -80,11 +80,11 @@ func TestQueueRejectsInvalidTokenAndExpiredRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := queue.EnqueueVerification(context.Background(), "a@example.org", "bad-token", time.Now().Add(time.Minute)); !errors.Is(err, ErrInvalidToken) {
-		t.Fatalf("invalid token error = %v", err)
+		t.Fatalf("ошибка некорректного токена = %v", err)
 	}
 	token := base64.RawURLEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef"))
 	if err := queue.EnqueueVerification(context.Background(), "a@example.org", token, time.Now().Add(-time.Minute)); !errors.Is(err, ErrInvalidExpiry) {
-		t.Fatalf("expired request error = %v", err)
+		t.Fatalf("ошибка просроченного запроса = %v", err)
 	}
 }
 
@@ -100,10 +100,10 @@ func TestWorkerRetriesSMTPFailure(t *testing.T) {
 		return fmt.Sprintf("%x", key[:])
 	}()
 	store.job = &repository.Job{ID: 18, IdempotencyKey: store.key, Recipient: "a@example.org", Ciphertext: encryptForTest(t, queue, store.key, token), Nonce: testNonce(t, queue), ExpiresAt: time.Now().Add(time.Hour), Attempts: 1}
-	worker := NewWorker(store, queue, &fakeSender{err: errors.New("SMTP offline")}, WorkerConfig{MaxAttempts: 8}, slog.Default())
+	worker := NewWorker(store, queue, &fakeSender{err: errors.New("SMTP недоступен")}, WorkerConfig{MaxAttempts: 8}, slog.Default())
 	processed, err := worker.RunOnce(context.Background())
 	if err != nil || !processed || !store.failed || store.sent {
-		t.Fatalf("worker retry: processed %v failed %v sent %v error %v", processed, store.failed, store.sent, err)
+		t.Fatalf("повторная попытка обработчика: обработано %v, ошибка %v, отправлено %v, результат %v", processed, store.failed, store.sent, err)
 	}
 }
 

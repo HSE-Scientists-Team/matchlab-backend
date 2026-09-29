@@ -11,12 +11,12 @@ import (
 )
 
 var (
-	ErrLoginTaken           = errors.New("login is already registered")
-	ErrNotFound             = errors.New("user not found")
-	ErrEmailAlreadyVerified = errors.New("email is already verified for this user")
-	ErrVerificationNotFound = errors.New("email verification request not found")
-	ErrVerificationExpired  = errors.New("email verification request expired")
-	ErrEmailClaimed         = errors.New("email is already verified by another user")
+	ErrLoginTaken           = errors.New("логин уже зарегистрирован")
+	ErrNotFound             = errors.New("пользователь не найден")
+	ErrEmailAlreadyVerified = errors.New("адрес электронной почты уже подтверждён для этого пользователя")
+	ErrVerificationNotFound = errors.New("запрос на подтверждение адреса не найден")
+	ErrVerificationExpired  = errors.New("срок действия запроса на подтверждение адреса истёк")
+	ErrEmailClaimed         = errors.New("адрес электронной почты уже подтверждён другим пользователем")
 )
 
 type Account struct {
@@ -57,7 +57,7 @@ func (p *Postgres) Create(ctx context.Context, login, passwordHash string) (stri
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return "", ErrLoginTaken
 		}
-		return "", fmt.Errorf("insert account: %w", err)
+		return "", fmt.Errorf("создание учётной записи: %w", err)
 	}
 	return id, nil
 }
@@ -72,7 +72,7 @@ func (p *Postgres) FindByLogin(ctx context.Context, login string) (Account, erro
 		return Account{}, ErrNotFound
 	}
 	if err != nil {
-		return Account{}, fmt.Errorf("select account by login: %w", err)
+		return Account{}, fmt.Errorf("поиск учётной записи по логину: %w", err)
 	}
 	return account, nil
 }
@@ -80,7 +80,7 @@ func (p *Postgres) FindByLogin(ctx context.Context, login string) (Account, erro
 func (p *Postgres) MarkLogin(ctx context.Context, userID string) error {
 	_, err := p.db.ExecContext(ctx, `UPDATE users.user_account SET last_login_at = now(), updated_at = now() WHERE id = $1`, userID)
 	if err != nil {
-		return fmt.Errorf("update last login: %w", err)
+		return fmt.Errorf("обновление времени последнего входа: %w", err)
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func (p *Postgres) SaveEmailVerification(ctx context.Context, userID, email, tok
 			WHERE user_id = $1 AND lower(email) = $2
 		)`, userID, email).Scan(&alreadyVerified)
 	if err != nil {
-		return fmt.Errorf("check current verified email: %w", err)
+		return fmt.Errorf("проверка текущего подтверждённого адреса: %w", err)
 	}
 	if alreadyVerified {
 		return ErrEmailAlreadyVerified
@@ -111,7 +111,7 @@ func (p *Postgres) SaveEmailVerification(ctx context.Context, userID, email, tok
 		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
 			return ErrNotFound
 		}
-		return fmt.Errorf("save email verification request: %w", err)
+		return fmt.Errorf("сохранение запроса на подтверждение адреса: %w", err)
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (p *Postgres) SaveEmailVerification(ctx context.Context, userID, email, tok
 func (p *Postgres) ConfirmEmail(ctx context.Context, tokenHash string, now time.Time) error {
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin email confirmation: %w", err)
+		return fmt.Errorf("начало подтверждения адреса: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
@@ -134,7 +134,7 @@ func (p *Postgres) ConfirmEmail(ctx context.Context, tokenHash string, now time.
 		return ErrVerificationNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("find email verification request: %w", err)
+		return fmt.Errorf("поиск запроса на подтверждение адреса: %w", err)
 	}
 
 	if !expiresAt.After(now) {
@@ -151,13 +151,13 @@ func (p *Postgres) ConfirmEmail(ctx context.Context, tokenHash string, now time.
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return ErrEmailClaimed
 		}
-		return fmt.Errorf("assign verified email: %w", err)
+		return fmt.Errorf("закрепление подтверждённого адреса: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM users.email_verification_request WHERE user_id = $1`, userID); err != nil {
-		return fmt.Errorf("consume email verification request: %w", err)
+		return fmt.Errorf("использование запроса на подтверждение адреса: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit email confirmation: %w", err)
+		return fmt.Errorf("фиксация подтверждения адреса: %w", err)
 	}
 	return nil
 }
@@ -178,7 +178,7 @@ func (p *Postgres) GetEmailStatus(ctx context.Context, userID string) (EmailStat
 		return EmailStatus{}, ErrNotFound
 	}
 	if err != nil {
-		return EmailStatus{}, fmt.Errorf("get email status: %w", err)
+		return EmailStatus{}, fmt.Errorf("получение состояния адреса: %w", err)
 	}
 	return result, nil
 }

@@ -26,13 +26,13 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if err := run(logger); err != nil {
-		logger.Error("gateway stopped", "error", err)
+		logger.Error("Gateway остановлен", "error", err)
 		os.Exit(1)
 	}
 }
 
 func run(logger *slog.Logger) error {
-	configPath := flag.String("config", "/etc/app/config.yaml", "path to YAML configuration")
+	configPath := flag.String("config", "/etc/app/config.yaml", "путь к конфигурации YAML")
 	flag.Parse()
 	cfg, err := config.Load(*configPath)
 	if err != nil {
@@ -44,7 +44,7 @@ func run(logger *slog.Logger) error {
 		defer cancel()
 		conn, err := grpc.DialContext(ctx, address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err != nil {
-			return nil, fmt.Errorf("connect to %s: %w", address, err)
+			return nil, fmt.Errorf("подключение к %s: %w", address, err)
 		}
 		return conn, nil
 	}
@@ -54,7 +54,7 @@ func run(logger *slog.Logger) error {
 	}
 	defer func() {
 		if err := authConn.Close(); err != nil {
-			logger.Error("close auth connection", "error", err)
+			logger.Error("закрытие соединения с Auth", "error", err)
 		}
 	}()
 	userConn, err := dial(cfg.User.Address())
@@ -63,7 +63,7 @@ func run(logger *slog.Logger) error {
 	}
 	defer func() {
 		if err := userConn.Close(); err != nil {
-			logger.Error("close user connection", "error", err)
+			logger.Error("закрытие соединения с User", "error", err)
 		}
 	}()
 
@@ -85,7 +85,7 @@ func run(logger *slog.Logger) error {
 	defer stop()
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
-	logger.Info("gateway started", "address", listener.Addr().String())
+	logger.Info("Gateway запущен", "address", listener.Addr().String())
 	select {
 	case err := <-serveErr:
 		if errors.Is(err, http.ErrServerClosed) {
@@ -93,7 +93,7 @@ func run(logger *slog.Logger) error {
 		}
 		return err
 	case <-ctx.Done():
-		logger.Info("gateway shutting down")
+		logger.Info("Gateway завершает работу")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {

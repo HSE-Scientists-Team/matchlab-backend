@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	ErrInvalidEmail  = errors.New("invalid recipient email")
-	ErrInvalidToken  = errors.New("invalid verification token")
-	ErrInvalidExpiry = errors.New("verification token expiry is invalid")
+	ErrInvalidEmail  = errors.New("недействительный адрес получателя")
+	ErrInvalidToken  = errors.New("недействительный токен подтверждения")
+	ErrInvalidExpiry = errors.New("недействительный срок действия токена подтверждения")
 )
 
 type Queue struct {
@@ -33,11 +33,11 @@ type Queue struct {
 func NewQueue(outbox repository.Outbox, encryptionKey []byte) (*Queue, error) {
 	block, err := aes.NewCipher(encryptionKey)
 	if err != nil {
-		return nil, fmt.Errorf("create email token cipher: %w", err)
+		return nil, fmt.Errorf("создание шифра для токена подтверждения: %w", err)
 	}
 	aead, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, fmt.Errorf("create email token authenticator: %w", err)
+		return nil, fmt.Errorf("создание аутентификатора токена подтверждения: %w", err)
 	}
 	return &Queue{outbox: outbox, aead: aead, now: time.Now}, nil
 }
@@ -59,11 +59,11 @@ func (q *Queue) EnqueueVerification(ctx context.Context, recipient, token string
 	keyHash := messageKey(recipient, token)
 	nonce := make([]byte, q.aead.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
-		return fmt.Errorf("create email token nonce: %w", err)
+		return fmt.Errorf("создание случайного значения для токена подтверждения: %w", err)
 	}
 	ciphertext := q.aead.Seal(nil, nonce, []byte(token), keyHash[:])
 	if err := q.outbox.Enqueue(ctx, hex.EncodeToString(keyHash[:]), recipient, ciphertext, nonce, expiresAt); err != nil {
-		return fmt.Errorf("persist verification email: %w", err)
+		return fmt.Errorf("сохранение письма с подтверждением: %w", err)
 	}
 	return nil
 }
@@ -71,14 +71,14 @@ func (q *Queue) EnqueueVerification(ctx context.Context, recipient, token string
 func (q *Queue) decrypt(tokenHash, recipient string, ciphertext, nonce []byte) (string, error) {
 	keyHash, err := hex.DecodeString(tokenHash)
 	if err != nil || len(keyHash) != sha256.Size {
-		return "", fmt.Errorf("invalid outbox idempotency key")
+		return "", fmt.Errorf("недействительный ключ идемпотентности очереди")
 	}
 	plaintext, err := q.aead.Open(nil, nonce, ciphertext, keyHash)
 	if err != nil {
-		return "", fmt.Errorf("decrypt verification token: %w", err)
+		return "", fmt.Errorf("расшифровка токена подтверждения: %w", err)
 	}
 	if expected := messageKey(recipient, string(plaintext)); !bytes.Equal(keyHash, expected[:]) {
-		return "", fmt.Errorf("verification token does not match outbox recipient")
+		return "", fmt.Errorf("токен подтверждения не соответствует получателю письма")
 	}
 	return string(plaintext), nil
 }

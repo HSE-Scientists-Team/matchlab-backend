@@ -2,7 +2,7 @@ package migrations
 
 import "embed"
 
-// Files contains the migrations owned by the user service.
+// Files содержит миграции, принадлежащие сервису User.
 //
 //go:embed *.sql
 var Files embed.FS

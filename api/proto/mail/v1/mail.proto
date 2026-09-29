@@ -5,7 +5,7 @@ package matchlab.mail.v1;
 option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/mail/v1;mailv1";
 
 service EmailService {
-  // Enqueue is idempotent for a given token and returns after durable storage.
+  // Постановка в очередь идемпотентна для одного токена; ответ возвращается после сохранения.
   rpc SendVerificationEmail(SendVerificationEmailRequest) returns (SendVerificationEmailResponse);
 }
 

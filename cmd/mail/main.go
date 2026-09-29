@@ -28,13 +28,13 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if err := run(logger); err != nil {
-		logger.Error("mail service stopped", "error", err)
+		logger.Error("сервис Mail остановлен", "error", err)
 		os.Exit(1)
 	}
 }
 
 func run(logger *slog.Logger) error {
-	configPath := flag.String("config", "/etc/app/config.yaml", "path to YAML configuration")
+	configPath := flag.String("config", "/etc/app/config.yaml", "путь к конфигурации YAML")
 	flag.Parse()
 	cfg, err := mailconfig.Load(*configPath)
 	if err != nil {
@@ -42,11 +42,11 @@ func run(logger *slog.Logger) error {
 	}
 	db, err := sql.Open("pgx", cfg.DB.URL())
 	if err != nil {
-		return fmt.Errorf("open PostgreSQL: %w", err)
+		return fmt.Errorf("открытие соединения с PostgreSQL: %w", err)
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			logger.Error("close PostgreSQL", "error", err)
+			logger.Error("закрытие соединения с PostgreSQL", "error", err)
 		}
 	}()
 	db.SetMaxOpenConns(10)
@@ -55,14 +55,14 @@ func run(logger *slog.Logger) error {
 	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
 	if err := db.PingContext(startupCtx); err != nil {
 		cancelStartup()
-		return fmt.Errorf("connect to PostgreSQL: %w", err)
+		return fmt.Errorf("подключение к PostgreSQL: %w", err)
 	}
 	version, err := migrations.Up(startupCtx, db)
 	cancelStartup()
 	if err != nil {
 		return err
 	}
-	logger.Info("mail database ready", "migration_version", version)
+	logger.Info("база Mail готова", "migration_version", version)
 
 	queueRepo := repository.NewPostgres(db)
 	queue, err := service.NewQueue(queueRepo, cfg.CipherKey)
@@ -78,7 +78,7 @@ func run(logger *slog.Logger) error {
 	}, logger)
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
-		return fmt.Errorf("listen for gRPC: %w", err)
+		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
 	server := grpc.NewServer()
 	health := healthcheck.RegisterGRPC(server)
@@ -89,7 +89,7 @@ func run(logger *slog.Logger) error {
 	workerDone := make(chan struct{})
 	go func() { serveErr <- server.Serve(listener) }()
 	go func() { worker.Run(ctx); close(workerDone) }()
-	logger.Info("mail service started", "address", listener.Addr().String())
+	logger.Info("сервис Mail запущен", "address", listener.Addr().String())
 	select {
 	case err := <-serveErr:
 		if errors.Is(err, grpc.ErrServerStopped) {

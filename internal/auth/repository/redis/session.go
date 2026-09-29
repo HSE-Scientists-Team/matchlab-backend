@@ -44,7 +44,7 @@ func sessionKey(token string) string {
 
 func (s *SessionStore) Save(ctx context.Context, token, userID string, ttl time.Duration) error {
 	if err := s.kv.Set(ctx, sessionKey(token), userID, ttl); err != nil {
-		return fmt.Errorf("save session: %w", err)
+		return fmt.Errorf("сохранение сеанса: %w", err)
 	}
 	return nil
 }
@@ -55,14 +55,14 @@ func (s *SessionStore) Find(ctx context.Context, token string) (string, error) {
 		return "", repository.ErrNotFound
 	}
 	if err != nil {
-		return "", fmt.Errorf("find session: %w", err)
+		return "", fmt.Errorf("поиск сеанса: %w", err)
 	}
 	return userID, nil
 }
 
 func (s *SessionStore) Delete(ctx context.Context, token string) error {
 	if err := s.kv.Del(ctx, sessionKey(token)); err != nil {
-		return fmt.Errorf("delete session: %w", err)
+		return fmt.Errorf("удаление сеанса: %w", err)
 	}
 	return nil
 }

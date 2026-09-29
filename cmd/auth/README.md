@@ -1,18 +1,12 @@
-# Auth service
+# Сервис Auth
 
-Auth owns short-lived login sessions in Redis. It has no PostgreSQL connection
-or SQL migrations. User accounts and password hashes belong to the user service.
-Auth exposes an internal gRPC API; the gateway validates/revokes sessions and
-the user service creates a session after a successful login.
+Auth хранит краткосрочные сеансы входа в Redis. Сервис не подключается к PostgreSQL и не выполняет SQL-миграции. Учётные записи и хеши паролей принадлежат сервису User. Auth предоставляет внутренний gRPC API: Gateway проверяет и отзывает сеансы, а User создаёт сеанс после успешного входа.
 
-## Configuration and local run
+## Конфигурация и локальный запуск
 
-The service loads YAML from `/etc/app/config.yaml` by default. Override the path
-with `-config`. Redis host, port, and database are nonsecret YAML settings; the
-password must come from `REDIS_PASSWORD`.
+По умолчанию сервис читает YAML из `/etc/app/config.yaml`. Путь можно изменить флагом `-config`. Хост, порт и номер базы Redis задаются в YAML; пароль передаётся через `REDIS_PASSWORD`.
 
-Run the entire project with `docker compose up --build` from the repository
-root. To run Auth directly while developing, start Redis and then Auth:
+Чтобы запустить весь проект, выполните `docker compose up --build` в корне репозитория. Для отдельного запуска Auth сначала запустите Redis:
 
 ```sh
 docker compose up -d redis
@@ -20,20 +14,12 @@ export REDIS_PASSWORD=matchlab_redis_local
 go run ./cmd/auth -config cmd/auth/config.example.yaml
 ```
 
-The local Compose password is for development only. Redis has no persistent
-volume: restarting or recreating it clears sessions and requires users to log
-in again. Production persistence is an infrastructure decision.
+Пароль в Compose предназначен только для разработки. У Redis нет постоянного тома: после перезапуска или пересоздания контейнера сеансы удаляются, и пользователям нужно войти повторно. Сохранение данных в рабочем окружении настраивается в инфраструктурном репозитории.
 
 ## gRPC API
 
-- `CreateSession(user_id)` creates a cryptographically random bearer token.
-- `ValidateSession(token)` returns the associated user ID or `Unauthenticated`.
-- `RevokeSession(token)` removes a session; revoking an absent valid token is
-  idempotent.
+- `CreateSession(user_id)` создаёт криптографически случайный токен доступа.
+- `ValidateSession(token)` возвращает идентификатор пользователя или ошибку `Unauthenticated`.
+- `RevokeSession(token)` удаляет сеанс; отзыв отсутствующего корректного токена идемпотентен.
 
-Only a SHA-256 hash of a token is used as the Redis key. Tokens and the Redis
-password are never logged. Sessions expire after 24 hours. Run
-`go test ./internal/auth/...` for the service packages. The integration test
-uses Testcontainers and a real Redis image: `go test -tags=integration
-./internal/auth/repository/redis`. Build the image from the repository root
-with `docker build -f cmd/auth/Dockerfile -t auth:local .`.
+В качестве ключа Redis используется только SHA-256-хеш токена. Токены и пароль Redis не записываются в журнал. Срок действия сеанса — 24 часа. Проверить пакеты сервиса можно командой `go test ./internal/auth/...`. Интеграционный тест использует Testcontainers и настоящий образ Redis: `go test -tags=integration ./internal/auth/repository/redis`. Образ сервиса собирается из корня репозитория командой `docker build -f cmd/auth/Dockerfile -t auth:local .`.

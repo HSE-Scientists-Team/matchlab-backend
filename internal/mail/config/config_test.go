@@ -22,10 +22,10 @@ func TestLoadValidatesSecretsAndAppliesWorkerDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(cfg.CipherKey) != 32 || cfg.DB.Password != "db-secret" || cfg.SMTP.Password != "smtp-secret" {
-		t.Fatalf("secrets were not loaded: %#v", cfg)
+		t.Fatalf("секреты не загружены: %#v", cfg)
 	}
 	if cfg.Worker.PollInterval != 2*time.Second || cfg.Worker.Lease != time.Minute || cfg.Worker.MaxAttempts != 8 || cfg.Worker.Retention != 7*24*time.Hour {
-		t.Fatalf("unexpected worker settings: %#v", cfg.Worker)
+		t.Fatalf("неожиданные настройки обработчика: %#v", cfg.Worker)
 	}
 }
 
@@ -36,6 +36,6 @@ func TestLoadRejectsEncryptionKeyFromYAML(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Load(path); err == nil {
-		t.Fatal("accepted encryption key from YAML")
+		t.Fatal("ключ шифрования был принят из YAML")
 	}
 }

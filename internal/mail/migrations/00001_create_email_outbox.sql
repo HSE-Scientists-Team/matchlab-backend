@@ -34,5 +34,5 @@ CREATE INDEX email_outbox_sent_cleanup_idx
     WHERE status IN ('sent', 'dead');
 
 -- +goose Down
--- Pending and dead-lettered emails are permanently discarded.
+-- Ожидающие и окончательно неудачные письма удаляются безвозвратно.
 DROP TABLE IF EXISTS mail.email_outbox;

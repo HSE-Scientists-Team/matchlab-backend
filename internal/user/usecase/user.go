@@ -18,13 +18,13 @@ import (
 )
 
 var (
-	ErrInvalidLogin        = errors.New("login must contain 1 to 32 letters, digits, underscore, dot, or hyphen")
-	ErrInvalidEmail        = errors.New("invalid email")
-	ErrInvalidPassword     = errors.New("password must contain between 8 and 72 bytes")
-	ErrInvalidCredentials  = errors.New("invalid login or password")
-	ErrAccountInactive     = errors.New("account is not active")
-	ErrInvalidVerification = errors.New("invalid email verification token")
-	ErrEmailDelivery       = errors.New("could not send email verification")
+	ErrInvalidLogin        = errors.New("логин должен содержать от 1 до 32 букв, цифр или символов подчёркивания, точки либо дефиса")
+	ErrInvalidEmail        = errors.New("недействительный адрес электронной почты")
+	ErrInvalidPassword     = errors.New("пароль должен содержать от 8 до 72 байт")
+	ErrInvalidCredentials  = errors.New("неверный логин или пароль")
+	ErrAccountInactive     = errors.New("учётная запись неактивна")
+	ErrInvalidVerification = errors.New("недействительный токен подтверждения адреса")
+	ErrEmailDelivery       = errors.New("не удалось отправить письмо с подтверждением")
 )
 
 const EmailVerificationTTL = 30 * time.Minute
@@ -60,7 +60,7 @@ func (s *Service) Register(ctx context.Context, login, password string) (string,
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", fmt.Errorf("hash password: %w", err)
+		return "", fmt.Errorf("хеширование пароля: %w", err)
 	}
 	return s.users.Create(ctx, login, string(hash))
 }
@@ -88,7 +88,7 @@ func (s *Service) Login(ctx context.Context, login, password string) (string, st
 	}
 	token, err := s.sessions.Create(ctx, account.ID)
 	if err != nil {
-		return "", "", fmt.Errorf("create login session: %w", err)
+		return "", "", fmt.Errorf("создание сеанса входа: %w", err)
 	}
 	return account.ID, token, nil
 }
@@ -103,7 +103,7 @@ func (s *Service) RequestEmailVerification(ctx context.Context, userID, email st
 	}
 	var random [32]byte
 	if _, err := rand.Read(random[:]); err != nil {
-		return fmt.Errorf("generate email verification token: %w", err)
+		return fmt.Errorf("создание токена подтверждения адреса: %w", err)
 	}
 	token := base64.RawURLEncoding.EncodeToString(random[:])
 	hash := sha256.Sum256([]byte(token))

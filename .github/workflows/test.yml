@@ -1,4 +1,4 @@
-name: Tests and coverage
+name: Тесты и покрытие
 
 on:
   push:
@@ -16,11 +16,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Test all packages and report service coverage
+      - name: Проверить все пакеты и покрытие сервисов
         run: bash scripts/ci/test-coverage.sh
-      - name: Run integration tests with Redis and PostgreSQL containers
+      - name: Запустить интеграционные тесты с контейнерами Redis и PostgreSQL
         run: go test -tags=integration ./internal/auth/repository/redis ./internal/user/migrations ./internal/mail/migrations ./internal/mail/smtp
-      - name: Upload coverage profile
+      - name: Загрузить отчёт о покрытии
         uses: actions/upload-artifact@v4
         with:
           name: internal-coverage

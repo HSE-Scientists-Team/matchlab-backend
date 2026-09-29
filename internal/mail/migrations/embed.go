@@ -2,7 +2,7 @@ package migrations
 
 import "embed"
 
-// Files embeds only migrations owned by the mail service.
+// Files содержит только миграции, принадлежащие сервису Mail.
 //
 //go:embed *.sql
 var Files embed.FS

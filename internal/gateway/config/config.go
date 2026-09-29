@@ -27,10 +27,10 @@ func Load(path string) (Config, error) {
 	v.SetConfigFile(path)
 	var cfg Config
 	if err := v.ReadInConfig(); err != nil {
-		return cfg, fmt.Errorf("read config %q: %w", path, err)
+		return cfg, fmt.Errorf("чтение конфигурации %q: %w", path, err)
 	}
 	if err := v.Unmarshal(&cfg); err != nil {
-		return cfg, fmt.Errorf("parse config %q: %w", path, err)
+		return cfg, fmt.Errorf("разбор конфигурации %q: %w", path, err)
 	}
 	if err := validateEndpoint("http", cfg.HTTP); err != nil {
 		return Config{}, err
@@ -46,7 +46,7 @@ func Load(path string) (Config, error) {
 
 func validateEndpoint(name string, endpoint Endpoint) error {
 	if strings.TrimSpace(endpoint.Host) == "" || endpoint.Port < 1 || endpoint.Port > 65535 {
-		return fmt.Errorf("%s.host and %s.port (1-65535) are required", name, name)
+		return fmt.Errorf("требуются %s.host и %s.port (1–65535)", name, name)
 	}
 	return nil
 }

@@ -38,7 +38,7 @@ func (p *Postgres) Enqueue(ctx context.Context, key, recipient string, ciphertex
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (idempotency_key) DO NOTHING`, key, recipient, ciphertext, nonce, expiresAt)
 	if err != nil {
-		return fmt.Errorf("enqueue email: %w", err)
+		return fmt.Errorf("постановка письма в очередь: %w", err)
 	}
 	return nil
 }
@@ -46,7 +46,7 @@ func (p *Postgres) Enqueue(ctx context.Context, key, recipient string, ciphertex
 func (p *Postgres) Claim(ctx context.Context, lease time.Duration) (*Job, error) {
 	tx, err := p.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("begin outbox claim: %w", err)
+		return nil, fmt.Errorf("начало получения задания из очереди: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, `
@@ -54,7 +54,7 @@ func (p *Postgres) Claim(ctx context.Context, lease time.Duration) (*Job, error)
 		SET status = 'dead', token_ciphertext = NULL, token_nonce = NULL,
 		    lease_until = NULL, last_error = 'verification token expired'
 		WHERE expires_at <= now() AND status IN ('pending', 'sending')`); err != nil {
-		return nil, fmt.Errorf("expire outbox jobs: %w", err)
+		return nil, fmt.Errorf("пометка просроченных заданий очереди: %w", err)
 	}
 	var job Job
 	err = tx.QueryRowContext(ctx, `
@@ -76,15 +76,15 @@ func (p *Postgres) Claim(ctx context.Context, lease time.Duration) (*Job, error)
 		Scan(&job.ID, &job.IdempotencyKey, &job.Recipient, &job.Ciphertext, &job.Nonce, &job.ExpiresAt, &job.Attempts)
 	if errors.Is(err, sql.ErrNoRows) {
 		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("commit empty outbox claim: %w", err)
+			return nil, fmt.Errorf("фиксация пустого получения из очереди: %w", err)
 		}
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("claim next email: %w", err)
+		return nil, fmt.Errorf("получение следующего письма: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit outbox claim: %w", err)
+		return nil, fmt.Errorf("фиксация получения задания из очереди: %w", err)
 	}
 	return &job, nil
 }
@@ -96,7 +96,7 @@ func (p *Postgres) MarkSent(ctx context.Context, id int64) error {
 		    token_ciphertext = NULL, token_nonce = NULL, last_error = NULL
 		WHERE id = $1`, id)
 	if err != nil {
-		return fmt.Errorf("mark email sent: %w", err)
+		return fmt.Errorf("пометка письма как отправленного: %w", err)
 	}
 	return nil
 }
@@ -113,7 +113,7 @@ func (p *Postgres) MarkFailed(ctx context.Context, id int64, attempts int, retry
 		    token_nonce = CASE WHEN attempts >= $2 THEN NULL ELSE token_nonce END
 		WHERE id = $1 AND status = 'sending'`, id, attempts, retryAfter.Seconds(), message)
 	if err != nil {
-		return fmt.Errorf("mark email failed: %w", err)
+		return fmt.Errorf("пометка ошибки отправки письма: %w", err)
 	}
 	return nil
 }
@@ -122,7 +122,7 @@ func (p *Postgres) Cleanup(ctx context.Context, retention time.Duration) error {
 	if _, err := p.db.ExecContext(ctx, `
 		DELETE FROM mail.email_outbox
 		WHERE status IN ('sent', 'dead') AND created_at < now() - $1 * interval '1 second'`, retention.Seconds()); err != nil {
-		return fmt.Errorf("clean outbox history: %w", err)
+		return fmt.Errorf("очистка истории очереди писем: %w", err)
 	}
 	return nil
 }

@@ -1,46 +1,24 @@
-# Mail service
+# Сервис Mail
 
-Mail is an internal gRPC service for sending verification emails. User owns
-verification state and tokens; Mail owns SMTP delivery and a durable PostgreSQL
-outbox in the `mail` schema. Enqueue returns only after the job is committed.
+Mail — внутренний gRPC-сервис для отправки писем с подтверждением адреса. User владеет состоянием подтверждения и токенами; Mail отвечает за доставку через SMTP и надёжную очередь в схеме PostgreSQL `mail`. Запрос на постановку письма в очередь возвращается только после фиксации задания в базе.
 
-## Delivery behavior
+## Доставка
 
-- Verification tokens are encrypted with AES-256-GCM before they enter the
-  outbox. The encryption key is a required 32-byte hex value in
-  `MAIL_ENCRYPTION_KEY`; never put it in YAML. Keep this key stable while jobs
-  are queued. Before rotating it, drain the outbox or re-encrypt queued jobs.
-- Workers claim jobs with row locks and leases, so multiple replicas can
-  process the queue. Failed SMTP deliveries retry with exponential backoff,
-  up to the configured limit and only while the verification token is valid.
-- Delivery is at-least-once. If SMTP accepts a message but the connection fails
-  before Mail records success, a retry can send a duplicate.
-- Sent and permanently failed jobs have their encrypted token erased. The
-  remaining delivery history is removed after the configured retention period.
+- Токены подтверждения шифруются AES-256-GCM до записи в очередь. Ключ шифрования — обязательное 32-байтовое значение в шестнадцатеричном формате в `MAIL_ENCRYPTION_KEY`; его нельзя хранить в YAML. Пока в очереди есть задания, ключ должен оставаться неизменным. Перед его заменой обработайте очередь или повторно зашифруйте задания.
+- Обработчики получают задания с блокировкой строк и ограниченным сроком владения, поэтому очередь могут обрабатывать несколько реплик. После ошибки SMTP доставка повторяется с экспоненциальной задержкой, пока не достигнут заданный предел попыток и токен ещё действителен.
+- Гарантия доставки — не менее одного раза. Если SMTP принял письмо, но соединение прервалось до записи результата, повторная попытка может отправить его ещё раз.
+- У отправленных и окончательно неудачных заданий зашифрованный токен удаляется. Оставшаяся история доставки удаляется по истечении заданного срока хранения.
 
-Production SMTP settings live in `config.yaml`: host, port, sender address,
-verification URL, and `require_starttls: true`. Credentials come from
-`SMTP_USERNAME` and `SMTP_PASSWORD`; authenticated SMTP requires STARTTLS. Use a
-trusted SMTP provider and a real HTTPS verification URL. PostgreSQL password is
-`POSTGRES_PASSWORD`.
+Настройки SMTP для рабочего окружения находятся в `config.yaml`: хост, порт, адрес отправителя, URL подтверждения и `require_starttls: true`. Учётные данные передаются через `SMTP_USERNAME` и `SMTP_PASSWORD`; для SMTP с аутентификацией требуется STARTTLS. Используйте доверенного SMTP-провайдера и настоящий HTTPS-адрес подтверждения. Пароль PostgreSQL передаётся через `POSTGRES_PASSWORD`.
 
-## Local development
+## Локальная разработка
 
-Run the full project with `docker compose up --build`. Compose starts Mailpit as
-the SMTP server. Open `http://localhost:8025` to inspect messages. The local
-encryption key and SMTP setup are development-only.
+Запустите весь проект командой `docker compose up --build`. Compose поднимет Mailpit как SMTP-сервер. Письма доступны по адресу `http://localhost:8025`. Локальный ключ шифрования и настройки SMTP предназначены только для разработки.
 
-The verification URL is intended for the product frontend. For API-only local
-testing, copy the `token` query value from the Mailpit message and send it to
-`POST /api/v1/auth/email/confirm`.
+URL подтверждения предназначен для интерфейса продукта. Для локальной проверки только через API скопируйте значение параметра `token` из письма в Mailpit и отправьте его в `POST /api/v1/auth/email/confirm`.
 
 ## API
 
-`SendVerificationEmail(recipient, token, expires_at)` stores an idempotent job
-and returns once PostgreSQL has committed it. The SMTP worker builds the
-message from the configured sender and verification URL. Mail has no public
-HTTP endpoint and does not read User's tables.
+`SendVerificationEmail(recipient, token, expires_at)` сохраняет идемпотентное задание и возвращается после фиксации транзакции PostgreSQL. SMTP-обработчик формирует письмо из настроенных адреса отправителя и URL подтверждения. У Mail нет публичного HTTP-маршрута; таблицы User он не читает.
 
-The service applies its embedded Goose migration at startup. Run
-`go test ./internal/mail/...`; container-backed PostgreSQL and SMTP checks run
-with `go test -tags=integration ./internal/mail/migrations ./internal/mail/smtp`.
+При запуске сервис применяет встроенную миграцию Goose. Проверка: `go test ./internal/mail/...`. Интеграционные проверки с PostgreSQL и SMTP в контейнерах: `go test -tags=integration ./internal/mail/migrations ./internal/mail/smtp`.

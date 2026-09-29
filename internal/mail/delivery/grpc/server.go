@@ -22,9 +22,9 @@ func (s *Server) SendVerificationEmail(ctx context.Context, req *mailv1.SendVeri
 	if err := s.queue.EnqueueVerification(ctx, req.GetRecipient(), req.GetToken(), time.Unix(req.GetExpiresAtUnix(), 0)); err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidEmail), errors.Is(err, service.ErrInvalidToken), errors.Is(err, service.ErrInvalidExpiry):
-			return nil, status.Error(codes.InvalidArgument, "invalid email verification message")
+			return nil, status.Error(codes.InvalidArgument, "некорректное письмо для подтверждения адреса")
 		default:
-			return nil, status.Error(codes.Unavailable, "could not queue email")
+			return nil, status.Error(codes.Unavailable, "не удалось поставить письмо в очередь")
 		}
 	}
 	return &mailv1.SendVerificationEmailResponse{Queued: true}, nil
