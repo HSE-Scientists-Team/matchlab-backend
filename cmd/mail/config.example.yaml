@@ -2,8 +2,8 @@ grpc:
   host: 0.0.0.0
   port: 8083
 smtp:
-  host: smtp-relay
+  host: connect.smtp.bz
   port: 587
-  from: no-reply@example.com
-  verification_url: https://matchlab.example.com/verify-email
+  from: noreply@matchlab.space
+  verification_url: https://matchlab.space/verify-email
   require_starttls: true
