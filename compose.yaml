@@ -1,0 +1,123 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-matchlab}
+      POSTGRES_USER: ${POSTGRES_USER:-matchlab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-matchlab_redis_local}
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-matchlab_redis_local}"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+
+  mail:
+    build:
+      context: .
+      dockerfile: cmd/mail/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: mail-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+      MAIL_ENCRYPTION_KEY: ${MAIL_ENCRYPTION_KEY:-00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff}
+    ports:
+      - "127.0.0.1:${MAIL_GRPC_PORT:-8083}:8083"
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  auth:
+    build:
+      context: .
+      dockerfile: cmd/auth/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: auth-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-matchlab_redis_local}
+    ports:
+      - "127.0.0.1:${AUTH_GRPC_PORT:-8081}:8081"
+    restart: on-failure
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  user:
+    build:
+      context: .
+      dockerfile: cmd/user/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: user-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+    ports:
+      - "127.0.0.1:${USER_GRPC_PORT:-8082}:8082"
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+      mail:
+        condition: service_started
+
+  gateway:
+    build:
+      context: .
+      dockerfile: cmd/gateway/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: gateway-compose-config
+        target: /etc/app/config.yaml
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    restart: on-failure
+    depends_on:
+      auth:
+        condition: service_started
+      user:
+        condition: service_started
+
+configs:
+  auth-compose-config:
+    file: ./cmd/auth/config.compose.yaml
+  user-compose-config:
+    file: ./cmd/user/config.compose.yaml
+  mail-compose-config:
+    file: ./cmd/mail/config.compose.yaml
+  gateway-compose-config:
+    file: ./cmd/gateway/config.compose.yaml
+
+volumes:
+  postgres-data:

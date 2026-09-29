@@ -1,0 +1,15 @@
+grpc:
+  host: 0.0.0.0
+  port: 8082
+auth:
+  host: localhost
+  port: 8081
+postgres:
+  host: localhost
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+mail:
+  host: localhost
+  port: 8083
