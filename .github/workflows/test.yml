@@ -18,8 +18,8 @@ jobs:
           cache: true
       - name: Проверить все пакеты и покрытие сервисов
         run: bash scripts/ci/test-coverage.sh
-      - name: Запустить интеграционные тесты с контейнерами Redis и PostgreSQL
-        run: go test -tags=integration ./internal/auth/repository/redis ./internal/user/migrations ./internal/mail/migrations ./internal/mail/smtp
+      - name: Запустить интеграционные тесты с контейнерами Redis, PostgreSQL и Mailpit
+        run: go test -tags=integration ./internal/auth/repository/redis ./internal/migrator/migrations ./internal/mail/smtp
       - name: Загрузить отчёт о покрытии
         uses: actions/upload-artifact@v4
         with:

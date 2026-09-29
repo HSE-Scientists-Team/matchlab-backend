@@ -46,7 +46,7 @@ go run ./cmd/gateway -config cmd/gateway/config.example.yaml
 - `POST /api/v1/auth/register`: JSON `{ "login": "...", "password": "..." }`; возвращает `201` и новый `user_id`.
 - `POST /api/v1/auth/login`: тот же формат JSON; возвращает `user_id` и `access_token`.
 - `GET /api/v1/users/me/email`: требует токен доступа; возвращает состояние адреса (`not_set`, `pending` или `verified`) и текущий или ожидающий подтверждения адрес.
-- `POST /api/v1/users/me/email`: требует токен доступа и JSON `{ "email": "..." }`; запрашивает письмо для подтверждения адреса и возвращает `202 Accepted`.
+- `POST /api/v1/users/me/email`: требует токен доступа и JSON `{ "email": "..." }`; дожидается принятия письма SMTP-сервером и возвращает `204 No Content`; при ошибке SMTP возвращает ошибку.
 - `POST /api/v1/auth/email/confirm`: JSON `{ "token": "..." }`; подтверждает адрес, связанный с одноразовым токеном, и возвращает `204`.
 - `GET /api/v1/sessions/current`: требует `Authorization: Bearer <token>` и возвращает `user_id` сеанса.
 - `DELETE /api/v1/sessions/current`: отзывает токен доступа и возвращает `204`.

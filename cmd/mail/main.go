@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,12 +15,9 @@ import (
 	mailv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/mail/v1"
 	mailconfig "github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/config"
 	mailgrpc "github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/delivery/grpc"
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/migrations"
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/repository"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/service"
 	mailsmtp "github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/smtp"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 )
 
@@ -40,55 +36,19 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	db, err := sql.Open("pgx", cfg.DB.URL())
-	if err != nil {
-		return fmt.Errorf("открытие соединения с PostgreSQL: %w", err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			logger.Error("закрытие соединения с PostgreSQL", "error", err)
-		}
-	}()
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(30 * time.Minute)
-	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
-	if err := db.PingContext(startupCtx); err != nil {
-		cancelStartup()
-		return fmt.Errorf("подключение к PostgreSQL: %w", err)
-	}
-	version, err := migrations.Up(startupCtx, db)
-	cancelStartup()
-	if err != nil {
-		return err
-	}
-	logger.Info("база Mail готова", "migration_version", version)
-
-	queueRepo := repository.NewPostgres(db)
-	queue, err := service.NewQueue(queueRepo, cfg.CipherKey)
-	if err != nil {
-		return err
-	}
 	sender := mailsmtp.NewSender(cfg.SMTP.SenderConfig())
-	worker := service.NewWorker(queueRepo, queue, sender, service.WorkerConfig{
-		PollInterval: cfg.Worker.PollInterval,
-		Lease:        cfg.Worker.Lease,
-		MaxAttempts:  cfg.Worker.MaxAttempts,
-		Retention:    cfg.Worker.Retention,
-	}, logger)
+	mailService := service.NewService(sender)
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
 		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
 	server := grpc.NewServer()
 	health := healthcheck.RegisterGRPC(server)
-	mailv1.RegisterEmailServiceServer(server, mailgrpc.NewServer(queue))
+	mailv1.RegisterEmailServiceServer(server, mailgrpc.NewServer(mailService))
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	serveErr := make(chan error, 1)
-	workerDone := make(chan struct{})
 	go func() { serveErr <- server.Serve(listener) }()
-	go func() { worker.Run(ctx); close(workerDone) }()
 	logger.Info("сервис Mail запущен", "address", listener.Addr().String())
 	select {
 	case err := <-serveErr:
@@ -96,7 +56,6 @@ func run(logger *slog.Logger) error {
 			return nil
 		}
 		stop()
-		<-workerDone
 		return err
 	case <-ctx.Done():
 		health.Shutdown()
@@ -106,10 +65,6 @@ func run(logger *slog.Logger) error {
 		case <-stopped:
 		case <-time.After(10 * time.Second):
 			server.Stop()
-		}
-		select {
-		case <-workerDone:
-		case <-time.After(10 * time.Second):
 		}
 		return nil
 	}

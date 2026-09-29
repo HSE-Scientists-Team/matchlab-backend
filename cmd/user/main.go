@@ -18,7 +18,6 @@ import (
 	userv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	userconfig "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/config"
 	usergrpc "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/delivery/grpc"
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/migrations"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/repository"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
@@ -60,12 +59,7 @@ func run(logger *slog.Logger) error {
 		cancelStartup()
 		return fmt.Errorf("подключение к PostgreSQL: %w", err)
 	}
-	version, err := migrations.Up(startupCtx, db)
 	cancelStartup()
-	if err != nil {
-		return err
-	}
-	logger.Info("база User готова", "migration_version", version)
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 5*time.Second)
 	authConn, err := grpc.DialContext(dialCtx, cfg.Auth.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
@@ -126,7 +120,7 @@ func run(logger *slog.Logger) error {
 type mailEmailClient struct{ client mailv1.EmailServiceClient }
 
 func (c mailEmailClient) SendVerification(ctx context.Context, recipient, token string, expiresAt time.Time) error {
-	callCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	callCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
 	response, err := c.client.SendVerificationEmail(callCtx, &mailv1.SendVerificationEmailRequest{
 		Recipient: recipient, Token: token, ExpiresAtUnix: expiresAt.Unix(),
@@ -134,8 +128,8 @@ func (c mailEmailClient) SendVerification(ctx context.Context, recipient, token 
 	if err != nil {
 		return err
 	}
-	if !response.GetQueued() {
-		return errors.New("сервис Mail не поставил письмо с подтверждением в очередь")
+	if !response.GetSent() {
+		return errors.New("сервис Mail не подтвердил отправку письма")
 	}
 	return nil
 }

@@ -188,7 +188,7 @@ func (h *Handler) requestEmailVerification(w http.ResponseWriter, r *http.Reques
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), grpcCallTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	_, err := h.user.RequestEmailVerification(ctx, &userv1.RequestEmailVerificationRequest{
 		UserId: AuthenticatedUserID(r.Context()), Email: req.Email,
@@ -205,7 +205,7 @@ func (h *Handler) requestEmailVerification(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) confirmEmail(w http.ResponseWriter, r *http.Request) {

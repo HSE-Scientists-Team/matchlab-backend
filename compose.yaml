@@ -43,14 +43,12 @@ services:
       - source: mail-compose-config
         target: /etc/app/config.yaml
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
-      MAIL_ENCRYPTION_KEY: ${MAIL_ENCRYPTION_KEY:-00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     ports:
       - "127.0.0.1:${MAIL_GRPC_PORT:-8083}:8083"
     restart: on-failure
     depends_on:
-      postgres:
-        condition: service_healthy
       mailpit:
         condition: service_started
 
@@ -71,6 +69,21 @@ services:
       redis:
         condition: service_healthy
 
+  migrator:
+    build:
+      context: .
+      dockerfile: cmd/migrator/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: migrator-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   user:
     build:
       context: .
@@ -85,8 +98,8 @@ services:
       - "127.0.0.1:${USER_GRPC_PORT:-8082}:8082"
     restart: on-failure
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
       auth:
         condition: service_started
       mail:
@@ -110,6 +123,8 @@ services:
         condition: service_started
 
 configs:
+  migrator-compose-config:
+    file: ./cmd/migrator/config.compose.yaml
   auth-compose-config:
     file: ./cmd/auth/config.compose.yaml
   user-compose-config:

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	userconfig "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/config"
+	"github.com/HSE-Scientists-Team/matchlab-backend/internal/migrator/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -43,7 +43,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := userconfig.Postgres{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}
+	cfg := config.Postgres{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}
 	db, err := sql.Open("pgx", cfg.URL())
 	if err != nil {
 		t.Fatal(err)

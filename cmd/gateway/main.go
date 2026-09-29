@@ -74,7 +74,7 @@ func run(logger *slog.Logger) error {
 		Handler:           delivery.Middleware(logger, router),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
+		WriteTimeout:      35 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 	listener, err := net.Listen("tcp", cfg.HTTP.Address())

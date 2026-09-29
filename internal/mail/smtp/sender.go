@@ -9,7 +9,6 @@ import (
 	"net/smtp"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -44,20 +43,10 @@ func (s *Sender) SendVerification(ctx context.Context, recipient, token string, 
 	query.Set("token", token)
 	verificationURL.RawQuery = query.Encode()
 
-	message := strings.Join([]string{
-		"From: " + from.String(),
-		"To: " + to.String(),
-		"Subject: =?UTF-8?B?0J/QvtC00YLQstC10YDQtNC40YLQtSDQsNC00YDQtdGBINC/0L7Rh9GC0YsgTWF0Y2hMYWI=?=",
-		"MIME-Version: 1.0",
-		"Content-Type: text/plain; charset=UTF-8",
-		"",
-		"Подтвердите адрес электронной почты по ссылке ниже:",
-		verificationURL.String(),
-		"",
-		"Ссылка действует до " + expiresAt.UTC().Format(time.RFC3339) + ".",
-		"Если вы не запрашивали подтверждение, просто проигнорируйте это письмо.",
-		"",
-	}, "\r\n")
+	message, err := buildVerificationMessage(from, to, verificationURL.String(), expiresAt)
+	if err != nil {
+		return err
+	}
 
 	address := net.JoinHostPort(s.config.Host, strconv.Itoa(s.config.Port))
 	conn, err := (&net.Dialer{Timeout: 8 * time.Second}).DialContext(ctx, "tcp", address)
@@ -98,15 +87,13 @@ func (s *Sender) SendVerification(ctx context.Context, recipient, token string, 
 	if err != nil {
 		return fmt.Errorf("начало сообщения SMTP: %w", err)
 	}
-	if _, err := writer.Write([]byte(message)); err != nil {
+	if _, err := writer.Write(message); err != nil {
 		_ = writer.Close()
 		return fmt.Errorf("запись сообщения SMTP: %w", err)
 	}
 	if err := writer.Close(); err != nil {
 		return fmt.Errorf("отправка сообщения SMTP: %w", err)
 	}
-	if err := client.Quit(); err != nil {
-		return fmt.Errorf("завершение сеанса SMTP: %w", err)
-	}
+	// DATA уже принят SMTP-сервером. Закрываем соединение без ожидания QUIT.
 	return nil
 }

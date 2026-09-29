@@ -83,7 +83,7 @@ func (x *SendVerificationEmailRequest) GetExpiresAtUnix() int64 {
 
 type SendVerificationEmailResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Queued        bool                   `protobuf:"varint,1,opt,name=queued,proto3" json:"queued,omitempty"`
+	Sent          bool                   `protobuf:"varint,1,opt,name=sent,proto3" json:"sent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -118,9 +118,9 @@ func (*SendVerificationEmailResponse) Descriptor() ([]byte, []int) {
 	return file_api_proto_mail_v1_mail_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SendVerificationEmailResponse) GetQueued() bool {
+func (x *SendVerificationEmailResponse) GetSent() bool {
 	if x != nil {
-		return x.Queued
+		return x.Sent
 	}
 	return false
 }
@@ -133,9 +133,9 @@ const file_api_proto_mail_v1_mail_proto_rawDesc = "" +
 	"\x1cSendVerificationEmailRequest\x12\x1c\n" +
 	"\trecipient\x18\x01 \x01(\tR\trecipient\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x12&\n" +
-	"\x0fexpires_at_unix\x18\x03 \x01(\x03R\rexpiresAtUnix\"7\n" +
-	"\x1dSendVerificationEmailResponse\x12\x16\n" +
-	"\x06queued\x18\x01 \x01(\bR\x06queued2\x88\x01\n" +
+	"\x0fexpires_at_unix\x18\x03 \x01(\x03R\rexpiresAtUnix\"3\n" +
+	"\x1dSendVerificationEmailResponse\x12\x12\n" +
+	"\x04sent\x18\x01 \x01(\bR\x04sent2\x88\x01\n" +
 	"\fEmailService\x12x\n" +
 	"\x15SendVerificationEmail\x12..matchlab.mail.v1.SendVerificationEmailRequest\x1a/.matchlab.mail.v1.SendVerificationEmailResponseBMZKgithub.com/HSE-Scientists-Team/matchlab-backend/internal/gen/mail/v1;mailv1b\x06proto3"
 

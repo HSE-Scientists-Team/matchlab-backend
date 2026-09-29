@@ -26,7 +26,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type EmailServiceClient interface {
-	// Enqueue is idempotent for a given token and returns after durable storage.
+	// Ответ возвращается после принятия письма SMTP-сервером.
 	SendVerificationEmail(ctx context.Context, in *SendVerificationEmailRequest, opts ...grpc.CallOption) (*SendVerificationEmailResponse, error)
 }
 
@@ -52,7 +52,7 @@ func (c *emailServiceClient) SendVerificationEmail(ctx context.Context, in *Send
 // All implementations must embed UnimplementedEmailServiceServer
 // for forward compatibility.
 type EmailServiceServer interface {
-	// Enqueue is idempotent for a given token and returns after durable storage.
+	// Ответ возвращается после принятия письма SMTP-сервером.
 	SendVerificationEmail(context.Context, *SendVerificationEmailRequest) (*SendVerificationEmailResponse, error)
 	mustEmbedUnimplementedEmailServiceServer()
 }

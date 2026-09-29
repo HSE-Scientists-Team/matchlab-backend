@@ -91,7 +91,7 @@ func TestEmailVerificationRoutes(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer session-token")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
-	if response.Code != http.StatusAccepted || user.emailRequest.GetUserId() != "4f9a4c95-6144-4ec8-89e8-3866207d7561" {
+	if response.Code != http.StatusNoContent || user.emailRequest.GetUserId() != "4f9a4c95-6144-4ec8-89e8-3866207d7561" {
 		t.Fatalf("ответ запроса письма %d %q, запрос %#v", response.Code, response.Body.String(), user.emailRequest)
 	}
 
