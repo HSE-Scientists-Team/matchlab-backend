@@ -14,6 +14,8 @@ docker compose up --build
 
 Gateway доступен по адресу `http://localhost:8080`. Для остановки нажмите `Ctrl+C`; команда `docker compose down` остановит и удалит контейнеры. Данные PostgreSQL сохранятся в именованном томе. Compose использует файлы `config.compose.yaml` с DNS-именами сервисов Docker; конфигурации для `go run` используют `localhost`.
 
+Интерактивное описание реализованного HTTP API и примеры запросов доступны в [Scalar](../../api/http/README.md) по адресу `http://localhost:8084` после запуска Compose.
+
 Чтобы запускать Auth, User и Gateway напрямую, сначала поднимите зависимости и Mail через Compose:
 
 ```sh

@@ -122,6 +122,16 @@ services:
       user:
         condition: service_started
 
+  api-docs:
+    build:
+      context: .
+      dockerfile: api/http/Dockerfile
+    ports:
+      - "127.0.0.1:${API_DOCS_PORT:-8084}:8080"
+    depends_on:
+      gateway:
+        condition: service_started
+
 configs:
   migrator-compose-config:
     file: ./cmd/migrator/config.compose.yaml
