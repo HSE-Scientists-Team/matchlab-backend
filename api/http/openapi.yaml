@@ -6,6 +6,7 @@ info:
     Текущий публичный HTTP API MatchLab: учётные записи, сеансы и подтверждение почты.
     Это описание реализованных маршрутов Gateway. Для локальной проверки сначала
     зарегистрируйтесь, затем войдите и укажите полученный токен доступа в Bearer Auth.
+    Для проверки почты сначала добавьте разрешённые домены HSE локальным seed-скриптом.
     Письмо с подтверждением появится в Mailpit по адресу http://localhost:8025.
     Токен из ссылки в письме передайте в метод подтверждения адреса.
 servers:
@@ -130,12 +131,12 @@ paths:
                   summary: Ожидает подтверждения
                   value:
                     status: pending
-                    pending_email: student@example.org
+                    pending_email: student@hse.ru
                 verified:
                   summary: Адрес подтверждён
                   value:
                     status: verified
-                    email: student@example.org
+                    email: student@hse.ru
                 notSet:
                   summary: Адрес не указан
                   value:
@@ -161,7 +162,7 @@ paths:
             schema:
               $ref: '#/components/schemas/EmailRequest'
             example:
-              email: student@example.org
+              email: student@hse.ru
       responses:
         '204':
           description: SMTP-сервер принял письмо.
@@ -169,6 +170,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/OrganizationUnavailable'
         '409':
           description: Адрес уже подтверждён для этой учётной записи.
           content:
@@ -200,6 +203,8 @@ paths:
           description: Адрес подтверждён.
         '400':
           $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/OrganizationUnavailable'
         '404':
           description: Токен не найден или уже использован.
           content:
@@ -352,6 +357,14 @@ components:
             $ref: '#/components/schemas/Error'
           example:
             error: недействительный сеанс
+    OrganizationUnavailable:
+      description: Почтовый домен не принадлежит активной разрешённой организации.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: подтверждение почты для этой организации недоступно
     Unavailable:
       description: Зависимый сервис или SMTP-сервер недоступен.
       content:

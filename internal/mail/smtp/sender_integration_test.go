@@ -5,8 +5,12 @@ package smtp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/smtp"
+	"strconv"
 	"testing"
 	"time"
 
@@ -35,6 +39,9 @@ func TestSenderDeliversToMailpit(t *testing.T) {
 	}
 	smtpPort, err := container.MappedPort(ctx, "1025/tcp")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := waitForSMTPGreeting(ctx, net.JoinHostPort(host, strconv.Itoa(smtpPort.Int()))); err != nil {
 		t.Fatal(err)
 	}
 	apiPort, err := container.MappedPort(ctx, "8025/tcp")
@@ -82,4 +89,32 @@ func TestSenderDeliversToMailpit(t *testing.T) {
 		}
 	}
 	t.Fatalf("API Mailpit не показывает доставленных писем по адресу %s", apiURL)
+}
+
+func waitForSMTPGreeting(ctx context.Context, address string) error {
+	// Открытый TCP-порт ещё не гарантирует, что Mailpit выдаёт SMTP-приветствие.
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+
+	var lastErr error
+	for {
+		conn, err := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, "tcp", address)
+		if err == nil {
+			_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
+			var client *smtp.Client
+			client, err = smtp.NewClient(conn, "localhost")
+			if err == nil {
+				_ = client.Close()
+				return nil
+			}
+			_ = conn.Close()
+		}
+		lastErr = err
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("ожидание SMTP-приветствия Mailpit по адресу %s: %w (последняя ошибка: %v)", address, ctx.Err(), lastErr)
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
 }

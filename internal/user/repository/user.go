@@ -5,18 +5,20 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var (
-	ErrLoginTaken           = errors.New("логин уже зарегистрирован")
-	ErrNotFound             = errors.New("пользователь не найден")
-	ErrEmailAlreadyVerified = errors.New("адрес электронной почты уже подтверждён для этого пользователя")
-	ErrVerificationNotFound = errors.New("запрос на подтверждение адреса не найден")
-	ErrVerificationExpired  = errors.New("срок действия запроса на подтверждение адреса истёк")
-	ErrEmailClaimed         = errors.New("адрес электронной почты уже подтверждён другим пользователем")
+	ErrLoginTaken              = errors.New("логин уже зарегистрирован")
+	ErrNotFound                = errors.New("пользователь не найден")
+	ErrEmailAlreadyVerified    = errors.New("адрес электронной почты уже подтверждён для этого пользователя")
+	ErrVerificationNotFound    = errors.New("запрос на подтверждение адреса не найден")
+	ErrVerificationExpired     = errors.New("срок действия запроса на подтверждение адреса истёк")
+	ErrEmailClaimed            = errors.New("адрес электронной почты уже подтверждён другим пользователем")
+	ErrOrganizationUnavailable = errors.New("подтверждение почты для этой организации недоступно")
 )
 
 type Account struct {
@@ -86,6 +88,9 @@ func (p *Postgres) MarkLogin(ctx context.Context, userID string) error {
 }
 
 func (p *Postgres) SaveEmailVerification(ctx context.Context, userID, email, tokenHash string, expiresAt time.Time) error {
+	if err := checkTrustedEmailDomain(ctx, p.db, email); err != nil {
+		return err
+	}
 	var alreadyVerified bool
 	err := p.db.QueryRowContext(ctx, `
 		SELECT EXISTS (
@@ -140,6 +145,9 @@ func (p *Postgres) ConfirmEmail(ctx context.Context, tokenHash string, now time.
 	if !expiresAt.After(now) {
 		return ErrVerificationExpired
 	}
+	if err := checkTrustedEmailDomain(ctx, tx, email); err != nil {
+		return err
+	}
 
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO users.user_email (user_id, email, verified_at)
@@ -158,6 +166,38 @@ func (p *Postgres) ConfirmEmail(ctx context.Context, tokenHash string, now time.
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("фиксация подтверждения адреса: %w", err)
+	}
+	return nil
+}
+
+type domainQuerier interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+// checkTrustedEmailDomain проверяет точное правило и правила вида *.example.org.
+// Звёздочка охватывает один или несколько уровней поддоменов, но не корень.
+func checkTrustedEmailDomain(ctx context.Context, db domainQuerier, email string) error {
+	separator := strings.LastIndexByte(email, '@')
+	if separator < 0 {
+		return fmt.Errorf("проверка доверенного домена: адрес не содержит домен")
+	}
+	domain := strings.ToLower(email[separator+1:])
+	var allowed bool
+	err := db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM users.trusted_email_domain
+			WHERE is_active AND (
+				lower(domain) = $1
+				OR (left(domain, 2) = '*.'
+					AND length($1) > length(domain) - 1
+					AND right($1, length(domain) - 1) = lower(substring(domain from 2)))
+			)
+		)`, domain).Scan(&allowed)
+	if err != nil {
+		return fmt.Errorf("проверка доступности организации: %w", err)
+	}
+	if !allowed {
+		return ErrOrganizationUnavailable
 	}
 	return nil
 }
