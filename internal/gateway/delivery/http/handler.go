@@ -200,6 +200,8 @@ func (h *Handler) requestEmailVerification(w http.ResponseWriter, r *http.Reques
 			writeError(w, http.StatusBadRequest, "требуется корректный адрес электронной почты")
 		case codes.AlreadyExists:
 			writeError(w, http.StatusConflict, "адрес электронной почты уже подтверждён для этой учётной записи")
+		case codes.PermissionDenied:
+			writeError(w, http.StatusForbidden, "подтверждение почты для этой организации недоступно")
 		default:
 			writeError(w, http.StatusServiceUnavailable, "подтверждение адреса электронной почты недоступно")
 		}
@@ -223,6 +225,8 @@ func (h *Handler) confirmEmail(w http.ResponseWriter, r *http.Request) {
 		switch status.Code(err) {
 		case codes.AlreadyExists:
 			writeError(w, http.StatusConflict, "адрес электронной почты уже подтверждён другим пользователем")
+		case codes.PermissionDenied:
+			writeError(w, http.StatusForbidden, "подтверждение почты для этой организации недоступно")
 		case codes.DeadlineExceeded:
 			writeError(w, http.StatusGone, "срок подтверждения адреса электронной почты истёк")
 		case codes.NotFound:

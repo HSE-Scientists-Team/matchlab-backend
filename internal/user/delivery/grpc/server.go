@@ -57,6 +57,8 @@ func (s *Server) RequestEmailVerification(ctx context.Context, req *userv1.Reque
 		return nil, status.Error(codes.NotFound, "пользователь не найден")
 	case errors.Is(err, repository.ErrEmailAlreadyVerified):
 		return nil, status.Error(codes.AlreadyExists, "адрес электронной почты уже подтверждён для этого пользователя")
+	case errors.Is(err, repository.ErrOrganizationUnavailable):
+		return nil, status.Error(codes.PermissionDenied, "подтверждение почты для этой организации недоступно")
 	case errors.Is(err, usecase.ErrEmailDelivery):
 		return nil, status.Error(codes.Unavailable, "не удалось отправить письмо с подтверждением")
 	case err != nil:
@@ -77,6 +79,8 @@ func (s *Server) ConfirmEmail(ctx context.Context, req *userv1.ConfirmEmailReque
 		return nil, status.Error(codes.DeadlineExceeded, "срок действия токена подтверждения адреса истёк")
 	case errors.Is(err, repository.ErrEmailClaimed):
 		return nil, status.Error(codes.AlreadyExists, "адрес электронной почты уже подтверждён другим пользователем")
+	case errors.Is(err, repository.ErrOrganizationUnavailable):
+		return nil, status.Error(codes.PermissionDenied, "подтверждение почты для этой организации недоступно")
 	case err != nil:
 		return nil, status.Error(codes.Internal, "не удалось подтвердить адрес")
 	default:

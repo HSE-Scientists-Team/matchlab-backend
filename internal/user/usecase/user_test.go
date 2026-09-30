@@ -138,3 +138,13 @@ func TestRequestAndConfirmEmailStoreOnlyTokenHash(t *testing.T) {
 		t.Fatal("при подтверждении искался другой хеш токена")
 	}
 }
+
+func TestUnavailableOrganizationDoesNotSendEmail(t *testing.T) {
+	users := &fakeUsers{emailErr: repository.ErrOrganizationUnavailable}
+	sender := &fakeEmailSender{}
+	service := NewService(users, &fakeSessions{}, sender)
+	err := service.RequestEmailVerification(context.Background(), "user-id", "student@bmstu.ru")
+	if !errors.Is(err, repository.ErrOrganizationUnavailable) || sender.address != "" {
+		t.Fatalf("недоступная организация: ошибка %v, получатель отправленного письма %q", err, sender.address)
+	}
+}

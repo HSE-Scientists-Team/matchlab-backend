@@ -33,11 +33,12 @@ func (m *mockAuth) RevokeSession(_ context.Context, req *authv1.RevokeSessionReq
 }
 
 type mockUser struct {
-	registerErr, loginErr error
-	registerRequest       *userv1.RegisterRequest
-	loginRequest          *userv1.LoginRequest
-	emailRequest          *userv1.RequestEmailVerificationRequest
-	confirmRequest        *userv1.ConfirmEmailRequest
+	registerErr, loginErr       error
+	emailRequestErr, confirmErr error
+	registerRequest             *userv1.RegisterRequest
+	loginRequest                *userv1.LoginRequest
+	emailRequest                *userv1.RequestEmailVerificationRequest
+	confirmRequest              *userv1.ConfirmEmailRequest
 }
 
 func (m *mockUser) Register(_ context.Context, req *userv1.RegisterRequest, _ ...grpc.CallOption) (*userv1.RegisterResponse, error) {
@@ -50,11 +51,11 @@ func (m *mockUser) Login(_ context.Context, req *userv1.LoginRequest, _ ...grpc.
 }
 func (m *mockUser) RequestEmailVerification(_ context.Context, req *userv1.RequestEmailVerificationRequest, _ ...grpc.CallOption) (*userv1.RequestEmailVerificationResponse, error) {
 	m.emailRequest = req
-	return &userv1.RequestEmailVerificationResponse{}, nil
+	return &userv1.RequestEmailVerificationResponse{}, m.emailRequestErr
 }
 func (m *mockUser) ConfirmEmail(_ context.Context, req *userv1.ConfirmEmailRequest, _ ...grpc.CallOption) (*userv1.ConfirmEmailResponse, error) {
 	m.confirmRequest = req
-	return &userv1.ConfirmEmailResponse{}, nil
+	return &userv1.ConfirmEmailResponse{}, m.confirmErr
 }
 func (m *mockUser) GetEmailStatus(_ context.Context, req *userv1.GetEmailStatusRequest, _ ...grpc.CallOption) (*userv1.GetEmailStatusResponse, error) {
 	return &userv1.GetEmailStatusResponse{Email: "a@example.org", Status: "pending"}, nil
@@ -108,6 +109,29 @@ func TestEmailVerificationRoutes(t *testing.T) {
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusNoContent || user.confirmRequest.GetToken() != "verification-token" {
 		t.Fatalf("ответ подтверждения адреса %d %q", response.Code, response.Body.String())
+	}
+}
+
+func TestEmailOrganizationUnavailable(t *testing.T) {
+	user := &mockUser{emailRequestErr: status.Error(codes.PermissionDenied, "organization unavailable"), confirmErr: status.Error(codes.PermissionDenied, "organization unavailable")}
+	router := testRouter(&mockAuth{}, user)
+	for _, tc := range []struct {
+		path string
+		body string
+		auth bool
+	}{
+		{"/api/v1/users/me/email", `{"email":"student@bmstu.ru"}`, true},
+		{"/api/v1/auth/email/confirm", `{"token":"verification-token"}`, false},
+	} {
+		req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+		if tc.auth {
+			req.Header.Set("Authorization", "Bearer session-token")
+		}
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		if response.Code != http.StatusForbidden || !strings.Contains(response.Body.String(), "организации недоступно") {
+			t.Errorf("%s: статус %d, тело %q", tc.path, response.Code, response.Body.String())
+		}
 	}
 }
 
