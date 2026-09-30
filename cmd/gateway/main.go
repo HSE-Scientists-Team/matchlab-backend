@@ -71,7 +71,7 @@ func run(logger *slog.Logger) error {
 	healthcheck.RegisterHTTP(router)
 	delivery.Register(router, authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
 	server := &http.Server{
-		Handler:           delivery.Middleware(logger, router),
+		Handler:           delivery.Middleware(logger, delivery.CORS(cfg.CORS.AllowedOrigins, router)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      35 * time.Second,

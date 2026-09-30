@@ -9,8 +9,8 @@ info:
     Письмо с подтверждением появится в Mailpit по адресу http://localhost:8025.
     Токен из ссылки в письме передайте в метод подтверждения адреса.
 servers:
-  - url: /
-    description: Тот же адрес, с которого открыта документация (локальный Compose)
+  - url: http://localhost:8080
+    description: Gateway в локальном Docker Compose
 tags:
   - name: Состояние
   - name: Учётная запись

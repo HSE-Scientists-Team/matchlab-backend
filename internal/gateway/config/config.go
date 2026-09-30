@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,9 @@ type Config struct {
 	HTTP Endpoint `mapstructure:"http"`
 	Auth Endpoint `mapstructure:"auth"`
 	User Endpoint `mapstructure:"user"`
+	CORS struct {
+		AllowedOrigins []string `mapstructure:"allowed_origins"`
+	} `mapstructure:"cors"`
 }
 
 func Load(path string) (Config, error) {
@@ -40,6 +44,12 @@ func Load(path string) (Config, error) {
 	}
 	if err := validateEndpoint("user", cfg.User); err != nil {
 		return Config{}, err
+	}
+	for _, origin := range cfg.CORS.AllowedOrigins {
+		u, err := url.Parse(origin)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+			return Config{}, fmt.Errorf("cors.allowed_origins должен содержать только HTTP(S)-адреса источников без пути: %q", origin)
+		}
 	}
 	return cfg, nil
 }
