@@ -1,32 +1,28 @@
-# Health checks
+# Проверка работоспособности
 
-Register the transport used by a service. The package does not start a server.
+Зарегистрируйте транспорт, который использует сервис. Пакет сам не запускает сервер.
 
-For HTTP with `gorilla/mux`:
+Для HTTP с `gorilla/mux`:
 
 ```go
 router := mux.NewRouter()
 healthcheck.RegisterHTTP(router)
-// Serve router with your existing HTTP server.
+// Обслуживайте router существующим HTTP-сервером.
 ```
 
-`GET /health` returns `200 OK` and `ok`. This is a liveness check: it does not
-test PostgreSQL, Redis, or other dependencies.
+`GET /health` возвращает `200 OK` и `ok`. Это проверка работоспособности процесса; она не проверяет PostgreSQL, Redis и другие зависимости.
 
-For gRPC:
+Для gRPC:
 
 ```go
 server := grpc.NewServer()
 health := healthcheck.RegisterGRPC(server)
-// Serve server with your existing gRPC listener.
+// Обслуживайте server существующим gRPC-слушателем.
 
-// When the process can no longer serve requests:
+// Когда процесс больше не может обрабатывать запросы:
 health.SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
-// During graceful shutdown:
+// При корректном завершении работы:
 health.Shutdown()
 ```
 
-The gRPC endpoint implements the standard `grpc.health.v1.Health` Check and
-Watch RPCs. The empty service name reports overall health and starts as
-`SERVING`. Set named service statuses through the returned health server if
-needed. Use a standard gRPC health probe to query it.
+Маршрут gRPC реализует стандартные методы `Check` и `Watch` сервиса `grpc.health.v1.Health`. Пустое имя сервиса показывает общее состояние и изначально имеет значение `SERVING`. При необходимости задавайте состояния именованных сервисов через возвращённый сервер проверки здоровья. Для опроса используйте стандартный gRPC health probe.

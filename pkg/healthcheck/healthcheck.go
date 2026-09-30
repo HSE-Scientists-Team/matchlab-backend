@@ -1,5 +1,5 @@
-// Package healthcheck registers liveness endpoints on an existing HTTP router
-// or gRPC server. Each process chooses the transport it serves.
+// Package healthcheck регистрирует проверки работоспособности в существующем
+// HTTP-маршрутизаторе или gRPC-сервере. Процесс выбирает свой транспорт.
 package healthcheck
 
 import (
@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// RegisterHTTP adds GET /health to router. A successful response confirms that
-// the HTTP server can accept and handle requests; it does not check dependencies.
+// RegisterHTTP добавляет GET /health в маршрутизатор. Успешный ответ означает,
+// что HTTP-сервер принимает и обрабатывает запросы; зависимости не проверяются.
 func RegisterHTTP(router *mux.Router) {
 	router.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -21,10 +21,11 @@ func RegisterHTTP(router *mux.Router) {
 	}).Methods(http.MethodGet)
 }
 
-// RegisterGRPC adds the standard grpc.health.v1.Health service to server and
-// returns its status manager. The empty service name starts as SERVING. Call
-// SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING) when the
-// process cannot serve traffic, or Shutdown during graceful shutdown.
+// RegisterGRPC добавляет стандартный сервис grpc.health.v1.Health и возвращает
+// средство управления состоянием. Пустое имя сервиса сначала имеет состояние SERVING.
+// Когда процесс больше не может обрабатывать запросы, вызовите
+// SetServingStatus("", grpc_health_v1.HealthCheckResponse_NOT_SERVING), а при
+// корректном завершении работы — Shutdown.
 func RegisterGRPC(server *grpc.Server) *health.Server {
 	status := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, status)

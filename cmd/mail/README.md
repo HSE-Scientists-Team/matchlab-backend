@@ -1,46 +1,25 @@
-# Mail service
+# Сервис Mail
 
-Mail is an internal gRPC service for sending verification emails. User owns
-verification state and tokens; Mail owns SMTP delivery and a durable PostgreSQL
-outbox in the `mail` schema. Enqueue returns only after the job is committed.
+Mail — внутренний gRPC-сервис для синхронной отправки писем с подтверждением адреса. Он не хранит письма и не подключается к PostgreSQL. User вызывает Mail и ждёт ответа; успешный ответ означает, что настроенный SMTP-сервер принял письмо после команды `DATA`. Это не подтверждение доставки в почтовый ящик получателя.
 
-## Delivery behavior
+## Отправка
 
-- Verification tokens are encrypted with AES-256-GCM before they enter the
-  outbox. The encryption key is a required 32-byte hex value in
-  `MAIL_ENCRYPTION_KEY`; never put it in YAML. Keep this key stable while jobs
-  are queued. Before rotating it, drain the outbox or re-encrypt queued jobs.
-- Workers claim jobs with row locks and leases, so multiple replicas can
-  process the queue. Failed SMTP deliveries retry with exponential backoff,
-  up to the configured limit and only while the verification token is valid.
-- Delivery is at-least-once. If SMTP accepts a message but the connection fails
-  before Mail records success, a retry can send a duplicate.
-- Sent and permanently failed jobs have their encrypted token erased. The
-  remaining delivery history is removed after the configured retention period.
+`SendVerificationEmail(recipient, token, expires_at)` проверяет адрес, одноразовый токен и срок действия, формирует письмо со ссылкой на подтверждение и передаёт его SMTP-серверу. Если SMTP возвращает ошибку или истекает тайм-аут, gRPC-вызов завершается ошибкой, а HTTP-запрос на отправку письма не получает успешный ответ. Автоматических повторов и очереди в приложении нет. При сетевом обрыве после принятия письма результат может быть неизвестен; повторный запрос пользователя может привести к повторному письму.
 
-Production SMTP settings live in `config.yaml`: host, port, sender address,
-verification URL, and `require_starttls: true`. Credentials come from
-`SMTP_USERNAME` and `SMTP_PASSWORD`; authenticated SMTP requires STARTTLS. Use a
-trusted SMTP provider and a real HTTPS verification URL. PostgreSQL password is
-`POSTGRES_PASSWORD`.
+Письмо содержит HTML и текстовую альтернативу. Шаблоны [`verification.html`](../../internal/mail/smtp/templates/verification.html) и [`verification.txt`](../../internal/mail/smtp/templates/verification.txt) находятся в репозитории и встраиваются в бинарный файл через `embed`. Mail подставляет в них ссылку подтверждения и срок действия. HTML обрабатывается через `html/template`, поэтому динамические значения экранируются. Изменения шаблонов вступают в силу после пересборки сервиса; сейчас шаблонизируется только письмо подтверждения адреса.
 
-## Local development
+User хранит только хеш токена и состояние подтверждения в своей схеме PostgreSQL. Токен действует 30 минут. Ссылка в письме ведёт на интерфейс продукта: он должен взять параметр `token` и отправить его в `POST /api/v1/auth/email/confirm`.
 
-Run the full project with `docker compose up --build`. Compose starts Mailpit as
-the SMTP server. Open `http://localhost:8025` to inspect messages. The local
-encryption key and SMTP setup are development-only.
+## Локальная разработка
 
-The verification URL is intended for the product frontend. For API-only local
-testing, copy the `token` query value from the Mailpit message and send it to
-`POST /api/v1/auth/email/confirm`.
+Запустите проект командой `docker compose up --build`. Compose использует Mailpit как тестовый SMTP-сервер без выхода в интернет. Письма можно посмотреть по адресу `http://localhost:8025`. Mailpit подтверждает приём письма, после чего Mail возвращает успешный ответ. Для проверки только через API скопируйте значение `token` из письма и отправьте его в `POST /api/v1/auth/email/confirm`.
 
-## API
+## Собственный SMTP-сервер в рабочем окружении
 
-`SendVerificationEmail(recipient, token, expires_at)` stores an idempotent job
-and returns once PostgreSQL has committed it. The SMTP worker builds the
-message from the configured sender and verification URL. Mail has no public
-HTTP endpoint and does not read User's tables.
+Укажите в YAML внутренний адрес своего SMTP-релея, порт, адрес отправителя, публичный HTTPS `verification_url` и `require_starttls: true`; пример — `config.example.yaml`. Если релей требует аутентификацию, передайте `SMTP_USERNAME` и `SMTP_PASSWORD` через переменные окружения. Mail поддерживает SMTP с STARTTLS и необязательной аутентификацией; подключение с TLS сразу при открытии соединения (обычно порт 465) не реализовано. Сертификат STARTTLS должен быть доверенным для имени хоста, указанного в конфигурации. Mail и SMTP-релей должны быть доступны друг другу по внутренней сети, а сам релей отвечает за доставку писем наружу. Для доставки на реальные адреса ему нужны домен отправителя, корректные SPF/DKIM/DMARC и сетевой доступ к почтовым серверам получателей. Инфраструктурные настройки релея находятся вне этого репозитория.
 
-The service applies its embedded Goose migration at startup. Run
-`go test ./internal/mail/...`; container-backed PostgreSQL and SMTP checks run
-with `go test -tags=integration ./internal/mail/migrations ./internal/mail/smtp`.
+Успешный ответ Mail гарантирует только принятие письма настроенным SMTP-сервером. Если собственный релей затем не доставит письмо получателю, приложение об этом не узнает: отдельного механизма отслеживания отскоков здесь нет. При самостоятельном размещении релея его внутренняя очередь доставки остаётся частью SMTP-инфраструктуры, хотя очередь в приложении удалена.
+
+При обновлении установки со старой версией Mail прежняя таблица очереди останется в PostgreSQL, но новый сервис её не использует. После решения судьбы старых заданий её можно удалить вручную с помощью [`scripts/db/retire_mail_outbox.sql`](../../scripts/db/retire_mail_outbox.sql). Скрипт не запускается автоматически и безвозвратно удаляет ожидающие письма.
+
+Проверка пакетов: `go test ./internal/mail/...`. Интеграционный тест отправки в контейнер Mailpit: `go test -tags=integration ./internal/mail/smtp`.

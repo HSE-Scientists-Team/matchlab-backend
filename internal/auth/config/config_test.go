@@ -17,7 +17,7 @@ func TestLoadTakesRedisPasswordFromEnvironment(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.GRPC.Address() != "0.0.0.0:8081" || cfg.Redis.Address() != "localhost:6379" || cfg.Redis.DB != 2 || cfg.Redis.Password != "secret" {
-		t.Fatalf("unexpected config: %#v", cfg)
+		t.Fatalf("неожиданная конфигурация: %#v", cfg)
 	}
 }
 
@@ -28,6 +28,6 @@ func TestLoadRejectsPasswordInYAML(t *testing.T) {
 	}
 	t.Setenv("REDIS_PASSWORD", "secret")
 	if _, err := Load(path); err == nil {
-		t.Fatal("accepted redis password from YAML")
+		t.Fatal("пароль Redis был принят из YAML")
 	}
 }

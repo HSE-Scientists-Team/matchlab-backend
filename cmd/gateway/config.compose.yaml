@@ -7,3 +7,7 @@ auth:
 user:
   host: user
   port: 8082
+cors:
+  allowed_origins:
+    - http://localhost:8084
+    - http://127.0.0.1:8084

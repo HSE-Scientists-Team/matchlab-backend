@@ -18,7 +18,6 @@ import (
 	userv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	userconfig "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/config"
 	usergrpc "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/delivery/grpc"
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/migrations"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/repository"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
@@ -30,13 +29,13 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if err := run(logger); err != nil {
-		logger.Error("user service stopped", "error", err)
+		logger.Error("сервис User остановлен", "error", err)
 		os.Exit(1)
 	}
 }
 
 func run(logger *slog.Logger) error {
-	configPath := flag.String("config", "/etc/app/config.yaml", "path to YAML configuration")
+	configPath := flag.String("config", "/etc/app/config.yaml", "путь к конфигурации YAML")
 	flag.Parse()
 	cfg, err := userconfig.Load(*configPath)
 	if err != nil {
@@ -45,11 +44,11 @@ func run(logger *slog.Logger) error {
 
 	db, err := sql.Open("pgx", cfg.DB.URL())
 	if err != nil {
-		return fmt.Errorf("open PostgreSQL: %w", err)
+		return fmt.Errorf("открытие соединения с PostgreSQL: %w", err)
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			logger.Error("close PostgreSQL", "error", err)
+			logger.Error("закрытие соединения с PostgreSQL", "error", err)
 		}
 	}()
 	db.SetMaxOpenConns(10)
@@ -58,35 +57,30 @@ func run(logger *slog.Logger) error {
 	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
 	if err := db.PingContext(startupCtx); err != nil {
 		cancelStartup()
-		return fmt.Errorf("connect to PostgreSQL: %w", err)
+		return fmt.Errorf("подключение к PostgreSQL: %w", err)
 	}
-	version, err := migrations.Up(startupCtx, db)
 	cancelStartup()
-	if err != nil {
-		return err
-	}
-	logger.Info("user database ready", "migration_version", version)
 
 	dialCtx, cancelDial := context.WithTimeout(context.Background(), 5*time.Second)
 	authConn, err := grpc.DialContext(dialCtx, cfg.Auth.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	cancelDial()
 	if err != nil {
-		return fmt.Errorf("connect to auth gRPC service: %w", err)
+		return fmt.Errorf("подключение к gRPC-сервису Auth: %w", err)
 	}
 	defer func() {
 		if err := authConn.Close(); err != nil {
-			logger.Error("close auth gRPC connection", "error", err)
+			logger.Error("закрытие gRPC-соединения с Auth", "error", err)
 		}
 	}()
 	mailCtx, cancelMail := context.WithTimeout(context.Background(), 5*time.Second)
 	mailConn, err := grpc.DialContext(mailCtx, cfg.Mail.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	cancelMail()
 	if err != nil {
-		return fmt.Errorf("connect to mail gRPC service: %w", err)
+		return fmt.Errorf("подключение к gRPC-сервису Mail: %w", err)
 	}
 	defer func() {
 		if err := mailConn.Close(); err != nil {
-			logger.Error("close mail gRPC connection", "error", err)
+			logger.Error("закрытие gRPC-соединения с Mail", "error", err)
 		}
 	}()
 	authClient := authv1.NewAuthServiceClient(authConn)
@@ -94,7 +88,7 @@ func run(logger *slog.Logger) error {
 
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
-		return fmt.Errorf("listen for gRPC: %w", err)
+		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
 	server := grpc.NewServer()
 	health := healthcheck.RegisterGRPC(server)
@@ -103,7 +97,7 @@ func run(logger *slog.Logger) error {
 	defer stop()
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
-	logger.Info("user service started", "address", listener.Addr().String())
+	logger.Info("сервис User запущен", "address", listener.Addr().String())
 	select {
 	case err := <-serveErr:
 		if errors.Is(err, grpc.ErrServerStopped) {
@@ -126,7 +120,7 @@ func run(logger *slog.Logger) error {
 type mailEmailClient struct{ client mailv1.EmailServiceClient }
 
 func (c mailEmailClient) SendVerification(ctx context.Context, recipient, token string, expiresAt time.Time) error {
-	callCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	callCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
 	defer cancel()
 	response, err := c.client.SendVerificationEmail(callCtx, &mailv1.SendVerificationEmailRequest{
 		Recipient: recipient, Token: token, ExpiresAtUnix: expiresAt.Unix(),
@@ -134,8 +128,8 @@ func (c mailEmailClient) SendVerification(ctx context.Context, recipient, token 
 	if err != nil {
 		return err
 	}
-	if !response.GetQueued() {
-		return errors.New("mail service did not queue verification email")
+	if !response.GetSent() {
+		return errors.New("сервис Mail не подтвердил отправку письма")
 	}
 	return nil
 }

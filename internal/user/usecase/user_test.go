@@ -77,22 +77,22 @@ func TestRegisterNormalizesLoginAndStoresPasswordHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	if id == "" || users.login != "student_name-01.x" {
-		t.Fatalf("unexpected account: id %q login %q", id, users.login)
+		t.Fatalf("неожиданная учётная запись: ID %q, логин %q", id, users.login)
 	}
 	if users.hash == "strong-password" || bcrypt.CompareHashAndPassword([]byte(users.hash), []byte("strong-password")) != nil {
-		t.Fatal("password was not stored as a valid hash")
+		t.Fatal("пароль не сохранён как корректный хеш")
 	}
 }
 
 func TestRegisterRejectsInvalidInputs(t *testing.T) {
 	service := NewService(&fakeUsers{}, &fakeSessions{}, nil)
-	for _, login := range []string{"", "bad login", "жук", "a@b", "123456789012345678901234567890123"} {
+	for _, login := range []string{"", "плохой логин", "жук", "a@b", "123456789012345678901234567890123"} {
 		if _, err := service.Register(context.Background(), login, "strong-password"); !errors.Is(err, ErrInvalidLogin) {
 			t.Errorf("login %q error = %v", login, err)
 		}
 	}
 	if _, err := service.Register(context.Background(), "okay.login", "short"); !errors.Is(err, ErrInvalidPassword) {
-		t.Fatalf("password error = %v", err)
+		t.Fatalf("ошибка пароля = %v", err)
 	}
 }
 
@@ -110,11 +110,11 @@ func TestLoginCreatesSessionForCanonicalLogin(t *testing.T) {
 		t.Fatalf("login: id %q token %q error %v", gotID, token, err)
 	}
 	if _, _, err := service.Login(context.Background(), "student.name", "wrong-password"); !errors.Is(err, ErrInvalidCredentials) {
-		t.Fatalf("wrong password error = %v", err)
+		t.Fatalf("ошибка неверного пароля = %v", err)
 	}
 	users.account.Status = "blocked"
 	if _, _, err := service.Login(context.Background(), "student.name", "strong-password"); !errors.Is(err, ErrAccountInactive) {
-		t.Fatalf("blocked user error = %v", err)
+		t.Fatalf("ошибка заблокированного пользователя = %v", err)
 	}
 }
 
@@ -125,16 +125,16 @@ func TestRequestAndConfirmEmailStoreOnlyTokenHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	if users.email != "student@example.org" || sender.address != users.email || sender.token == "" {
-		t.Fatalf("email request was not normalized/sent: repository=%q sender=%q token=%q", users.email, sender.address, sender.token)
+		t.Fatalf("запрос подтверждения не нормализован или не отправлен: репозиторий=%q, отправитель=%q, токен=%q", users.email, sender.address, sender.token)
 	}
 	hash := sha256.Sum256([]byte(sender.token))
 	if users.tokenHash != hex.EncodeToString(hash[:]) || users.tokenHash == sender.token {
-		t.Fatal("verification token was not stored as a hash")
+		t.Fatal("токен подтверждения не сохранён как хеш")
 	}
 	if err := service.ConfirmEmail(context.Background(), sender.token); err != nil {
 		t.Fatal(err)
 	}
 	if users.tokenHash != hex.EncodeToString(hash[:]) {
-		t.Fatal("confirmation looked up a different token hash")
+		t.Fatal("при подтверждении искался другой хеш токена")
 	}
 }

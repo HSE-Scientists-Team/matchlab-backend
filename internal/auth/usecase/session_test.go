@@ -39,10 +39,10 @@ func TestCreateValidateAndRevoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(token) != 43 || strings.Contains(token, userID) || store.userID != userID || store.ttl != SessionTTL {
-		t.Fatalf("unexpected session token/storage: token length %d, user %q, ttl %s", len(token), store.userID, store.ttl)
+		t.Fatalf("неожиданный токен или хранилище сеанса: длина токена %d, пользователь %q, срок %s", len(token), store.userID, store.ttl)
 	}
 	if time.Until(expires) < 23*time.Hour {
-		t.Fatalf("unexpected expiry: %s", expires)
+		t.Fatalf("неожиданный срок действия: %s", expires)
 	}
 	got, err := service.Validate(ctx, token)
 	if err != nil || got != userID {
@@ -52,19 +52,19 @@ func TestCreateValidateAndRevoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	if store.token != "" {
-		t.Fatal("session was not revoked")
+		t.Fatal("сеанс не был отозван")
 	}
 }
 
 func TestRejectsInvalidIDsAndTokens(t *testing.T) {
 	service := NewSessionService(&memoryStore{})
 	if _, _, err := service.Create(context.Background(), "not-a-uuid"); err != ErrInvalidUserID {
-		t.Fatalf("Create error = %v", err)
+		t.Fatalf("ошибка Create = %v", err)
 	}
 	if _, err := service.Validate(context.Background(), "short"); err != ErrInvalidToken {
-		t.Fatalf("Validate error = %v", err)
+		t.Fatalf("ошибка Validate = %v", err)
 	}
 	if err := service.Revoke(context.Background(), "short"); err != ErrInvalidToken {
-		t.Fatalf("Revoke error = %v", err)
+		t.Fatalf("ошибка Revoke = %v", err)
 	}
 }

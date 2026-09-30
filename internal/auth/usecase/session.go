@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	ErrInvalidToken  = errors.New("invalid session token")
-	ErrInvalidUserID = errors.New("invalid user ID")
+	ErrInvalidToken  = errors.New("недействительный токен сеанса")
+	ErrInvalidUserID = errors.New("недействительный идентификатор пользователя")
 )
 
 const SessionTTL = 24 * time.Hour
@@ -40,7 +40,7 @@ func (s *Service) Create(ctx context.Context, userID string) (string, time.Time,
 	}
 	var random [32]byte
 	if _, err := rand.Read(random[:]); err != nil {
-		return "", time.Time{}, fmt.Errorf("generate session token: %w", err)
+		return "", time.Time{}, fmt.Errorf("создание токена сеанса: %w", err)
 	}
 	token := base64.RawURLEncoding.EncodeToString(random[:])
 	expiresAt := time.Now().UTC().Add(SessionTTL)

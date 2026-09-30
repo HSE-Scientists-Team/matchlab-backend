@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	userconfig "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/config"
+	"github.com/HSE-Scientists-Team/matchlab-backend/internal/migrator/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -43,7 +43,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := userconfig.Postgres{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}
+	cfg := config.Postgres{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}
 	db, err := sql.Open("pgx", cfg.URL())
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		}
 		select {
 		case <-ctx.Done():
-			t.Fatalf("PostgreSQL did not become ready: %v", ctx.Err())
+			t.Fatalf("PostgreSQL не стал готовым: %v", ctx.Err())
 		case <-time.After(500 * time.Millisecond):
 		}
 	}
@@ -65,14 +65,14 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		t.Fatal(err)
 	}
 	if version != 1 {
-		t.Fatalf("migration version = %d, want 1", version)
+		t.Fatalf("версия миграции = %d, ожидалась 1", version)
 	}
 	version, err = Up(ctx, db)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if version != 1 {
-		t.Fatalf("second migration version = %d, want 1", version)
+		t.Fatalf("версия после повтора миграции = %d, ожидалась 1", version)
 	}
 	var tableCount int
 	err = db.QueryRowContext(ctx, `SELECT count(*) FROM information_schema.tables WHERE table_schema = 'users' AND table_name IN ('user_account', 'trusted_email_domain', 'user_email', 'email_verification_request')`).Scan(&tableCount)
@@ -92,7 +92,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 	for i, userID := range []string{userA, userB} {
 		tokenHash := fmt.Sprintf("%064x", i+1)
 		if _, err := db.ExecContext(ctx, `INSERT INTO users.email_verification_request (user_id, email, token_hash, expires_at) VALUES ($1, 'shared@example.org', $2, now() + interval '30 minutes')`, userID, tokenHash); err != nil {
-			t.Fatalf("same email must allow multiple pending requests: %v", err)
+			t.Fatalf("для одного адреса должны допускаться несколько ожидающих запросов: %v", err)
 		}
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'shared@example.org')`, userA); err != nil {
@@ -102,10 +102,10 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'SHARED@example.org')`, userB); err == nil {
-		t.Fatal("database accepted a second owner for the same email")
+		t.Fatal("база допустила второго владельца одного адреса")
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (login, password_hash, status) VALUES ('USER_A', 'hash', 'active')`); err == nil {
-		t.Fatal("database accepted a duplicate login with different letter case")
+		t.Fatal("база допустила одинаковые логины в разном регистре")
 	}
 	var versionTableExists bool
 	err = db.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, fmt.Sprint("users.goose_db_version")).Scan(&versionTableExists)
@@ -113,6 +113,6 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !versionTableExists {
-		t.Fatal("Goose version table not created in users schema")
+		t.Fatal("таблица версий Goose не создана в схеме users")
 	}
 }

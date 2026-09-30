@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MatchLab Gateway API</title>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="/scalar.js"></script>
+  <script>
+    Scalar.createApiReference('#app', {
+      url: '/openapi.yaml',
+      theme: 'default'
+    })
+  </script>
+</body>
+</html>

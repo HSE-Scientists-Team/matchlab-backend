@@ -1,0 +1,362 @@
+openapi: 3.1.0
+info:
+  title: MatchLab Gateway API
+  version: 1.0.0
+  description: |
+    Текущий публичный HTTP API MatchLab: учётные записи, сеансы и подтверждение почты.
+    Это описание реализованных маршрутов Gateway. Для локальной проверки сначала
+    зарегистрируйтесь, затем войдите и укажите полученный токен доступа в Bearer Auth.
+    Письмо с подтверждением появится в Mailpit по адресу http://localhost:8025.
+    Токен из ссылки в письме передайте в метод подтверждения адреса.
+servers:
+  - url: http://localhost:8080
+    description: Gateway в локальном Docker Compose
+tags:
+  - name: Состояние
+  - name: Учётная запись
+  - name: Почта
+  - name: Сеанс
+paths:
+  /health:
+    get:
+      tags: [Состояние]
+      summary: Проверить, что Gateway отвечает
+      description: Проверяет сам HTTP-процесс; состояние его зависимостей не проверяется.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Gateway принимает запросы.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: "ok\n"
+  /api/v1/auth/register:
+    post:
+      tags: [Учётная запись]
+      summary: Зарегистрировать пользователя
+      description: Почта при регистрации не требуется. Логин приводится к нижнему регистру.
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+            example:
+              login: student_01
+              password: example-password-123
+      responses:
+        '201':
+          description: Учётная запись создана.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserId'
+              example:
+                user_id: 4f9a4c95-6144-4ec8-89e8-3866207d7561
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Логин уже зарегистрирован.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: логин уже зарегистрирован
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/login:
+    post:
+      tags: [Учётная запись]
+      summary: Войти по логину и паролю
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+            example:
+              login: student_01
+              password: example-password-123
+      responses:
+        '200':
+          description: Сеанс создан. Используйте access_token для защищённых методов.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+              example:
+                user_id: 4f9a4c95-6144-4ec8-89e8-3866207d7561
+                access_token: пример-токена-доступа
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Неверный логин или пароль.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: неверный логин или пароль
+        '403':
+          description: Учётная запись неактивна.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: учётная запись неактивна
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/users/me/email:
+    get:
+      tags: [Почта]
+      summary: Получить состояние адреса
+      operationId: getEmailStatus
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Текущий и ожидающий адреса пользователя.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailStatus'
+              examples:
+                pending:
+                  summary: Ожидает подтверждения
+                  value:
+                    status: pending
+                    pending_email: student@example.org
+                verified:
+                  summary: Адрес подтверждён
+                  value:
+                    status: verified
+                    email: student@example.org
+                notSet:
+                  summary: Адрес не указан
+                  value:
+                    status: not_set
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      tags: [Почта]
+      summary: Запросить письмо с подтверждением
+      description: |
+        Требует Bearer-токен после входа. User сохраняет одноразовый токен на 30 минут,
+        а Mail отправляет письмо. Ответ 204 означает, что SMTP-сервер принял письмо;
+        доставка в почтовый ящик не гарантируется. Локально письмо смотрите в Mailpit.
+      operationId: requestEmailVerification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+            example:
+              email: student@example.org
+      responses:
+        '204':
+          description: SMTP-сервер принял письмо.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Адрес уже подтверждён для этой учётной записи.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: адрес электронной почты уже подтверждён для этой учётной записи
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/email/confirm:
+    post:
+      tags: [Почта]
+      summary: Подтвердить адрес из письма
+      description: |
+        Передайте token из ссылки в письме. Этот метод не требует Bearer-токена.
+        После подтверждения токен нельзя использовать повторно.
+      operationId: confirmEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmEmailRequest'
+            example:
+              token: ТОКЕН_ИЗ_ПИСЬМА
+      responses:
+        '204':
+          description: Адрес подтверждён.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Токен не найден или уже использован.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: токен подтверждения не найден или уже использован
+        '409':
+          description: Адрес уже подтверждён другим пользователем.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: адрес электронной почты уже подтверждён другим пользователем
+        '410':
+          description: Срок действия токена истёк.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: срок подтверждения адреса электронной почты истёк
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/sessions/current:
+    get:
+      tags: [Сеанс]
+      summary: Получить пользователя текущего сеанса
+      operationId: getCurrentSession
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Сеанс действителен.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserId'
+              example:
+                user_id: 4f9a4c95-6144-4ec8-89e8-3866207d7561
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    delete:
+      tags: [Сеанс]
+      summary: Завершить текущий сеанс
+      operationId: revokeCurrentSession
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Сеанс отозван.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Токен access_token из ответа POST /api/v1/auth/login.
+  schemas:
+    Credentials:
+      type: object
+      additionalProperties: false
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          description: От 1 до 32 латинских букв, цифр и символов _, . или -.
+          minLength: 1
+          maxLength: 32
+          pattern: '^[A-Za-z0-9_.-]{1,32}$'
+        password:
+          type: string
+          format: password
+          description: От 8 до 72 байт в UTF-8.
+    UserId:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+    LoginResult:
+      type: object
+      required: [user_id, access_token]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        access_token:
+          type: string
+    EmailRequest:
+      type: object
+      additionalProperties: false
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+    ConfirmEmailRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Одноразовый токен из письма, действующий 30 минут.
+    EmailStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [not_set, pending, verified]
+        email:
+          type: string
+          format: email
+          description: Текущий подтверждённый адрес, если есть.
+        pending_email:
+          type: string
+          format: email
+          description: Новый адрес, ожидающий подтверждения, если есть.
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+  responses:
+    BadRequest:
+      description: Некорректный JSON или значения запроса.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: некорректное тело запроса
+    Unauthorized:
+      description: Токен доступа отсутствует или недействителен.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: недействительный сеанс
+    Unavailable:
+      description: Зависимый сервис или SMTP-сервер недоступен.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: сервис недоступен

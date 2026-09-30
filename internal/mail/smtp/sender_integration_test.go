@@ -77,9 +77,9 @@ func TestSenderDeliversToMailpit(t *testing.T) {
 		}
 		select {
 		case <-ctx.Done():
-			t.Fatalf("Mailpit did not receive the email: %v", ctx.Err())
+			t.Fatalf("Mailpit не получил письмо: %v", ctx.Err())
 		case <-time.After(250 * time.Millisecond):
 		}
 	}
-	t.Fatalf("Mailpit API reported no delivered messages at %s", apiURL)
+	t.Fatalf("API Mailpit не показывает доставленных писем по адресу %s", apiURL)
 }

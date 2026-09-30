@@ -21,10 +21,10 @@ func NewServer(sessions usecase.SessionService) *Server { return &Server{session
 func (s *Server) CreateSession(ctx context.Context, req *authv1.CreateSessionRequest) (*authv1.CreateSessionResponse, error) {
 	token, expiresAt, err := s.sessions.Create(ctx, req.GetUserId())
 	if errors.Is(err, usecase.ErrInvalidUserID) {
-		return nil, status.Error(codes.InvalidArgument, "valid user_id is required")
+		return nil, status.Error(codes.InvalidArgument, "требуется корректный user_id")
 	}
 	if err != nil {
-		return nil, status.Error(codes.Unavailable, "session store unavailable")
+		return nil, status.Error(codes.Unavailable, "хранилище сеансов недоступно")
 	}
 	return &authv1.CreateSessionResponse{Token: token, ExpiresAtUnix: expiresAt.Unix()}, nil
 }
@@ -32,10 +32,10 @@ func (s *Server) CreateSession(ctx context.Context, req *authv1.CreateSessionReq
 func (s *Server) ValidateSession(ctx context.Context, req *authv1.ValidateSessionRequest) (*authv1.ValidateSessionResponse, error) {
 	userID, err := s.sessions.Validate(ctx, req.GetToken())
 	if errors.Is(err, usecase.ErrInvalidToken) || errors.Is(err, repository.ErrNotFound) {
-		return nil, status.Error(codes.Unauthenticated, "invalid session")
+		return nil, status.Error(codes.Unauthenticated, "недействительный сеанс")
 	}
 	if err != nil {
-		return nil, status.Error(codes.Unavailable, "session store unavailable")
+		return nil, status.Error(codes.Unavailable, "хранилище сеансов недоступно")
 	}
 	return &authv1.ValidateSessionResponse{UserId: userID}, nil
 }
@@ -43,9 +43,9 @@ func (s *Server) ValidateSession(ctx context.Context, req *authv1.ValidateSessio
 func (s *Server) RevokeSession(ctx context.Context, req *authv1.RevokeSessionRequest) (*authv1.RevokeSessionResponse, error) {
 	if err := s.sessions.Revoke(ctx, req.GetToken()); err != nil {
 		if errors.Is(err, usecase.ErrInvalidToken) {
-			return nil, status.Error(codes.InvalidArgument, "invalid session token")
+			return nil, status.Error(codes.InvalidArgument, "недействительный токен сеанса")
 		}
-		return nil, status.Error(codes.Unavailable, "session store unavailable")
+		return nil, status.Error(codes.Unavailable, "хранилище сеансов недоступно")
 	}
 	return &authv1.RevokeSessionResponse{}, nil
 }

@@ -30,8 +30,8 @@ CREATE TABLE users.user_account (
 CREATE UNIQUE INDEX user_account_login_unique ON users.user_account (lower(login));
 CREATE INDEX idx_user_account_status ON users.user_account(status);
 
--- Only confirmed addresses live here. An address can belong to exactly one
--- account, while one account has at most one current confirmed address.
+-- Здесь хранятся только подтверждённые адреса. Адрес принадлежит одной учётной
+-- записи, а учётная запись имеет не более одного текущего подтверждённого адреса.
 CREATE TABLE users.user_email (
     user_id uuid PRIMARY KEY REFERENCES users.user_account(id),
     email varchar(320) NOT NULL,
@@ -40,8 +40,8 @@ CREATE TABLE users.user_email (
 );
 CREATE UNIQUE INDEX user_email_email_unique ON users.user_email (lower(email));
 
--- Pending requests are account-specific. Different accounts may request the
--- same address, but only the user holding the matching token can confirm it.
+-- Ожидающий запрос принадлежит учётной записи. Разные пользователи могут
+-- запросить один адрес, но подтвердить его может лишь владелец нужного токена.
 CREATE TABLE users.email_verification_request (
     user_id uuid PRIMARY KEY REFERENCES users.user_account(id),
     email varchar(320) NOT NULL,

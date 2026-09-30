@@ -13,21 +13,21 @@ func TestLoadAndBuildsPostgresURL(t *testing.T) {
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("POSTGRES_PASSWORD", "password with spaces")
+	t.Setenv("POSTGRES_PASSWORD", "пароль с пробелами")
 	cfg, err := Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if cfg.GRPC.Address() != "0.0.0.0:8082" || cfg.Auth.Address() != "auth:8081" || cfg.Mail.Address() != "mail:8083" {
-		t.Fatalf("unexpected endpoints: %#v", cfg)
+		t.Fatalf("неожиданные адреса: %#v", cfg)
 	}
 	u, err := url.Parse(cfg.DB.URL())
 	if err != nil {
 		t.Fatal(err)
 	}
 	password, _ := u.User.Password()
-	if password != "password with spaces" || u.Host != "postgres:5432" || u.Path != "/matchlab" || u.Query().Get("sslmode") != "disable" {
-		t.Fatalf("unexpected Postgres URL: %s", cfg.DB.URL())
+	if password != "пароль с пробелами" || u.Host != "postgres:5432" || u.Path != "/matchlab" || u.Query().Get("sslmode") != "disable" {
+		t.Fatalf("неожиданный URL PostgreSQL: %s", cfg.DB.URL())
 	}
 }
 
@@ -39,6 +39,6 @@ func TestLoadRejectsPasswordInYAML(t *testing.T) {
 	}
 	t.Setenv("POSTGRES_PASSWORD", "secret")
 	if _, err := Load(path); err == nil {
-		t.Fatal("accepted postgres password from YAML")
+		t.Fatal("пароль PostgreSQL был принят из YAML")
 	}
 }

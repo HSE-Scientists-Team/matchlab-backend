@@ -32,26 +32,26 @@ func Load(path string) (Config, error) {
 	v.SetConfigFile(path)
 	var cfg Config
 	if err := v.ReadInConfig(); err != nil {
-		return cfg, fmt.Errorf("read config %q: %w", path, err)
+		return cfg, fmt.Errorf("чтение конфигурации %q: %w", path, err)
 	}
 	if v.InConfig("redis.password") {
-		return cfg, fmt.Errorf("redis.password must be supplied through REDIS_PASSWORD, not YAML")
+		return cfg, fmt.Errorf("redis.password нужно передавать через REDIS_PASSWORD, а не через YAML")
 	}
 	if err := v.BindEnv("redis.password", "REDIS_PASSWORD"); err != nil {
-		return cfg, fmt.Errorf("bind REDIS_PASSWORD: %w", err)
+		return cfg, fmt.Errorf("привязка REDIS_PASSWORD: %w", err)
 	}
 	if err := v.Unmarshal(&cfg); err != nil {
-		return cfg, fmt.Errorf("parse config %q: %w", path, err)
+		return cfg, fmt.Errorf("разбор конфигурации %q: %w", path, err)
 	}
 	cfg.Redis.Password = v.GetString("redis.password")
 	if strings.TrimSpace(cfg.GRPC.Host) == "" || cfg.GRPC.Port < 1 || cfg.GRPC.Port > 65535 {
-		return Config{}, fmt.Errorf("grpc.host and grpc.port (1-65535) are required")
+		return Config{}, fmt.Errorf("требуются grpc.host и grpc.port (1–65535)")
 	}
 	if strings.TrimSpace(cfg.Redis.Host) == "" || cfg.Redis.Port < 1 || cfg.Redis.Port > 65535 || cfg.Redis.DB < 0 {
-		return Config{}, fmt.Errorf("redis.host, redis.port (1-65535), and nonnegative redis.db are required")
+		return Config{}, fmt.Errorf("требуются redis.host, redis.port (1–65535) и неотрицательный redis.db")
 	}
 	if cfg.Redis.Password == "" {
-		return Config{}, fmt.Errorf("REDIS_PASSWORD environment variable is required")
+		return Config{}, fmt.Errorf("требуется переменная окружения REDIS_PASSWORD")
 	}
 	return cfg, nil
 }

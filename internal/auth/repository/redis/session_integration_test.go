@@ -47,12 +47,12 @@ func TestSessionStoreAgainstRedisContainer(t *testing.T) {
 	}
 	userID, err := store.Find(ctx, "raw-bearer-token")
 	if err != nil || userID != "user-123" {
-		t.Fatalf("Find returned %q, %v", userID, err)
+		t.Fatalf("Find вернул %q, %v", userID, err)
 	}
 	if err := store.Delete(ctx, "raw-bearer-token"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.Find(ctx, "raw-bearer-token"); err == nil {
-		t.Fatal("expected revoked session to be absent")
+		t.Fatal("отозванный сеанс всё ещё существует")
 	}
 }

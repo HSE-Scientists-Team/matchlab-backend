@@ -35,7 +35,7 @@ func TestSessionStoreHashesTokenAndMapsMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strings.Contains(kv.key, "secret-token") || !strings.HasPrefix(kv.key, "auth:session:") || kv.value != "user-id" || kv.ttl != time.Hour {
-		t.Fatalf("unexpected stored session: key %q value %q ttl %s", kv.key, kv.value, kv.ttl)
+		t.Fatalf("неожиданный сохранённый сеанс: ключ %q, значение %q, срок %s", kv.key, kv.value, kv.ttl)
 	}
 	if got, err := store.Find(ctx, "secret-token"); err != nil || got != "user-id" {
 		t.Fatalf("Find: value %q error %v", got, err)
@@ -45,6 +45,6 @@ func TestSessionStoreHashesTokenAndMapsMissing(t *testing.T) {
 	}
 	kv.getErr = goRedis.Nil
 	if _, err := store.Find(ctx, "secret-token"); !errors.Is(err, repository.ErrNotFound) {
-		t.Fatalf("missing session error = %v", err)
+		t.Fatalf("ошибка отсутствующего сеанса = %v", err)
 	}
 }

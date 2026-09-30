@@ -17,7 +17,7 @@ func TestLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.HTTP.Address() != "127.0.0.1:8080" || cfg.Auth.Address() != "localhost:8081" || cfg.User.Address() != "localhost:8082" {
-		t.Fatalf("unexpected endpoints: http %q, auth %q, user %q", cfg.HTTP.Address(), cfg.Auth.Address(), cfg.User.Address())
+		t.Fatalf("неожиданные адреса: HTTP %q, Auth %q, User %q", cfg.HTTP.Address(), cfg.Auth.Address(), cfg.User.Address())
 	}
 }
 
@@ -27,6 +27,6 @@ func TestLoadRejectsMissingServiceAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Load(path); err == nil {
-		t.Fatal("expected invalid user address error")
+		t.Fatal("ожидалась ошибка адреса User")
 	}
 }

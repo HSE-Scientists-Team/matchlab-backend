@@ -4,13 +4,13 @@ set -euo pipefail
 mkdir -p coverage
 profile=coverage/coverage.out
 
-# All repository tests run once. Only code under internal is instrumented.
+# Все тесты репозитория запускаются один раз. Покрытие измеряется только для internal.
 go test ./... -coverpkg=./internal/... -coverprofile="$profile"
 
 module=$(go list -m)
 summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
-printf '\nCoverage by service (internal only):\n'
-printf '\n## Coverage by service\n\n| Service | Coverage |\n| --- | ---: |\n' >> "$summary"
+printf '\nПокрытие по сервисам (только internal):\n'
+printf '\n## Покрытие по сервисам\n\n| Сервис | Покрытие |\n| --- | ---: |\n' >> "$summary"
 
 while IFS= read -r service; do
     coverage=$(awk -v prefix="$module/internal/$service/" '
@@ -23,8 +23,8 @@ while IFS= read -r service; do
                 total += blocks[block]
                 if (hit[block]) covered += blocks[block]
             }
-            if (total == 0) print "n/a (no coverable code)"
-            else printf "%.1f%% (%d/%d statements)", 100 * covered / total, covered, total
+            if (total == 0) print "н/д (нет кода для измерения)"
+            else printf "%.1f%% (%d/%d инструкций)", 100 * covered / total, covered, total
         }
     ' "$profile")
     printf '%s: %s\n' "$service" "$coverage"
