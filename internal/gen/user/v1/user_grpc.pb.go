@@ -19,11 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserService_Register_FullMethodName                 = "/matchlab.user.v1.UserService/Register"
-	UserService_Login_FullMethodName                    = "/matchlab.user.v1.UserService/Login"
-	UserService_RequestEmailVerification_FullMethodName = "/matchlab.user.v1.UserService/RequestEmailVerification"
-	UserService_ConfirmEmail_FullMethodName             = "/matchlab.user.v1.UserService/ConfirmEmail"
-	UserService_GetEmailStatus_FullMethodName           = "/matchlab.user.v1.UserService/GetEmailStatus"
+	UserService_Register_FullMethodName       = "/matchlab.user.v1.UserService/Register"
+	UserService_Login_FullMethodName          = "/matchlab.user.v1.UserService/Login"
+	UserService_ConfirmEmail_FullMethodName   = "/matchlab.user.v1.UserService/ConfirmEmail"
+	UserService_GetEmailStatus_FullMethodName = "/matchlab.user.v1.UserService/GetEmailStatus"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -32,7 +31,6 @@ const (
 type UserServiceClient interface {
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*RegisterResponse, error)
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
-	RequestEmailVerification(ctx context.Context, in *RequestEmailVerificationRequest, opts ...grpc.CallOption) (*RequestEmailVerificationResponse, error)
 	ConfirmEmail(ctx context.Context, in *ConfirmEmailRequest, opts ...grpc.CallOption) (*ConfirmEmailResponse, error)
 	GetEmailStatus(ctx context.Context, in *GetEmailStatusRequest, opts ...grpc.CallOption) (*GetEmailStatusResponse, error)
 }
@@ -65,16 +63,6 @@ func (c *userServiceClient) Login(ctx context.Context, in *LoginRequest, opts ..
 	return out, nil
 }
 
-func (c *userServiceClient) RequestEmailVerification(ctx context.Context, in *RequestEmailVerificationRequest, opts ...grpc.CallOption) (*RequestEmailVerificationResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RequestEmailVerificationResponse)
-	err := c.cc.Invoke(ctx, UserService_RequestEmailVerification_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *userServiceClient) ConfirmEmail(ctx context.Context, in *ConfirmEmailRequest, opts ...grpc.CallOption) (*ConfirmEmailResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ConfirmEmailResponse)
@@ -101,7 +89,6 @@ func (c *userServiceClient) GetEmailStatus(ctx context.Context, in *GetEmailStat
 type UserServiceServer interface {
 	Register(context.Context, *RegisterRequest) (*RegisterResponse, error)
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
-	RequestEmailVerification(context.Context, *RequestEmailVerificationRequest) (*RequestEmailVerificationResponse, error)
 	ConfirmEmail(context.Context, *ConfirmEmailRequest) (*ConfirmEmailResponse, error)
 	GetEmailStatus(context.Context, *GetEmailStatusRequest) (*GetEmailStatusResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
@@ -119,9 +106,6 @@ func (UnimplementedUserServiceServer) Register(context.Context, *RegisterRequest
 }
 func (UnimplementedUserServiceServer) Login(context.Context, *LoginRequest) (*LoginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
-}
-func (UnimplementedUserServiceServer) RequestEmailVerification(context.Context, *RequestEmailVerificationRequest) (*RequestEmailVerificationResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RequestEmailVerification not implemented")
 }
 func (UnimplementedUserServiceServer) ConfirmEmail(context.Context, *ConfirmEmailRequest) (*ConfirmEmailResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ConfirmEmail not implemented")
@@ -186,24 +170,6 @@ func _UserService_Login_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _UserService_RequestEmailVerification_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RequestEmailVerificationRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserServiceServer).RequestEmailVerification(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: UserService_RequestEmailVerification_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServiceServer).RequestEmailVerification(ctx, req.(*RequestEmailVerificationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _UserService_ConfirmEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ConfirmEmailRequest)
 	if err := dec(in); err != nil {
@@ -254,10 +220,6 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Login",
 			Handler:    _UserService_Login_Handler,
-		},
-		{
-			MethodName: "RequestEmailVerification",
-			Handler:    _UserService_RequestEmailVerification_Handler,
 		},
 		{
 			MethodName: "ConfirmEmail",

@@ -11,6 +11,7 @@ import (
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/migrator/config"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -75,7 +76,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		t.Fatalf("версия после повтора миграции = %d, ожидалась 1", version)
 	}
 	var tableCount int
-	err = db.QueryRowContext(ctx, `SELECT count(*) FROM information_schema.tables WHERE table_schema = 'users' AND table_name IN ('user_account', 'trusted_email_domain', 'user_email', 'email_verification_request')`).Scan(&tableCount)
+	err = db.QueryRowContext(ctx, `SELECT count(*) FROM information_schema.tables WHERE table_schema = 'users' AND table_name IN ('user_account', 'trusted_email_domain', 'user_email', 'registration_request')`).Scan(&tableCount)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,28 +85,31 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 	}
 	userA := "00000000-0000-4000-8000-000000000001"
 	userB := "00000000-0000-4000-8000-000000000002"
-	for _, account := range []struct{ id, login string }{{userA, "user_a"}, {userB, "user_b"}} {
-		if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (id, login, password_hash, status) VALUES ($1, $2, 'hash', 'active')`, account.id, account.login); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for i, userID := range []string{userA, userB} {
-		tokenHash := fmt.Sprintf("%064x", i+1)
-		if _, err := db.ExecContext(ctx, `INSERT INTO users.email_verification_request (user_id, email, token_hash, expires_at) VALUES ($1, 'shared@example.org', $2, now() + interval '30 minutes')`, userID, tokenHash); err != nil {
-			t.Fatalf("для одного адреса должны допускаться несколько ожидающих запросов: %v", err)
-		}
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'shared@example.org')`, userA); err != nil {
+
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (id, email, password_hash) VALUES ($1, 'a@example.org', 'hash'), ($2, 'b@example.org', 'hash')`, userA, userB); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `DELETE FROM users.email_verification_request WHERE user_id = $1`, userA); err != nil {
+	for _, address := range []string{"a@example.org", "A@example.org"} {
+		if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email, password_hash) VALUES ($1, 'hash')`, address); err == nil {
+			t.Fatalf("duplicate email accepted: %s", address)
+		}
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (password_hash) VALUES ('hash')`); err == nil {
+		t.Fatal("missing email accepted")
+	}
+
+	// Заявка существует без аккаунта и содержит собственный хеш пароля.
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.registration_request (email, password_hash, token_hash, expires_at) VALUES ('pending@example.org', 'hash', $1, now() + interval '30 minutes')`, fmt.Sprintf("%064x", 1)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'SHARED@example.org')`, userB); err == nil {
-		t.Fatal("база допустила второго владельца одного адреса")
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.registration_request (email, password_hash, token_hash, expires_at) VALUES ('pending@example.org', 'other-hash', $1, now() + interval '30 minutes')`, fmt.Sprintf("%064x", 2)); err == nil {
+		t.Fatal("duplicate registration request accepted")
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (login, password_hash, status) VALUES ('USER_A', 'hash', 'active')`); err == nil {
-		t.Fatal("база допустила одинаковые логины в разном регистре")
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'a@example.org')`, userA); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'a@example.org')`, userB); err == nil {
+		t.Fatal("confirmation for another account email accepted")
 	}
 	var versionTableExists bool
 	err = db.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, fmt.Sprint("users.goose_db_version")).Scan(&versionTableExists)
@@ -114,5 +118,20 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 	}
 	if !versionTableExists {
 		t.Fatal("таблица версий Goose не создана в схеме users")
+	}
+	// Полный откат удаляет таблицы; повторное применение создаёт пустую схему.
+	if err := goose.DownContext(ctx, db, "."); err != nil {
+		t.Fatal(err)
+	}
+	var accountTableExists bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('users.user_account') IS NOT NULL`).Scan(&accountTableExists); err != nil || accountTableExists {
+		t.Fatalf("account table after rollback: exists %t, error %v", accountTableExists, err)
+	}
+	if version, err := Up(ctx, db); err != nil || version != 1 {
+		t.Fatalf("reapply migration: version %d, error %v", version, err)
+	}
+	var accountCount int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.user_account`).Scan(&accountCount); err != nil || accountCount != 0 {
+		t.Fatalf("accounts after reapply: count %d, error %v", accountCount, err)
 	}
 }

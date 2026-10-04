@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
-	"regexp"
 	"strings"
 	"time"
 
@@ -18,18 +17,16 @@ import (
 )
 
 var (
-	ErrInvalidLogin        = errors.New("логин должен содержать от 1 до 32 букв, цифр или символов подчёркивания, точки либо дефиса")
 	ErrInvalidEmail        = errors.New("недействительный адрес электронной почты")
 	ErrInvalidPassword     = errors.New("пароль должен содержать от 8 до 72 байт")
-	ErrInvalidCredentials  = errors.New("неверный логин или пароль")
+	ErrInvalidCredentials  = errors.New("неверный email или пароль")
+	ErrEmailUnverified     = errors.New("подтвердите адрес электронной почты")
 	ErrAccountInactive     = errors.New("учётная запись неактивна")
 	ErrInvalidVerification = errors.New("недействительный токен подтверждения адреса")
 	ErrEmailDelivery       = errors.New("не удалось отправить письмо с подтверждением")
 )
 
 const EmailVerificationTTL = 30 * time.Minute
-
-var loginPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,32}$`)
 
 type SessionCreator interface {
 	Create(context.Context, string) (string, error)
@@ -50,27 +47,43 @@ func NewService(users repository.Users, sessions SessionCreator, email EmailSend
 	return &Service{users: users, sessions: sessions, email: email, now: time.Now}
 }
 
-func (s *Service) Register(ctx context.Context, login, password string) (string, error) {
-	login, err := normalizeLogin(login)
+func (s *Service) Register(ctx context.Context, email, password string) error {
+	email, err := normalizeEmail(email)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if len(password) < 8 || len(password) > 72 {
-		return "", ErrInvalidPassword
+		return ErrInvalidPassword
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if s.email == nil {
+		return ErrEmailDelivery
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", fmt.Errorf("хеширование пароля: %w", err)
+		return fmt.Errorf("хеширование пароля: %w", err)
 	}
-	return s.users.Create(ctx, login, string(hash))
+	var random [32]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return fmt.Errorf("создание токена подтверждения: %w", err)
+	}
+	token := base64.RawURLEncoding.EncodeToString(random[:])
+	tokenHash := sha256.Sum256([]byte(token))
+	expiresAt := s.now().UTC().Add(EmailVerificationTTL)
+	if err := s.users.SaveRegistration(ctx, email, string(passwordHash), hex.EncodeToString(tokenHash[:]), expiresAt); err != nil {
+		return err
+	}
+	if err := s.email.SendVerification(ctx, email, token, expiresAt); err != nil {
+		return fmt.Errorf("%w: %v", ErrEmailDelivery, err)
+	}
+	return nil
 }
 
-func (s *Service) Login(ctx context.Context, login, password string) (string, string, error) {
-	login, err := normalizeLogin(login)
+func (s *Service) Login(ctx context.Context, email, password string) (string, string, error) {
+	email, err := normalizeEmail(email)
 	if err != nil {
 		return "", "", ErrInvalidCredentials
 	}
-	account, err := s.users.FindByLogin(ctx, login)
+	account, err := s.users.FindByEmail(ctx, email)
 	if errors.Is(err, repository.ErrNotFound) {
 		return "", "", ErrInvalidCredentials
 	}
@@ -83,6 +96,9 @@ func (s *Service) Login(ctx context.Context, login, password string) (string, st
 	if account.Status != "active" {
 		return "", "", ErrAccountInactive
 	}
+	if !account.Verified {
+		return "", "", ErrEmailUnverified
+	}
 	if err := s.users.MarkLogin(ctx, account.ID); err != nil {
 		return "", "", err
 	}
@@ -91,30 +107,6 @@ func (s *Service) Login(ctx context.Context, login, password string) (string, st
 		return "", "", fmt.Errorf("создание сеанса входа: %w", err)
 	}
 	return account.ID, token, nil
-}
-
-func (s *Service) RequestEmailVerification(ctx context.Context, userID, email string) error {
-	email, err := normalizeEmail(email)
-	if err != nil {
-		return err
-	}
-	if s.email == nil {
-		return ErrEmailDelivery
-	}
-	var random [32]byte
-	if _, err := rand.Read(random[:]); err != nil {
-		return fmt.Errorf("создание токена подтверждения адреса: %w", err)
-	}
-	token := base64.RawURLEncoding.EncodeToString(random[:])
-	hash := sha256.Sum256([]byte(token))
-	expiresAt := s.now().UTC().Add(EmailVerificationTTL)
-	if err := s.users.SaveEmailVerification(ctx, userID, email, hex.EncodeToString(hash[:]), expiresAt); err != nil {
-		return err
-	}
-	if err := s.email.SendVerification(ctx, email, token, expiresAt); err != nil {
-		return fmt.Errorf("%w: %v", ErrEmailDelivery, err)
-	}
-	return nil
 }
 
 func (s *Service) ConfirmEmail(ctx context.Context, token string) error {
@@ -128,14 +120,6 @@ func (s *Service) ConfirmEmail(ctx context.Context, token string) error {
 
 func (s *Service) GetEmailStatus(ctx context.Context, userID string) (repository.EmailStatus, error) {
 	return s.users.GetEmailStatus(ctx, userID)
-}
-
-func normalizeLogin(value string) (string, error) {
-	value = strings.TrimSpace(value)
-	if !loginPattern.MatchString(value) {
-		return "", ErrInvalidLogin
-	}
-	return strings.ToLower(value), nil
 }
 
 func normalizeEmail(value string) (string, error) {

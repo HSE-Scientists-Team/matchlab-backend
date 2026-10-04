@@ -26,7 +26,6 @@ type AuthClient interface {
 type UserClient interface {
 	Register(context.Context, *userv1.RegisterRequest, ...grpc.CallOption) (*userv1.RegisterResponse, error)
 	Login(context.Context, *userv1.LoginRequest, ...grpc.CallOption) (*userv1.LoginResponse, error)
-	RequestEmailVerification(context.Context, *userv1.RequestEmailVerificationRequest, ...grpc.CallOption) (*userv1.RequestEmailVerificationResponse, error)
 	ConfirmEmail(context.Context, *userv1.ConfirmEmailRequest, ...grpc.CallOption) (*userv1.ConfirmEmailResponse, error)
 	GetEmailStatus(context.Context, *userv1.GetEmailStatusRequest, ...grpc.CallOption) (*userv1.GetEmailStatusResponse, error)
 }
@@ -47,9 +46,9 @@ func AuthenticatedUserID(ctx context.Context) string {
 }
 
 // AuthenticatedSubrouter создаёт группу маршрутов, которая проверяет сеанс
-// по токену перед вызовом обработчиков. Другие API могут использовать отдельные
+// по токену и подтверждение email перед вызовом обработчиков. Другие API могут использовать отдельные
 // группы и не зависеть от хранилища Auth.
-func AuthenticatedSubrouter(parent *mux.Router, prefix string, auth AuthClient, logger *slog.Logger) *mux.Router {
+func AuthenticatedSubrouter(parent *mux.Router, prefix string, auth AuthClient, user UserClient, logger *slog.Logger) *mux.Router {
 	routes := parent.PathPrefix(prefix).Subrouter()
 	routes.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +69,9 @@ func AuthenticatedSubrouter(parent *mux.Router, prefix string, auth AuthClient, 
 				writeError(w, http.StatusServiceUnavailable, "сервис Auth недоступен")
 				return
 			}
+			if !requireVerifiedEmail(w, r, user, response.GetUserId()) {
+				return
+			}
 			userCtx := context.WithValue(r.Context(), authenticatedUserKey{}, response.GetUserId())
 			next.ServeHTTP(w, r.WithContext(userCtx))
 		})
@@ -87,8 +89,7 @@ func Register(router *mux.Router, auth AuthClient, user UserClient, logger *slog
 	api.HandleFunc("/auth/email/confirm", h.confirmEmail).Methods(http.MethodPost)
 	api.HandleFunc("/sessions/current", h.current).Methods(http.MethodGet)
 	api.HandleFunc("/sessions/current", h.revoke).Methods(http.MethodDelete)
-	emailRoutes := AuthenticatedSubrouter(api, "/users/me/email", auth, logger)
-	emailRoutes.HandleFunc("", h.requestEmailVerification).Methods(http.MethodPost)
+	emailRoutes := AuthenticatedSubrouter(api, "/users/me/email", auth, user, logger)
 	emailRoutes.HandleFunc("", h.emailStatus).Methods(http.MethodGet)
 }
 
@@ -101,7 +102,7 @@ func bearerToken(r *http.Request) string {
 }
 
 type credentials struct {
-	Login    string `json:"login"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -133,24 +134,26 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), grpcCallTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	response, err := h.user.Register(ctx, &userv1.RegisterRequest{Login: req.Login, Password: req.Password})
+	response, err := h.user.Register(ctx, &userv1.RegisterRequest{Email: req.Email, Password: req.Password})
 	if err != nil {
 		h.logRPCError(r, "регистрация пользователя", err)
 		switch status.Code(err) {
 		case codes.InvalidArgument:
 			writeError(w, http.StatusBadRequest, status.Convert(err).Message())
+		case codes.PermissionDenied:
+			writeError(w, http.StatusForbidden, status.Convert(err).Message())
 		case codes.AlreadyExists:
-			writeError(w, http.StatusConflict, "логин уже зарегистрирован")
+			writeError(w, http.StatusConflict, "email уже зарегистрирован")
 		default:
 			writeError(w, http.StatusServiceUnavailable, "сервис User недоступен")
 		}
 		return
 	}
 	writeJSON(w, http.StatusCreated, struct {
-		UserID string `json:"user_id"`
-	}{UserID: response.GetUserId()})
+		Status string `json:"status"`
+	}{Status: response.GetStatus()})
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
@@ -160,14 +163,16 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), grpcCallTimeout)
 	defer cancel()
-	response, err := h.user.Login(ctx, &userv1.LoginRequest{Login: req.Login, Password: req.Password})
+	response, err := h.user.Login(ctx, &userv1.LoginRequest{Email: req.Email, Password: req.Password})
 	if err != nil {
 		h.logRPCError(r, "вход пользователя", err)
 		switch status.Code(err) {
 		case codes.InvalidArgument:
 			writeError(w, http.StatusBadRequest, status.Convert(err).Message())
 		case codes.Unauthenticated:
-			writeError(w, http.StatusUnauthorized, "неверный логин или пароль")
+			writeError(w, http.StatusUnauthorized, "неверный email или пароль")
+		case codes.PermissionDenied:
+			writeError(w, http.StatusForbidden, status.Convert(err).Message())
 		case codes.FailedPrecondition:
 			writeError(w, http.StatusForbidden, "учётная запись неактивна")
 		default:
@@ -179,35 +184,6 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		UserID string `json:"user_id"`
 		Token  string `json:"access_token"`
 	}{UserID: response.GetUserId(), Token: response.GetSessionToken()})
-}
-
-func (h *Handler) requestEmailVerification(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Email string `json:"email"`
-	}
-	if !decodeJSON(w, r, &req) {
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-	_, err := h.user.RequestEmailVerification(ctx, &userv1.RequestEmailVerificationRequest{
-		UserId: AuthenticatedUserID(r.Context()), Email: req.Email,
-	})
-	if err != nil {
-		h.logRPCError(r, "запрос подтверждения адреса", err)
-		switch status.Code(err) {
-		case codes.InvalidArgument:
-			writeError(w, http.StatusBadRequest, "требуется корректный адрес электронной почты")
-		case codes.AlreadyExists:
-			writeError(w, http.StatusConflict, "адрес электронной почты уже подтверждён для этой учётной записи")
-		case codes.PermissionDenied:
-			writeError(w, http.StatusForbidden, "подтверждение почты для этой организации недоступно")
-		default:
-			writeError(w, http.StatusServiceUnavailable, "подтверждение адреса электронной почты недоступно")
-		}
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) confirmEmail(w http.ResponseWriter, r *http.Request) {
@@ -224,7 +200,7 @@ func (h *Handler) confirmEmail(w http.ResponseWriter, r *http.Request) {
 		h.logRPCError(r, "подтверждение адреса", err)
 		switch status.Code(err) {
 		case codes.AlreadyExists:
-			writeError(w, http.StatusConflict, "адрес электронной почты уже подтверждён другим пользователем")
+			writeError(w, http.StatusConflict, "email уже зарегистрирован")
 		case codes.PermissionDenied:
 			writeError(w, http.StatusForbidden, "подтверждение почты для этой организации недоступно")
 		case codes.DeadlineExceeded:
@@ -275,6 +251,9 @@ func (h *Handler) current(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	if !requireVerifiedEmail(w, r, h.user, response.GetUserId()) {
+		return
+	}
 	writeJSON(w, http.StatusOK, struct {
 		UserID string `json:"user_id"`
 	}{UserID: response.GetUserId()})
@@ -315,4 +294,20 @@ func writeError(w http.ResponseWriter, code int, message string) {
 	writeJSON(w, code, struct {
 		Error string `json:"error"`
 	}{Error: message})
+}
+
+// Проверка в Gateway также закрывает доступ по сеансам, созданным до миграции.
+func requireVerifiedEmail(w http.ResponseWriter, r *http.Request, user UserClient, userID string) bool {
+	ctx, cancel := context.WithTimeout(r.Context(), grpcCallTimeout)
+	defer cancel()
+	result, err := user.GetEmailStatus(ctx, &userv1.GetEmailStatusRequest{UserId: userID})
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "состояние адреса электронной почты недоступно")
+		return false
+	}
+	if result.GetStatus() != "verified" {
+		writeError(w, http.StatusForbidden, "подтвердите адрес электронной почты")
+		return false
+	}
+	return true
 }
