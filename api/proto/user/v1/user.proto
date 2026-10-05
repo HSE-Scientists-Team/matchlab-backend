@@ -7,22 +7,23 @@ option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/ge
 service UserService {
   rpc Register(RegisterRequest) returns (RegisterResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
-  rpc RequestEmailVerification(RequestEmailVerificationRequest) returns (RequestEmailVerificationResponse);
   rpc ConfirmEmail(ConfirmEmailRequest) returns (ConfirmEmailResponse);
   rpc GetEmailStatus(GetEmailStatusRequest) returns (GetEmailStatusResponse);
 }
 
 message RegisterRequest {
-  string login = 1;
+  string email = 1;
   string password = 2;
 }
 
 message RegisterResponse {
-  string user_id = 1;
+  reserved 1;
+  reserved "user_id";
+  string status = 2;
 }
 
 message LoginRequest {
-  string login = 1;
+  string email = 1;
   string password = 2;
 }
 
@@ -30,13 +31,6 @@ message LoginResponse {
   string user_id = 1;
   string session_token = 2;
 }
-
-message RequestEmailVerificationRequest {
-  string user_id = 1;
-  string email = 2;
-}
-
-message RequestEmailVerificationResponse {}
 
 message ConfirmEmailRequest {
   string token = 1;

@@ -33,32 +33,33 @@ func (m *mockAuth) RevokeSession(_ context.Context, req *authv1.RevokeSessionReq
 }
 
 type mockUser struct {
-	registerErr, loginErr       error
-	emailRequestErr, confirmErr error
-	registerRequest             *userv1.RegisterRequest
-	loginRequest                *userv1.LoginRequest
-	emailRequest                *userv1.RequestEmailVerificationRequest
-	confirmRequest              *userv1.ConfirmEmailRequest
+	emailStatus           string
+	emailStatusErr        error
+	registerErr, loginErr error
+	confirmErr            error
+	registerRequest       *userv1.RegisterRequest
+	loginRequest          *userv1.LoginRequest
+	confirmRequest        *userv1.ConfirmEmailRequest
 }
 
 func (m *mockUser) Register(_ context.Context, req *userv1.RegisterRequest, _ ...grpc.CallOption) (*userv1.RegisterResponse, error) {
 	m.registerRequest = req
-	return &userv1.RegisterResponse{UserId: "4f9a4c95-6144-4ec8-89e8-3866207d7561"}, m.registerErr
+	return &userv1.RegisterResponse{Status: "pending"}, m.registerErr
 }
 func (m *mockUser) Login(_ context.Context, req *userv1.LoginRequest, _ ...grpc.CallOption) (*userv1.LoginResponse, error) {
 	m.loginRequest = req
 	return &userv1.LoginResponse{UserId: "4f9a4c95-6144-4ec8-89e8-3866207d7561", SessionToken: "secret-token"}, m.loginErr
-}
-func (m *mockUser) RequestEmailVerification(_ context.Context, req *userv1.RequestEmailVerificationRequest, _ ...grpc.CallOption) (*userv1.RequestEmailVerificationResponse, error) {
-	m.emailRequest = req
-	return &userv1.RequestEmailVerificationResponse{}, m.emailRequestErr
 }
 func (m *mockUser) ConfirmEmail(_ context.Context, req *userv1.ConfirmEmailRequest, _ ...grpc.CallOption) (*userv1.ConfirmEmailResponse, error) {
 	m.confirmRequest = req
 	return &userv1.ConfirmEmailResponse{}, m.confirmErr
 }
 func (m *mockUser) GetEmailStatus(_ context.Context, req *userv1.GetEmailStatusRequest, _ ...grpc.CallOption) (*userv1.GetEmailStatusResponse, error) {
-	return &userv1.GetEmailStatusResponse{Email: "a@example.org", Status: "pending"}, nil
+	state := m.emailStatus
+	if state == "" {
+		state = "verified"
+	}
+	return &userv1.GetEmailStatusResponse{Email: "a@example.org", Status: state}, m.emailStatusErr
 }
 
 func testRouter(auth *mockAuth, user *mockUser) *mux.Router {
@@ -70,13 +71,13 @@ func testRouter(auth *mockAuth, user *mockUser) *mux.Router {
 func TestRegisterAndLoginRoutes(t *testing.T) {
 	auth, user := &mockAuth{}, &mockUser{}
 	router := testRouter(auth, user)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"login":"test_user","password":"long-password"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"email":"test@hse.ru","password":"long-password"}`))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
-	if response.Code != http.StatusCreated || user.registerRequest.GetLogin() != "test_user" || !strings.Contains(response.Body.String(), `"user_id"`) {
+	if response.Code != http.StatusCreated || user.registerRequest.GetEmail() != "test@hse.ru" || !strings.Contains(response.Body.String(), `"status":"pending"`) || strings.Contains(response.Body.String(), `"user_id"`) {
 		t.Fatalf("ответ регистрации %d %q", response.Code, response.Body.String())
 	}
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"login":"test_user","password":"long-password"}`))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"email":"test@hse.ru","password":"long-password"}`))
 	response = httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"access_token":"secret-token"`) {
@@ -88,19 +89,11 @@ func TestEmailVerificationRoutes(t *testing.T) {
 	auth, user := &mockAuth{}, &mockUser{}
 	router := testRouter(auth, user)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/me/email", strings.NewReader(`{"email":"a@example.org"}`))
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/me/email", nil)
 	req.Header.Set("Authorization", "Bearer session-token")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
-	if response.Code != http.StatusNoContent || user.emailRequest.GetUserId() != "4f9a4c95-6144-4ec8-89e8-3866207d7561" {
-		t.Fatalf("ответ запроса письма %d %q, запрос %#v", response.Code, response.Body.String(), user.emailRequest)
-	}
-
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/users/me/email", nil)
-	req.Header.Set("Authorization", "Bearer session-token")
-	response = httptest.NewRecorder()
-	router.ServeHTTP(response, req)
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"status":"pending"`) {
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"status":"verified"`) {
 		t.Fatalf("ответ о состоянии адреса %d %q", response.Code, response.Body.String())
 	}
 
@@ -113,14 +106,14 @@ func TestEmailVerificationRoutes(t *testing.T) {
 }
 
 func TestEmailOrganizationUnavailable(t *testing.T) {
-	user := &mockUser{emailRequestErr: status.Error(codes.PermissionDenied, "organization unavailable"), confirmErr: status.Error(codes.PermissionDenied, "organization unavailable")}
+	user := &mockUser{registerErr: status.Error(codes.PermissionDenied, "подтверждение почты для этой организации недоступно"), confirmErr: status.Error(codes.PermissionDenied, "organization unavailable")}
 	router := testRouter(&mockAuth{}, user)
 	for _, tc := range []struct {
 		path string
 		body string
 		auth bool
 	}{
-		{"/api/v1/users/me/email", `{"email":"student@bmstu.ru"}`, true},
+		{"/api/v1/auth/register", `{"email":"student@bmstu.ru","password":"long-password"}`, false},
 		{"/api/v1/auth/email/confirm", `{"token":"verification-token"}`, false},
 	} {
 		req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
@@ -158,7 +151,7 @@ func TestSessionRoutesDelegateToAuth(t *testing.T) {
 func TestAuthenticatedSubrouterAddsUserIDToContext(t *testing.T) {
 	auth := &mockAuth{}
 	router := mux.NewRouter()
-	protected := AuthenticatedSubrouter(router, "/api/v1/projects", auth, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	protected := AuthenticatedSubrouter(router, "/api/v1/projects", auth, &mockUser{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	protected.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(AuthenticatedUserID(r.Context())))
@@ -175,7 +168,7 @@ func TestAuthenticatedSubrouterAddsUserIDToContext(t *testing.T) {
 func TestMapsServiceErrorsAndRejectsBadJSON(t *testing.T) {
 	auth, user := &mockAuth{}, &mockUser{registerErr: status.Error(codes.AlreadyExists, "duplicate")}
 	router := testRouter(auth, user)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"login":"test_user","password":"long-password"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"email":"test@hse.ru","password":"long-password"}`))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
 	if response.Code != http.StatusConflict {
@@ -201,5 +194,61 @@ func TestMiddlewareRecoversAndAddsRequestID(t *testing.T) {
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/panic", nil))
 	if response.Code != http.StatusInternalServerError || response.Header().Get("X-Request-ID") == "" {
 		t.Fatalf("статус %d, идентификатор запроса %q", response.Code, response.Header().Get("X-Request-ID"))
+	}
+}
+
+func TestPendingRegistrationAndLoginBeforeConfirmation(t *testing.T) {
+	user := &mockUser{loginErr: status.Error(codes.Unauthenticated, "неверный email или пароль")}
+	router := testRouter(&mockAuth{}, user)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"email":"student@hse.ru","password":"long-password"}`)))
+	if response.Code != http.StatusCreated || !strings.Contains(response.Body.String(), `"status":"pending"`) || strings.Contains(response.Body.String(), "access_token") {
+		t.Fatalf("pending registration: %d %s", response.Code, response.Body.String())
+	}
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"email":"student@hse.ru","password":"long-password"}`)))
+	if response.Code != http.StatusUnauthorized || strings.Contains(response.Body.String(), "access_token") {
+		t.Fatalf("pending login: %d %s", response.Code, response.Body.String())
+	}
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", strings.NewReader(`{"login":"old_login","password":"long-password"}`)))
+	if response.Code != http.StatusBadRequest {
+		t.Fatal("legacy login field accepted")
+	}
+}
+
+func TestOldUnverifiedSessionsCannotUseProtectedRoutes(t *testing.T) {
+	for _, tc := range []struct {
+		name, state string
+		err         error
+		want        int
+	}{
+		{"pending", "pending", nil, http.StatusForbidden},
+		{"legacy without email", "not_set", nil, http.StatusForbidden},
+		{"User unavailable", "", status.Error(codes.Unavailable, "unavailable"), http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			user, auth := &mockUser{emailStatus: tc.state, emailStatusErr: tc.err}, &mockAuth{}
+			router := testRouter(auth, user)
+			protected := AuthenticatedSubrouter(router, "/private", auth, user, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			called := false
+			protected.HandleFunc("/test", func(w http.ResponseWriter, _ *http.Request) { called = true; w.WriteHeader(http.StatusOK) })
+			for _, path := range []string{"/private/test", "/api/v1/users/me/email", "/api/v1/sessions/current"} {
+				req := httptest.NewRequest(http.MethodGet, path, nil)
+				req.Header.Set("Authorization", "Bearer old-session")
+				response := httptest.NewRecorder()
+				router.ServeHTTP(response, req)
+				if response.Code != tc.want || called {
+					t.Fatalf("%s: status %d, called %t", path, response.Code, called)
+				}
+			}
+			req := httptest.NewRequest(http.MethodDelete, "/api/v1/sessions/current", nil)
+			req.Header.Set("Authorization", "Bearer old-session")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, req)
+			if response.Code != http.StatusNoContent {
+				t.Fatal("old session cannot be revoked")
+			}
+		})
 	}
 }

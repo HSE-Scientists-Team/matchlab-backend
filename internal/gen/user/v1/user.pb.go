@@ -23,7 +23,7 @@ const (
 
 type RegisterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Login         string                 `protobuf:"bytes,1,opt,name=login,proto3" json:"login,omitempty"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -59,9 +59,9 @@ func (*RegisterRequest) Descriptor() ([]byte, []int) {
 	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RegisterRequest) GetLogin() string {
+func (x *RegisterRequest) GetEmail() string {
 	if x != nil {
-		return x.Login
+		return x.Email
 	}
 	return ""
 }
@@ -75,7 +75,7 @@ func (x *RegisterRequest) GetPassword() string {
 
 type RegisterResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -110,16 +110,16 @@ func (*RegisterResponse) Descriptor() ([]byte, []int) {
 	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *RegisterResponse) GetUserId() string {
+func (x *RegisterResponse) GetStatus() string {
 	if x != nil {
-		return x.UserId
+		return x.Status
 	}
 	return ""
 }
 
 type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Login         string                 `protobuf:"bytes,1,opt,name=login,proto3" json:"login,omitempty"`
+	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -155,9 +155,9 @@ func (*LoginRequest) Descriptor() ([]byte, []int) {
 	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *LoginRequest) GetLogin() string {
+func (x *LoginRequest) GetEmail() string {
 	if x != nil {
-		return x.Login
+		return x.Email
 	}
 	return ""
 }
@@ -221,94 +221,6 @@ func (x *LoginResponse) GetSessionToken() string {
 	return ""
 }
 
-type RequestEmailVerificationRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RequestEmailVerificationRequest) Reset() {
-	*x = RequestEmailVerificationRequest{}
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RequestEmailVerificationRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RequestEmailVerificationRequest) ProtoMessage() {}
-
-func (x *RequestEmailVerificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RequestEmailVerificationRequest.ProtoReflect.Descriptor instead.
-func (*RequestEmailVerificationRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *RequestEmailVerificationRequest) GetUserId() string {
-	if x != nil {
-		return x.UserId
-	}
-	return ""
-}
-
-func (x *RequestEmailVerificationRequest) GetEmail() string {
-	if x != nil {
-		return x.Email
-	}
-	return ""
-}
-
-type RequestEmailVerificationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RequestEmailVerificationResponse) Reset() {
-	*x = RequestEmailVerificationResponse{}
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RequestEmailVerificationResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RequestEmailVerificationResponse) ProtoMessage() {}
-
-func (x *RequestEmailVerificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RequestEmailVerificationResponse.ProtoReflect.Descriptor instead.
-func (*RequestEmailVerificationResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{5}
-}
-
 type ConfirmEmailRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
@@ -318,7 +230,7 @@ type ConfirmEmailRequest struct {
 
 func (x *ConfirmEmailRequest) Reset() {
 	*x = ConfirmEmailRequest{}
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[6]
+	mi := &file_api_proto_user_v1_user_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -330,7 +242,7 @@ func (x *ConfirmEmailRequest) String() string {
 func (*ConfirmEmailRequest) ProtoMessage() {}
 
 func (x *ConfirmEmailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[6]
+	mi := &file_api_proto_user_v1_user_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -343,7 +255,7 @@ func (x *ConfirmEmailRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmEmailRequest.ProtoReflect.Descriptor instead.
 func (*ConfirmEmailRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{6}
+	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ConfirmEmailRequest) GetToken() string {
@@ -361,7 +273,7 @@ type ConfirmEmailResponse struct {
 
 func (x *ConfirmEmailResponse) Reset() {
 	*x = ConfirmEmailResponse{}
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[7]
+	mi := &file_api_proto_user_v1_user_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -373,7 +285,7 @@ func (x *ConfirmEmailResponse) String() string {
 func (*ConfirmEmailResponse) ProtoMessage() {}
 
 func (x *ConfirmEmailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[7]
+	mi := &file_api_proto_user_v1_user_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -386,7 +298,7 @@ func (x *ConfirmEmailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfirmEmailResponse.ProtoReflect.Descriptor instead.
 func (*ConfirmEmailResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{7}
+	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{5}
 }
 
 type GetEmailStatusRequest struct {
@@ -398,7 +310,7 @@ type GetEmailStatusRequest struct {
 
 func (x *GetEmailStatusRequest) Reset() {
 	*x = GetEmailStatusRequest{}
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[8]
+	mi := &file_api_proto_user_v1_user_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -410,7 +322,7 @@ func (x *GetEmailStatusRequest) String() string {
 func (*GetEmailStatusRequest) ProtoMessage() {}
 
 func (x *GetEmailStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[8]
+	mi := &file_api_proto_user_v1_user_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +335,7 @@ func (x *GetEmailStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEmailStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetEmailStatusRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{8}
+	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetEmailStatusRequest) GetUserId() string {
@@ -444,7 +356,7 @@ type GetEmailStatusResponse struct {
 
 func (x *GetEmailStatusResponse) Reset() {
 	*x = GetEmailStatusResponse{}
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[9]
+	mi := &file_api_proto_user_v1_user_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -456,7 +368,7 @@ func (x *GetEmailStatusResponse) String() string {
 func (*GetEmailStatusResponse) ProtoMessage() {}
 
 func (x *GetEmailStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_user_v1_user_proto_msgTypes[9]
+	mi := &file_api_proto_user_v1_user_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -469,7 +381,7 @@ func (x *GetEmailStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEmailStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetEmailStatusResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{9}
+	return file_api_proto_user_v1_user_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetEmailStatusResponse) GetEmail() string {
@@ -499,20 +411,16 @@ const file_api_proto_user_v1_user_proto_rawDesc = "" +
 	"\n" +
 	"\x1capi/proto/user/v1/user.proto\x12\x10matchlab.user.v1\"C\n" +
 	"\x0fRegisterRequest\x12\x14\n" +
-	"\x05login\x18\x01 \x01(\tR\x05login\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"+\n" +
-	"\x10RegisterResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"@\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\"9\n" +
+	"\x10RegisterResponse\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06statusJ\x04\b\x01\x10\x02R\auser_id\"@\n" +
 	"\fLoginRequest\x12\x14\n" +
-	"\x05login\x18\x01 \x01(\tR\x05login\x12\x1a\n" +
+	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"M\n" +
 	"\rLoginResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
-	"\rsession_token\x18\x02 \x01(\tR\fsessionToken\"P\n" +
-	"\x1fRequestEmailVerificationRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\"\"\n" +
-	" RequestEmailVerificationResponse\"+\n" +
+	"\rsession_token\x18\x02 \x01(\tR\fsessionToken\"+\n" +
 	"\x13ConfirmEmailRequest\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\"\x16\n" +
 	"\x14ConfirmEmailResponse\"0\n" +
@@ -521,11 +429,10 @@ const file_api_proto_user_v1_user_proto_rawDesc = "" +
 	"\x16GetEmailStatusResponse\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12#\n" +
-	"\rpending_email\x18\x03 \x01(\tR\fpendingEmail2\xf2\x03\n" +
+	"\rpending_email\x18\x03 \x01(\tR\fpendingEmail2\xee\x02\n" +
 	"\vUserService\x12Q\n" +
 	"\bRegister\x12!.matchlab.user.v1.RegisterRequest\x1a\".matchlab.user.v1.RegisterResponse\x12H\n" +
-	"\x05Login\x12\x1e.matchlab.user.v1.LoginRequest\x1a\x1f.matchlab.user.v1.LoginResponse\x12\x81\x01\n" +
-	"\x18RequestEmailVerification\x121.matchlab.user.v1.RequestEmailVerificationRequest\x1a2.matchlab.user.v1.RequestEmailVerificationResponse\x12]\n" +
+	"\x05Login\x12\x1e.matchlab.user.v1.LoginRequest\x1a\x1f.matchlab.user.v1.LoginResponse\x12]\n" +
 	"\fConfirmEmail\x12%.matchlab.user.v1.ConfirmEmailRequest\x1a&.matchlab.user.v1.ConfirmEmailResponse\x12c\n" +
 	"\x0eGetEmailStatus\x12'.matchlab.user.v1.GetEmailStatusRequest\x1a(.matchlab.user.v1.GetEmailStatusResponseBMZKgithub.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1;userv1b\x06proto3"
 
@@ -541,32 +448,28 @@ func file_api_proto_user_v1_user_proto_rawDescGZIP() []byte {
 	return file_api_proto_user_v1_user_proto_rawDescData
 }
 
-var file_api_proto_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_api_proto_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_api_proto_user_v1_user_proto_goTypes = []any{
-	(*RegisterRequest)(nil),                  // 0: matchlab.user.v1.RegisterRequest
-	(*RegisterResponse)(nil),                 // 1: matchlab.user.v1.RegisterResponse
-	(*LoginRequest)(nil),                     // 2: matchlab.user.v1.LoginRequest
-	(*LoginResponse)(nil),                    // 3: matchlab.user.v1.LoginResponse
-	(*RequestEmailVerificationRequest)(nil),  // 4: matchlab.user.v1.RequestEmailVerificationRequest
-	(*RequestEmailVerificationResponse)(nil), // 5: matchlab.user.v1.RequestEmailVerificationResponse
-	(*ConfirmEmailRequest)(nil),              // 6: matchlab.user.v1.ConfirmEmailRequest
-	(*ConfirmEmailResponse)(nil),             // 7: matchlab.user.v1.ConfirmEmailResponse
-	(*GetEmailStatusRequest)(nil),            // 8: matchlab.user.v1.GetEmailStatusRequest
-	(*GetEmailStatusResponse)(nil),           // 9: matchlab.user.v1.GetEmailStatusResponse
+	(*RegisterRequest)(nil),        // 0: matchlab.user.v1.RegisterRequest
+	(*RegisterResponse)(nil),       // 1: matchlab.user.v1.RegisterResponse
+	(*LoginRequest)(nil),           // 2: matchlab.user.v1.LoginRequest
+	(*LoginResponse)(nil),          // 3: matchlab.user.v1.LoginResponse
+	(*ConfirmEmailRequest)(nil),    // 4: matchlab.user.v1.ConfirmEmailRequest
+	(*ConfirmEmailResponse)(nil),   // 5: matchlab.user.v1.ConfirmEmailResponse
+	(*GetEmailStatusRequest)(nil),  // 6: matchlab.user.v1.GetEmailStatusRequest
+	(*GetEmailStatusResponse)(nil), // 7: matchlab.user.v1.GetEmailStatusResponse
 }
 var file_api_proto_user_v1_user_proto_depIdxs = []int32{
 	0, // 0: matchlab.user.v1.UserService.Register:input_type -> matchlab.user.v1.RegisterRequest
 	2, // 1: matchlab.user.v1.UserService.Login:input_type -> matchlab.user.v1.LoginRequest
-	4, // 2: matchlab.user.v1.UserService.RequestEmailVerification:input_type -> matchlab.user.v1.RequestEmailVerificationRequest
-	6, // 3: matchlab.user.v1.UserService.ConfirmEmail:input_type -> matchlab.user.v1.ConfirmEmailRequest
-	8, // 4: matchlab.user.v1.UserService.GetEmailStatus:input_type -> matchlab.user.v1.GetEmailStatusRequest
-	1, // 5: matchlab.user.v1.UserService.Register:output_type -> matchlab.user.v1.RegisterResponse
-	3, // 6: matchlab.user.v1.UserService.Login:output_type -> matchlab.user.v1.LoginResponse
-	5, // 7: matchlab.user.v1.UserService.RequestEmailVerification:output_type -> matchlab.user.v1.RequestEmailVerificationResponse
-	7, // 8: matchlab.user.v1.UserService.ConfirmEmail:output_type -> matchlab.user.v1.ConfirmEmailResponse
-	9, // 9: matchlab.user.v1.UserService.GetEmailStatus:output_type -> matchlab.user.v1.GetEmailStatusResponse
-	5, // [5:10] is the sub-list for method output_type
-	0, // [0:5] is the sub-list for method input_type
+	4, // 2: matchlab.user.v1.UserService.ConfirmEmail:input_type -> matchlab.user.v1.ConfirmEmailRequest
+	6, // 3: matchlab.user.v1.UserService.GetEmailStatus:input_type -> matchlab.user.v1.GetEmailStatusRequest
+	1, // 4: matchlab.user.v1.UserService.Register:output_type -> matchlab.user.v1.RegisterResponse
+	3, // 5: matchlab.user.v1.UserService.Login:output_type -> matchlab.user.v1.LoginResponse
+	5, // 6: matchlab.user.v1.UserService.ConfirmEmail:output_type -> matchlab.user.v1.ConfirmEmailResponse
+	7, // 7: matchlab.user.v1.UserService.GetEmailStatus:output_type -> matchlab.user.v1.GetEmailStatusResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -583,7 +486,7 @@ func file_api_proto_user_v1_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_user_v1_user_proto_rawDesc), len(file_api_proto_user_v1_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

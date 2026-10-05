@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: MatchLab Gateway API
-  version: 1.0.0
+  version: 2.0.0
   description: |
     Текущий публичный HTTP API MatchLab: учётные записи, сеансы и подтверждение почты.
     Это описание реализованных маршрутов Gateway. Для локальной проверки сначала
-    зарегистрируйтесь, затем войдите и укажите полученный токен доступа в Bearer Auth.
+    зарегистрируйтесь, подтвердите email из письма, затем войдите и укажите полученный токен доступа в Bearer Auth.
     Для проверки почты сначала добавьте разрешённые домены HSE локальным seed-скриптом.
     Письмо с подтверждением появится в Mailpit по адресу http://localhost:8025.
     Токен из ссылки в письме передайте в метод подтверждения адреса.
@@ -36,7 +36,7 @@ paths:
     post:
       tags: [Учётная запись]
       summary: Зарегистрировать пользователя
-      description: Почта при регистрации не требуется. Логин приводится к нижнему регистру.
+      description: Email обязателен и приводится к нижнему регистру. Сохраняется заявка и отправляется письмо; аккаунта и сеанса ещё нет. Повтор с тем же email заменяет пароль и токен заявки. Существующий аккаунт менять нельзя.
       operationId: register
       requestBody:
         required: true
@@ -45,33 +45,35 @@ paths:
             schema:
               $ref: '#/components/schemas/Credentials'
             example:
-              login: student_01
+              email: student@hse.ru
               password: example-password-123
       responses:
         '201':
-          description: Учётная запись создана.
+          description: Письмо принято SMTP. Для продолжения подтвердите email.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserId'
+                $ref: '#/components/schemas/RegistrationResult'
               example:
-                user_id: 4f9a4c95-6144-4ec8-89e8-3866207d7561
+                status: pending
         '400':
           $ref: '#/components/responses/BadRequest'
         '409':
-          description: Логин уже зарегистрирован.
+          description: Email уже зарегистрирован.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: логин уже зарегистрирован
+                error: email уже зарегистрирован
+        '403':
+          $ref: '#/components/responses/OrganizationUnavailable'
         '503':
           $ref: '#/components/responses/Unavailable'
   /api/v1/auth/login:
     post:
       tags: [Учётная запись]
-      summary: Войти по логину и паролю
+      summary: Войти по email и паролю
       operationId: login
       requestBody:
         required: true
@@ -80,7 +82,7 @@ paths:
             schema:
               $ref: '#/components/schemas/Credentials'
             example:
-              login: student_01
+              email: student@hse.ru
               password: example-password-123
       responses:
         '200':
@@ -95,21 +97,21 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
-          description: Неверный логин или пароль.
+          description: Неверный email или пароль, в том числе до подтверждения регистрации.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: неверный логин или пароль
+                error: неверный email или пароль
         '403':
-          description: Учётная запись неактивна.
+          description: Почта не подтверждена или учётная запись неактивна.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: учётная запись неактивна
+                error: подтвердите адрес электронной почты
         '503':
           $ref: '#/components/responses/Unavailable'
   /api/v1/users/me/email:
@@ -126,60 +128,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EmailStatus'
-              examples:
-                pending:
-                  summary: Ожидает подтверждения
-                  value:
-                    status: pending
-                    pending_email: student@hse.ru
-                verified:
-                  summary: Адрес подтверждён
-                  value:
-                    status: verified
-                    email: student@hse.ru
-                notSet:
-                  summary: Адрес не указан
-                  value:
-                    status: not_set
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '503':
-          $ref: '#/components/responses/Unavailable'
-    post:
-      tags: [Почта]
-      summary: Запросить письмо с подтверждением
-      description: |
-        Требует Bearer-токен после входа. User сохраняет одноразовый токен на 30 минут,
-        а Mail отправляет письмо. Ответ 204 означает, что SMTP-сервер принял письмо;
-        доставка в почтовый ящик не гарантируется. Локально письмо смотрите в Mailpit.
-      operationId: requestEmailVerification
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/EmailRequest'
-            example:
-              email: student@hse.ru
-      responses:
-        '204':
-          description: SMTP-сервер принял письмо.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/OrganizationUnavailable'
-        '409':
-          description: Адрес уже подтверждён для этой учётной записи.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
               example:
-                error: адрес электронной почты уже подтверждён для этой учётной записи
+                status: verified
+                email: student@hse.ru
+        '403':
+          description: Почта не подтверждена (включая старые сеансы).
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '503':
           $ref: '#/components/responses/Unavailable'
   /api/v1/auth/email/confirm:
@@ -187,8 +142,9 @@ paths:
       tags: [Почта]
       summary: Подтвердить адрес из письма
       description: |
-        Передайте token из ссылки в письме. Этот метод не требует Bearer-токена.
-        После подтверждения токен нельзя использовать повторно.
+        Передайте token из актуальной ссылки в письме. Этот метод не требует Bearer-токена.
+        Аккаунт создаётся с паролем подтверждённой заявки, а заявка удаляется.
+        Старые ссылки после повторной регистрации и использованные токены недействительны.
       operationId: confirmEmail
       requestBody:
         required: true
@@ -200,7 +156,7 @@ paths:
               token: ТОКЕН_ИЗ_ПИСЬМА
       responses:
         '204':
-          description: Адрес подтверждён.
+          description: Адрес подтверждён, аккаунт создан.
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -214,13 +170,13 @@ paths:
               example:
                 error: токен подтверждения не найден или уже использован
         '409':
-          description: Адрес уже подтверждён другим пользователем.
+          description: Email уже зарегистрирован.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                error: адрес электронной почты уже подтверждён другим пользователем
+                error: email уже зарегистрирован
         '410':
           description: Срок действия токена истёк.
           content:
@@ -249,6 +205,8 @@ paths:
                 user_id: 4f9a4c95-6144-4ec8-89e8-3866207d7561
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Почта не подтверждена.
         '503':
           $ref: '#/components/responses/Unavailable'
     delete:
@@ -274,14 +232,13 @@ components:
     Credentials:
       type: object
       additionalProperties: false
-      required: [login, password]
+      required: [email, password]
       properties:
-        login:
+        email:
           type: string
-          description: От 1 до 32 латинских букв, цифр и символов _, . или -.
-          minLength: 1
-          maxLength: 32
-          pattern: '^[A-Za-z0-9_.-]{1,32}$'
+          format: email
+          description: Обязательный email регистрации и входа, нормализуется в нижний регистр.
+          maxLength: 320
         password:
           type: string
           format: password
@@ -293,6 +250,13 @@ components:
         user_id:
           type: string
           format: uuid
+    RegistrationResult:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [pending]
     LoginResult:
       type: object
       required: [user_id, access_token]
@@ -302,15 +266,6 @@ components:
           format: uuid
         access_token:
           type: string
-    EmailRequest:
-      type: object
-      additionalProperties: false
-      required: [email]
-      properties:
-        email:
-          type: string
-          format: email
-          maxLength: 320
     ConfirmEmailRequest:
       type: object
       additionalProperties: false
@@ -325,7 +280,7 @@ components:
       properties:
         status:
           type: string
-          enum: [not_set, pending, verified]
+          enum: [pending, verified]
         email:
           type: string
           format: email
@@ -333,7 +288,7 @@ components:
         pending_email:
           type: string
           format: email
-          description: Новый адрес, ожидающий подтверждения, если есть.
+          description: Email регистрации, ожидающий подтверждения.
     Error:
       type: object
       required: [error]

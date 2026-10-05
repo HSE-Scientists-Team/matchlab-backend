@@ -32,7 +32,7 @@ flowchart LR
 | Сервис | Реализованная задача | Подробности |
 | --- | --- | --- |
 | Gateway | Публичный HTTP API для регистрации, входа, сеанса и подтверждения электронной почты; обращение к внутренним сервисам по gRPC. | [README Gateway](cmd/gateway/README.md) |
-| User | Учётные записи, вход по логину и паролю, запрос и подтверждение адреса электронной почты. Данные принадлежат схеме PostgreSQL `users`. | [README User](cmd/user/README.md) |
+| User | Учётные записи, вход по email и паролю с обязательным подтверждением почты, запрос и подтверждение адреса электронной почты. Данные принадлежат схеме PostgreSQL `users`. | [README User](cmd/user/README.md) |
 | Auth | Создание, проверка и отзыв краткосрочных сеансов в Redis. | [README Auth](cmd/auth/README.md) |
 | Mail | Синхронная отправка писем через настроенный SMTP-сервер. Собственного хранилища нет. | [README Mail](cmd/mail/README.md) |
 | Migrator | Одноразовая джоба Goose: применяет миграции PostgreSQL и завершается. | [README Migrator](cmd/migrator/README.md) |
