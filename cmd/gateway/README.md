@@ -1,6 +1,6 @@
 # Сервис Gateway
 
-Gateway — публичная точка входа по HTTP. Он отвечает за маршруты, идентификаторы запросов, промежуточные обработчики и преобразование ошибок gRPC в HTTP. Gateway не обращается к PostgreSQL или Redis напрямую. Auth хранит и проверяет сеансы, User хранит учётные записи и обрабатывает регистрацию и вход по паролю. Gateway вызывает оба сервиса по gRPC.
+Gateway — публичная точка входа по HTTP. Он отвечает за маршруты, идентификаторы запросов, промежуточные обработчики и преобразование ошибок gRPC в HTTP. Перед открытием HTTP Gateway подключается к PostgreSQL только для общего запуска миграций. HTTP-запросы обслуживаются через внутренние сервисы; прямого доступа к данным PostgreSQL и Redis нет. Auth хранит и проверяет сеансы, User хранит учётные записи и обрабатывает регистрацию и вход по паролю. Gateway вызывает оба сервиса по gRPC.
 
 ## Конфигурация и локальный запуск
 
@@ -38,6 +38,7 @@ go run ./cmd/user -config cmd/user/config.example.yaml
 ```
 
 ```sh
+export POSTGRES_PASSWORD=matchlab_local_only
 go run ./cmd/gateway -config cmd/gateway/config.example.yaml
 ```
 
@@ -58,3 +59,5 @@ go run ./cmd/gateway -config cmd/gateway/config.example.yaml
 Регистрация и подтверждение не требуют сеанса. `AuthenticatedSubrouter` проверяет сеанс и email через User, включая сеансы, выданные до обновления. Публичные группы маршрутов сохраняют анонимный доступ. Все ответы содержат `X-Request-ID`; пароли и токены не записываются в журнал. Тестовые письма доступны в Mailpit: `http://localhost:8025`.
 
 Проверка: `go test ./...`. Сборка образа: `docker build -f cmd/gateway/Dockerfile -t gateway:local .`.
+
+При запуске обязательны настройки `postgres` и переменная `POSTGRES_PASSWORD` для применения всего SQL-набора. `postgres.migration_timeout` по умолчанию равен `5m`; ошибочная или более новая схема блокирует запуск API. Секрет PostgreSQL не хранится в YAML. Подробнее — [миграции](../../pkg/migrations/README.md).

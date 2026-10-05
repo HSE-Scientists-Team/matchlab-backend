@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/smtp"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/postgres"
 	"github.com/spf13/viper"
 )
 
@@ -30,8 +31,9 @@ type SMTP struct {
 }
 
 type Config struct {
-	GRPC Endpoint `mapstructure:"grpc"`
-	SMTP SMTP     `mapstructure:"smtp"`
+	DB   postgres.Config `mapstructure:"postgres"`
+	GRPC Endpoint        `mapstructure:"grpc"`
+	SMTP SMTP            `mapstructure:"smtp"`
 }
 
 func Load(path string) (Config, error) {
@@ -74,6 +76,10 @@ func Load(path string) (Config, error) {
 	}
 	if !cfg.SMTP.RequireStartTLS && cfg.SMTP.Username != "" {
 		return Config{}, fmt.Errorf("для аутентификации SMTP требуется smtp.require_starttls=true")
+	}
+	cfg.DB, err = postgres.Load(v)
+	if err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }

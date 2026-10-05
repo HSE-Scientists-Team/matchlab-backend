@@ -11,3 +11,10 @@ cors:
   allowed_origins:
     - http://localhost:8084
     - http://127.0.0.1:8084
+postgres:
+  host: postgres
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+  migration_timeout: 5m

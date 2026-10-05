@@ -10,6 +10,7 @@ postgres:
   database: matchlab
   user: matchlab
   ssl_mode: disable
+  migration_timeout: 5m
 mail:
   host: mail
   port: 8083

@@ -7,9 +7,10 @@ import (
 )
 
 func TestLoad(t *testing.T) {
+	t.Setenv("POSTGRES_PASSWORD", "postgres-test")
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	body := "http:\n  host: 127.0.0.1\n  port: 8080\nauth:\n  host: localhost\n  port: 8081\nuser:\n  host: localhost\n  port: 8082\n"
-	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(body+"postgres:\n  host: localhost\n  port: 5432\n  database: matchlab\n  user: matchlab\n  ssl_mode: disable\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := Load(path)

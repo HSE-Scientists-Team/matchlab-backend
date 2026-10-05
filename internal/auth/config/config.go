@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/postgres"
 	"github.com/spf13/viper"
 )
 
@@ -23,8 +24,9 @@ type Redis struct {
 }
 
 type Config struct {
-	GRPC  Endpoint `mapstructure:"grpc"`
-	Redis Redis    `mapstructure:"redis"`
+	DB    postgres.Config `mapstructure:"postgres"`
+	GRPC  Endpoint        `mapstructure:"grpc"`
+	Redis Redis           `mapstructure:"redis"`
 }
 
 func Load(path string) (Config, error) {
@@ -52,6 +54,11 @@ func Load(path string) (Config, error) {
 	}
 	if cfg.Redis.Password == "" {
 		return Config{}, fmt.Errorf("требуется переменная окружения REDIS_PASSWORD")
+	}
+	var err error
+	cfg.DB, err = postgres.Load(v)
+	if err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }
