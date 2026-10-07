@@ -1,0 +1,32 @@
+{
+  "identities": [
+    {
+      "name": "matchlab-admin",
+      "credentials": [
+        {
+          "accessKey": "${S3_ACCESS_KEY}",
+          "secretKey": "${S3_SECRET_KEY}",
+          "status": "Active"
+        }
+      ],
+      "actions": ["Admin"]
+    },
+    {
+      "name": "media-service",
+      "credentials": [
+        {
+          "accessKey": "${S3_MEDIA_ACCESS_KEY}",
+          "secretKey": "${S3_MEDIA_SECRET_KEY}",
+          "status": "Active"
+        }
+      ],
+      "policyNames": ["matchlab-media-rw"]
+    }
+  ],
+  "policies": [
+    {
+      "name": "matchlab-media-rw",
+      "content": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"BucketMetadata\",\"Effect\":\"Allow\",\"Action\":[\"s3:GetBucketLocation\",\"s3:ListBucket\",\"s3:ListBucketMultipartUploads\"],\"Resource\":\"arn:aws:s3:::matchlab-media\"},{\"Sid\":\"ObjectCrudAndMultipart\",\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:AbortMultipartUpload\",\"s3:ListMultipartUploadParts\"],\"Resource\":\"arn:aws:s3:::matchlab-media/*\"}]}"
+    }
+  ]
+}

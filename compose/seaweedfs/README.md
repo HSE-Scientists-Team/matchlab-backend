@@ -27,18 +27,32 @@ docker compose logs seaweedfs-init
 
 Admin, Filer и Master UI не имеют прикладной авторизации и поэтому привязаны
 только к `127.0.0.1`. Не публикуйте эти порты во внешней сети. S3 API требует
-ключи. Локальные значения по умолчанию:
+ключи. Административные локальные значения по умолчанию:
 
 ```text
-access key: matchlab_media_local
-secret key: matchlab_media_local_secret
+access key: matchlab_admin_local
+secret key: matchlab_admin_local_secret
 bucket:     matchlab-media
 region:     us-east-1
 ```
 
-Их можно переопределить переменными `S3_ACCESS_KEY`, `S3_SECRET_KEY`,
-`S3_BUCKET` и `S3_REGION`. Значения по умолчанию предназначены только для
-локальной разработки.
+Для будущего Media-сервиса объявлена отдельная статическая IAM-учётка с
+правами только на bucket `matchlab-media`:
+
+```text
+access key: matchlab_media_local
+secret key: matchlab_media_local_secret
+policy:     matchlab-media-rw
+```
+
+Политика разрешает CRUD объектов и multipart-upload, но не разрешает создавать
+или удалять bucket, управлять IAM и обращаться к другим bucket. Учётка и
+политика декларативно описаны в `s3.json`; секреты подставляются из переменных
+окружения и не хранятся в этом файле.
+
+Значения можно переопределить переменными `S3_ACCESS_KEY`, `S3_SECRET_KEY`,
+`S3_MEDIA_ACCESS_KEY`, `S3_MEDIA_SECRET_KEY`, `S3_BUCKET` и `S3_REGION`.
+Значения по умолчанию предназначены только для локальной разработки.
 
 Init-джоба не удаляет bucket и файлы при повторном запуске. Остановить сервисы:
 

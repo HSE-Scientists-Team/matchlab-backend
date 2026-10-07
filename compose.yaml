@@ -36,10 +36,12 @@ services:
 
   seaweedfs:
     image: chrislusf/seaweedfs:4.47
-    command: ["mini", "-dir=/data", "-admin.port=12646"]
+    command: ["mini", "-dir=/data", "-admin.port=12646", "-s3.config=/etc/seaweedfs/s3.json"]
     environment:
-      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-matchlab_media_local}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-matchlab_media_local_secret}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-matchlab_admin_local}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-matchlab_admin_local_secret}
+      S3_MEDIA_ACCESS_KEY: ${S3_MEDIA_ACCESS_KEY:-matchlab_media_local}
+      S3_MEDIA_SECRET_KEY: ${S3_MEDIA_SECRET_KEY:-matchlab_media_local_secret}
       S3_BUCKET: ${S3_BUCKET:-matchlab-media}
     ports:
       - "127.0.0.1:${S3_PORT:-8333}:8333"
@@ -48,6 +50,7 @@ services:
       - "127.0.0.1:${SEAWEEDFS_ADMIN_PORT:-12646}:12646"
     volumes:
       - seaweedfs-data:/data
+      - ./compose/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9333/cluster/status"]
       interval: 5s
@@ -74,8 +77,8 @@ services:
         aws --endpoint-url "$${S3_ENDPOINT}" s3api head-bucket --bucket "$${S3_BUCKET}"
         echo "bucket $${S3_BUCKET} готов и остаётся приватным"
     environment:
-      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-matchlab_media_local}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-matchlab_media_local_secret}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-matchlab_admin_local}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-matchlab_admin_local_secret}
       AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
       S3_ENDPOINT: http://seaweedfs:8333
       S3_BUCKET: ${S3_BUCKET:-matchlab-media}
