@@ -8,7 +8,12 @@ on:
         required: true
         default: all
         type: choice
-        options: [all, gateway, auth, user, mail]
+        options: [all, gateway, auth, user, mail, api-docs]
+      propose_deploy:
+        description: Создать PR с образами в matchlab-infra
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -30,8 +35,8 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           case "$SERVICE" in
-            all) services='["gateway","auth","user","mail"]' ;;
-            gateway|auth|user|mail) services="[\"$SERVICE\"]" ;;
+            all) services='["gateway","auth","user","mail","api-docs"]' ;;
+            gateway|auth|user|mail|api-docs) services="[\"$SERVICE\"]" ;;
             *) exit 1 ;;
           esac
           echo "services=$services" >> "$GITHUB_OUTPUT"
@@ -45,6 +50,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go test ./...
+      - run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
       - run: go test -tags=integration ./internal/auth/repository/redis ./pkg/migrations ./internal/user/repository ./internal/mail/smtp
   build:
     needs: [prepare, test]
@@ -58,6 +64,16 @@ jobs:
         service: ${{ fromJSON(needs.prepare.outputs.services) }}
     steps:
       - uses: actions/checkout@v4
+      - name: Выбрать Dockerfile
+        id: dockerfile
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          if [ "$SERVICE" = api-docs ]; then
+            echo "path=api/http/Dockerfile" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=cmd/$SERVICE/Dockerfile" >> "$GITHUB_OUTPUT"
+          fi
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -68,7 +84,7 @@ jobs:
         id: image
         with:
           context: .
-          file: cmd/${{ matrix.service }}/Dockerfile
+          file: ${{ steps.dockerfile.outputs.path }}
           platforms: linux/amd64
           push: true
           tags: ghcr.io/${{ needs.prepare.outputs.repository }}/${{ matrix.service }}:sha-${{ github.sha }}
@@ -77,10 +93,73 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-      - name: Показать опубликованный образ
+      - name: Сохранить digest опубликованного образа
         env:
-          IMAGE: ghcr.io/${{ needs.prepare.outputs.repository }}/${{ matrix.service }}:sha-${{ github.sha }}
+          SERVICE: ${{ matrix.service }}
+          IMAGE: ghcr.io/${{ needs.prepare.outputs.repository }}/${{ matrix.service }}
           DIGEST: ${{ steps.image.outputs.digest }}
         run: |
-          echo "### $IMAGE" >> "$GITHUB_STEP_SUMMARY"
-          echo "Digest: $DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p images
+          python3 - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          service = os.environ['SERVICE']
+          image = os.environ['IMAGE'] + '@' + os.environ['DIGEST']
+          Path('images/' + service + '.json').write_text(json.dumps({'service': service, 'image': image}))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('### ' + service + '\n`' + image + '`\n')
+          PYTHON
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.service }}
+          path: images/*.json
+  propose-deploy:
+    needs: [prepare, test, build]
+    if: ${{ inputs.propose_deploy }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: infra-release-proposals
+      cancel-in-progress: false
+    steps:
+      - name: Проверить доступ к infra
+        env:
+          INFRA_TOKEN: ${{ secrets.INFRA_REPO_TOKEN }}
+        run: |
+          if [ -z "$INFRA_TOKEN" ]; then
+            echo '::error::Создайте INFRA_REPO_TOKEN: fine-grained PAT только для matchlab-infra, Contents и Pull requests: read/write.'
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          path: backend
+      - uses: actions/checkout@v4
+        with:
+          repository: HSE-Scientists-Team/matchlab-infra
+          token: ${{ secrets.INFRA_REPO_TOKEN }}
+          path: infra
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-*
+          path: images
+          merge-multiple: true
+      - name: Обновить только собранные сервисы
+        env:
+          IMAGE_REPOSITORY: ${{ needs.prepare.outputs.repository }}
+        run: python3 backend/scripts/ci/update-infra-images.py infra/clusters/homelab/images.yaml images --repository "$IMAGE_REPOSITORY"
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          path: infra
+          token: ${{ secrets.INFRA_REPO_TOKEN }}
+          branch: release/backend-${{ github.sha }}-${{ inputs.service }}
+          title: "Обновить ${{ inputs.service }}: ${{ github.sha }}"
+          commit-message: "Обновить ${{ inputs.service }} из backend ${{ github.sha }}"
+          body: |
+            CI backend успешно выполнил обычные и интеграционные тесты и опубликовал выбранные образы.
+            Версии закреплены digest; остальные сервисы сохраняют прежние версии.
+
+            Исходный коммит: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+            Сборка: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            После слияния Flux применит изменения. PR не сливается автоматически.
+          add-paths: clusters/homelab/images.yaml
