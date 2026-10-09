@@ -32,7 +32,7 @@ jobs:
       - id: matrix
         env:
           SERVICE: ${{ inputs.service }}
-          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          PACKAGE_OWNER: ${{ github.repository_owner }}
         run: |
           case "$SERVICE" in
             all) services='["gateway","auth","user","mail","api-docs"]' ;;
@@ -40,7 +40,7 @@ jobs:
             *) exit 1 ;;
           esac
           echo "services=$services" >> "$GITHUB_OUTPUT"
-          echo "repository=${GITHUB_REPOSITORY_OWNER,,}/matchlab-internal" >> "$GITHUB_OUTPUT"
+          echo "repository=${PACKAGE_OWNER,,}/matchlab-services" >> "$GITHUB_OUTPUT"
   test:
     runs-on: ubuntu-latest
     steps:
