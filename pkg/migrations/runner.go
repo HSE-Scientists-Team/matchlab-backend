@@ -37,6 +37,12 @@ func up(ctx context.Context, db *sql.DB, files fs.FS) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("настройка Goose: %w", err)
 	}
+	// Goose Up сначала вызывает HasPending без session locker. Инициализируем
+	// схему и историю через GetDBVersion, который захватывает тот же lock,
+	// чтобы первый запуск на пустой БД и параллельное создание истории были безопасны.
+	if _, err := provider.GetDBVersion(ctx); err != nil {
+		return 0, fmt.Errorf("подготовка истории миграций: %w", err)
+	}
 	if _, err := provider.Up(ctx); err != nil {
 		return 0, fmt.Errorf("применение миграций: %w", err)
 	}
