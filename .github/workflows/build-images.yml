@@ -40,7 +40,7 @@ jobs:
             *) exit 1 ;;
           esac
           echo "services=$services" >> "$GITHUB_OUTPUT"
-          echo "repository=${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "repository=${REPOSITORY,,}/private" >> "$GITHUB_OUTPUT"
   test:
     runs-on: ubuntu-latest
     steps:
@@ -93,6 +93,24 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Проверить приватность GHCR-пакета
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_REPOSITORY: ${{ needs.prepare.outputs.repository }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          python3 - <<'PYTHON'
+          import os, subprocess
+          from urllib.parse import quote
+          owner, path = os.environ['IMAGE_REPOSITORY'].split('/', 1)
+          package = quote(path + '/' + os.environ['SERVICE'], safe='')
+          visibility = subprocess.check_output(
+              ['gh', 'api', 'orgs/' + owner + '/packages/container/' + package,
+               '--jq', '.visibility'], text=True).strip()
+          if visibility != 'private':
+              raise SystemExit('GHCR package must be private; deployment proposal blocked')
+          print('GHCR package visibility: private')
+          PYTHON
       - name: Сохранить digest опубликованного образа
         env:
           SERVICE: ${{ matrix.service }}

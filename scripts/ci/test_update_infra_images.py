@@ -26,3 +26,9 @@ class ImageUpdateTest(unittest.TestCase):
         for content in ("data:\n", self.content + "  GATEWAY_IMAGE: duplicate\n"):
             with self.subTest(content=content), self.assertRaises(ValueError):
                 images.update(content, [self.record], "org/backend")
+
+    def test_private_package_path_rejects_public_artifacts(self):
+        record = dict(self.record, image="ghcr.io/org/backend/private/gateway@sha256:" + "a" * 64)
+        self.assertIn(record["image"], images.update(self.content, [record], "org/backend/private"))
+        with self.assertRaises(ValueError):
+            images.update(self.content, [self.record], "org/backend/private")
