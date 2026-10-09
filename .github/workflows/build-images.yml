@@ -32,7 +32,7 @@ jobs:
       - id: matrix
         env:
           SERVICE: ${{ inputs.service }}
-          REPOSITORY: ${{ github.repository }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           case "$SERVICE" in
             all) services='["gateway","auth","user","mail","api-docs"]' ;;
@@ -40,7 +40,7 @@ jobs:
             *) exit 1 ;;
           esac
           echo "services=$services" >> "$GITHUB_OUTPUT"
-          echo "repository=${REPOSITORY,,}/private" >> "$GITHUB_OUTPUT"
+          echo "repository=${GITHUB_REPOSITORY_OWNER,,}/matchlab-internal" >> "$GITHUB_OUTPUT"
   test:
     runs-on: ubuntu-latest
     steps:
@@ -108,7 +108,7 @@ jobs:
               ['gh', 'api', 'orgs/' + owner + '/packages/container/' + package,
                '--jq', '.visibility'], text=True).strip()
           if visibility != 'private':
-              raise SystemExit('GHCR package must be private; deployment proposal blocked')
+              raise SystemExit('GHCR package visibility is ' + repr(visibility) + '; expected private, deployment proposal blocked')
           print('GHCR package visibility: private')
           PYTHON
       - name: Сохранить digest опубликованного образа
