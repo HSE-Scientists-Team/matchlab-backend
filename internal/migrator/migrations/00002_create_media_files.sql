@@ -12,6 +12,7 @@ CREATE TYPE media.file_status AS ENUM (
 CREATE TABLE media.file (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_user_id uuid NOT NULL,
+    is_public boolean NOT NULL DEFAULT false,
     bucket_name varchar(63) NOT NULL,
     object_key text NOT NULL,
     original_name varchar(255) NOT NULL,

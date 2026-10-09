@@ -16,6 +16,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/config"
 	delivery "github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/delivery/http"
 	authv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
+	mediav1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
 	userv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/gorilla/mux"
@@ -67,9 +68,15 @@ func run(logger *slog.Logger) error {
 		}
 	}()
 
+	mediaConn, err := dial(cfg.Media.Address())
+	if err != nil {
+		return err
+	}
+	defer func() { _ = mediaConn.Close() }()
 	router := mux.NewRouter()
 	healthcheck.RegisterHTTP(router)
 	delivery.Register(router, authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
+	delivery.RegisterMedia(router, mediav1.NewMediaServiceClient(mediaConn), authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
 	server := &http.Server{
 		Handler:           delivery.Middleware(logger, delivery.CORS(cfg.CORS.AllowedOrigins, router)),
 		ReadHeaderTimeout: 5 * time.Second,

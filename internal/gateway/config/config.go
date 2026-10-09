@@ -18,10 +18,11 @@ type Endpoint struct {
 func (e Endpoint) Address() string { return net.JoinHostPort(e.Host, strconv.Itoa(e.Port)) }
 
 type Config struct {
-	HTTP Endpoint `mapstructure:"http"`
-	Auth Endpoint `mapstructure:"auth"`
-	User Endpoint `mapstructure:"user"`
-	CORS struct {
+	HTTP  Endpoint `mapstructure:"http"`
+	Auth  Endpoint `mapstructure:"auth"`
+	User  Endpoint `mapstructure:"user"`
+	Media Endpoint `mapstructure:"media"`
+	CORS  struct {
 		AllowedOrigins []string `mapstructure:"allowed_origins"`
 	} `mapstructure:"cors"`
 }
@@ -43,6 +44,9 @@ func Load(path string) (Config, error) {
 		return Config{}, err
 	}
 	if err := validateEndpoint("user", cfg.User); err != nil {
+		return Config{}, err
+	}
+	if err := validateEndpoint("media", cfg.Media); err != nil {
 		return Config{}, err
 	}
 	for _, origin := range cfg.CORS.AllowedOrigins {

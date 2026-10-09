@@ -1,0 +1,12 @@
+.git
+.todo
+.idea
+.codex
+.agents
+.env
+.env.*
+!.env.example
+coverage
+**/config.local.yaml
+**/config.local.yml
+*.exe

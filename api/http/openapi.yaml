@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: MatchLab Gateway API
-  version: 2.0.0
+  version: 2.1.0
   description: |
-    Текущий публичный HTTP API MatchLab: учётные записи, сеансы и подтверждение почты.
+    Текущий публичный HTTP API MatchLab: учётные записи, сеансы, подтверждение почты и файлы.
     Это описание реализованных маршрутов Gateway. Для локальной проверки сначала
     зарегистрируйтесь, подтвердите email из письма, затем войдите и укажите полученный токен доступа в Bearer Auth.
     Для проверки почты сначала добавьте разрешённые домены HSE локальным seed-скриптом.
@@ -17,7 +17,169 @@ tags:
   - name: Учётная запись
   - name: Почта
   - name: Сеанс
+  - name: Файлы
 paths:
+  /api/v1/media/files:
+    post:
+      tags: [Файлы]
+      summary: Подготовить загрузку файла
+      operationId: createMediaUpload
+      description: |
+        Требует сеанс и подтверждённую почту. Владелец определяется из сеанса.
+        Возвращает pending и подписанный PUT. Передайте байты файла напрямую по upload_url,
+        с выданными headers, затем вызовите complete. Не используйте multipart/form-data.
+        В браузере Content-Length формируется автоматически. is_public по умолчанию false.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMediaUpload'
+            example:
+              original_name: avatar.png
+              content_type: image/png
+              size_bytes: 1024
+              is_public: true
+      responses:
+        '201':
+          description: Создана запись pending. Файл ещё не загружен.
+          headers:
+            Location:
+              schema: {type: string}
+              description: HTTP-путь к метаданным файла.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/MediaForbidden'
+        '409':
+          $ref: '#/components/responses/MediaConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/MediaTimeout'
+  /api/v1/media/files/{id}/complete:
+    parameters:
+      - $ref: '#/components/parameters/MediaFileID'
+    post:
+      tags: [Файлы]
+      summary: Подтвердить загрузку файла
+      operationId: completeMediaUpload
+      description: |
+        Только владелец с подтверждённой почтой, включая публичные файлы.
+        Тело запроса не требуется. Media проверяет объект в S3 и переводит pending в ready.
+        Повтор возвращает сохранённые метаданные ready.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Файл подтверждён.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaFileResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/MediaForbidden'
+        '404':
+          $ref: '#/components/responses/MediaNotFound'
+        '409':
+          $ref: '#/components/responses/MediaConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/MediaTimeout'
+  /api/v1/media/files/{id}:
+    parameters:
+      - $ref: '#/components/parameters/MediaFileID'
+    get:
+      tags: [Файлы]
+      summary: Получить метаданные файла
+      operationId: getMediaFile
+      description: |
+        Публичный файл доступен без сеанса; приватный — только владельцу.
+        Если Authorization передан, он проверяется вместе с подтверждением почты.
+        Недействительный токен возвращает 401, а не гостевой доступ.
+        Не передавайте user_id в запросе. Ответы не кешируются (Cache-Control no-store).
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Метаданные без ссылки на содержимое; доступны и в состоянии pending.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaFileResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/MediaForbidden'
+        '404':
+          $ref: '#/components/responses/MediaNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/MediaTimeout'
+  /api/v1/media/files/{id}/download-url:
+    parameters:
+      - $ref: '#/components/parameters/MediaFileID'
+    get:
+      tags: [Файлы]
+      summary: Получить временную ссылку на скачивание
+      operationId: createMediaDownloadURL
+      description: |
+        Для ready. Публичный файл доступен гостю, приватный — владельцу.
+        Переданный Authorization проверяется вместе с подтверждением почты.
+        Ответ Cache-Control no-store. Выполните GET по download_url напрямую в S3,
+        без Bearer-токена Gateway. Ссылка даёт доступ любому её получателю до истечения TTL.
+      security:
+        - {}
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Подписанная GET-ссылка на содержимое.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaDownload'
+              example:
+                download_url: 'http://localhost:8333/matchlab-media/users/example/file?X-Amz-Signature=example'
+                expires_at_unix: 1791543600
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/MediaForbidden'
+        '404':
+          $ref: '#/components/responses/MediaNotFound'
+        '409':
+          $ref: '#/components/responses/MediaConflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '504':
+          $ref: '#/components/responses/MediaTimeout'
   /health:
     get:
       tags: [Состояние]
@@ -223,12 +385,86 @@ paths:
         '503':
           $ref: '#/components/responses/Unavailable'
 components:
+  parameters:
+    MediaFileID:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       description: Токен access_token из ответа POST /api/v1/auth/login.
   schemas:
+    CreateMediaUpload:
+      type: object
+      additionalProperties: false
+      required: [original_name, content_type, size_bytes]
+      properties:
+        original_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Имя без пути и управляющих символов.
+        content_type:
+          type: string
+          description: Разрешённый MIME-тип без параметров; список задаётся настройками Media.
+          examples: [application/pdf, image/jpeg, image/png]
+        size_bytes:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Размер в байтах; лимит из конфигурации Media (локально 10 MiB).
+        is_public:
+          type: boolean
+          default: false
+    MediaFile:
+      type: object
+      required: [id, owner_user_id, original_name, content_type, status, created_at_unix, is_public]
+      properties:
+        id: {type: string, format: uuid}
+        owner_user_id: {type: string, format: uuid}
+        original_name: {type: string}
+        content_type: {type: string}
+        size_bytes:
+          type: integer
+          format: int64
+          description: Фактический размер; до подтверждения поле отсутствует.
+        status:
+          type: string
+          enum: [pending, ready, deleting, deleted, failed]
+        created_at_unix: {type: integer, format: int64}
+        uploaded_at_unix:
+          type: integer
+          format: int64
+          description: Время подтверждения в секундах Unix; до подтверждения отсутствует.
+        is_public: {type: boolean}
+    MediaFileResult:
+      type: object
+      required: [file]
+      properties:
+        file:
+          $ref: '#/components/schemas/MediaFile'
+    MediaUpload:
+      type: object
+      required: [file, upload_url, method, headers, expires_at_unix]
+      properties:
+        file:
+          $ref: '#/components/schemas/MediaFile'
+        upload_url: {type: string, format: uri}
+        method: {type: string, enum: [PUT]}
+        headers:
+          type: object
+          additionalProperties: {type: string}
+          description: Заголовки подписанного PUT. Content-Length в браузере задаёт сам браузер.
+        expires_at_unix: {type: integer, format: int64}
+    MediaDownload:
+      type: object
+      required: [download_url, expires_at_unix]
+      properties:
+        download_url: {type: string, format: uri}
+        expires_at_unix: {type: integer, format: int64}
     Credentials:
       type: object
       additionalProperties: false
@@ -296,6 +532,36 @@ components:
         error:
           type: string
   responses:
+    MediaNotFound:
+      description: Файл отсутствует, удалён или недоступен читателю. Подтверждать чужой публичный файл также нельзя.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    MediaConflict:
+      description: Неподходящее состояние, объект ещё не загружен, неверные метаданные объекта или дубликат.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    MediaForbidden:
+      description: Подтвердите почту или доступ запрещён.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    MediaTimeout:
+      description: Превышено время ожидания ответа Media.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Внутренняя ошибка без подробностей реализации.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     BadRequest:
       description: Некорректный JSON или значения запроса.
       content:

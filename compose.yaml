@@ -160,6 +160,27 @@ services:
       mail:
         condition: service_started
 
+  media:
+    build:
+      context: .
+      dockerfile: cmd/media/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: media-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+      S3_MEDIA_ACCESS_KEY: ${S3_MEDIA_ACCESS_KEY:-matchlab_media_local}
+      S3_MEDIA_SECRET_KEY: ${S3_MEDIA_SECRET_KEY:-matchlab_media_local_secret}
+    ports:
+      - "127.0.0.1:${MEDIA_GRPC_PORT:-8085}:8085"
+    restart: on-failure
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      seaweedfs-init:
+        condition: service_completed_successfully
+
   gateway:
     build:
       context: .
@@ -176,6 +197,8 @@ services:
         condition: service_started
       user:
         condition: service_started
+      media:
+        condition: service_started
 
   api-docs:
     build:
@@ -188,6 +211,8 @@ services:
         condition: service_started
 
 configs:
+  media-compose-config:
+    file: ./cmd/media/config.compose.yaml
   migrator-compose-config:
     file: ./cmd/migrator/config.compose.yaml
   auth-compose-config:

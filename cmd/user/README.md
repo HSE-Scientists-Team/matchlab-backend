@@ -18,7 +18,7 @@ User проверяет активные правила `users.trusted_email_dom
 
 ## PostgreSQL и миграции
 
-Миграции применяет отдельная джоба [Migrator](../migrator/README.md). Начальная миграция `00001_create_accounts.sql` сразу создаёт схему с заявками на регистрацию, обязательным уникальным email аккаунта и связями подтверждения. Она предназначена для пустой БД. Перед запуском обновлённого приложения старую учебную БД нужно пересоздать вместе с историей Goose. Откат удаляет таблицы и типы с данными.
+Миграции применяет отдельная джоба [Migrator](../migrator/README.md). `00001_create_accounts.sql` создаёт схему User с заявками на регистрацию, обязательным уникальным email и связями подтверждения. `00002_create_media_files.sql` создаёт отдельную схему Media; общая актуальная версия — `2`. User не обращается к `media.file`. Откат 00002 сохраняет данные User, откат 00001 удаляет его таблицы и типы с данными. Для отсутствующей колонки `is_public` в старой локальной БД используйте инструкцию Migrator; пересоздавать БД User для этого не требуется. Установки со схемой User до регистрации через заявки требуют отдельного плана обновления.
 
 ## Локальный запуск
 
@@ -32,6 +32,13 @@ docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USE
 
 Скрипт идемпотентен и не меняет существующие правила. В рабочей БД разрешённые домены добавляются отдельно по решению администратора; это не часть миграций схемы.
 
+В PowerShell тот же скрипт передаётся через конвейер:
+
+```powershell
+Get-Content -Raw scripts/db/seed_local_hse_domains.sql |
+    docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
+
 Для прямого запуска Go-сервисов поднимите зависимости и Mailpit через Compose, затем запустите Auth, Mail, User и Gateway с их файлами `config.example.yaml`. Необходимые секреты: `POSTGRES_PASSWORD`, `REDIS_PASSWORD` (только Auth), `SMTP_USERNAME` и `SMTP_PASSWORD` (Mail, если SMTP-сервер требует аутентификацию). Для локальной разработки сначала выполните `docker compose up -d postgres redis mailpit`; при прямом запуске Mail направьте его SMTP-настройки на локальный Mailpit (`localhost:1025`, без STARTTLS). Compose привязывает порты сервисов только к localhost. Настройки SMTP Mailpit предназначены только для разработки.
 
 ## Внутренний gRPC API
@@ -42,3 +49,6 @@ docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USE
 - `GetEmailStatus(user_id)` возвращает состояние email существующего аккаунта. Заявки через этот метод не доступны.
 
 Проверка: `go test ./internal/user/...`. Интеграционные тесты: `go test -tags=integration ./internal/user/repository ./internal/migrator/migrations`.
+
+При прямом запуске Gateway также требуется доступный Media; подготовка
+его зависимостей описана в [README Gateway](../gateway/README.md).

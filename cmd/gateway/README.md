@@ -1,12 +1,12 @@
 # Сервис Gateway
 
-Gateway — публичная точка входа по HTTP. Он отвечает за маршруты, идентификаторы запросов, промежуточные обработчики и преобразование ошибок gRPC в HTTP. Gateway не обращается к PostgreSQL или Redis напрямую. Auth хранит и проверяет сеансы, User хранит учётные записи и обрабатывает регистрацию и вход по паролю. Gateway вызывает оба сервиса по gRPC.
+Gateway — публичная точка входа по HTTP. Он отвечает за маршруты, идентификаторы запросов, промежуточные обработчики и преобразование ошибок gRPC в HTTP. Gateway не обращается к PostgreSQL или Redis напрямую. Auth проверяет сеансы, User обрабатывает учётные записи, Media предоставляет работу с файлами. Gateway вызывает эти сервисы по gRPC.
 
 ## Конфигурация и локальный запуск
 
 Путь к конфигурации по умолчанию — `/etc/app/config.yaml`; изменить его можно флагом `-config`. В `config.example.yaml` указаны хосты и порты HTTP и внутренних gRPC-сервисов.
 
-Запустите весь проект из корня репозитория (PostgreSQL, Redis, Auth, User, Mail и Gateway):
+Запустите весь проект из корня репозитория (PostgreSQL, Redis, SeaweedFS, Mailpit, Migrator, Auth, User, Mail, Media и Gateway):
 
 ```sh
 docker compose up --build
@@ -17,23 +17,21 @@ Gateway доступен по адресу `http://localhost:8080`. Для ос�
 Интерактивное описание реализованного HTTP API и примеры запросов доступны в [Scalar](../../api/http/README.md) по адресу `http://localhost:8084` после запуска Compose.
 Для интерактивных запросов из Scalar локальная конфигурация разрешает CORS с адреса документации; в `config.example.yaml` список разрешённых источников пуст.
 
-Чтобы запускать Auth, User и Gateway напрямую, сначала поднимите зависимости и Mail через Compose:
+Чтобы запускать Auth, User и Gateway напрямую, сначала поднимите зависимости, Mail и Media через Compose:
 
 ```sh
-docker compose up -d postgres redis mailpit mail
+docker compose up -d postgres redis mailpit mail media
 ```
 
 Затем запустите каждый сервис в отдельном терминале:
 
-```sh
-export POSTGRES_PASSWORD=matchlab_local_only
-export REDIS_PASSWORD=matchlab_redis_local
+```powershell
+$env:REDIS_PASSWORD = 'matchlab_redis_local'
 go run ./cmd/auth -config cmd/auth/config.example.yaml
 ```
 
-```sh
-export POSTGRES_PASSWORD=matchlab_local_only
-export REDIS_PASSWORD=matchlab_redis_local
+```powershell
+$env:POSTGRES_PASSWORD = 'matchlab_local_only'
 go run ./cmd/user -config cmd/user/config.example.yaml
 ```
 
@@ -42,6 +40,13 @@ go run ./cmd/gateway -config cmd/gateway/config.example.yaml
 ```
 
 Учётные данные Compose предназначены только для локальной разработки. Данные PostgreSQL хранятся в именованном томе. У Redis тома нет, поэтому при его перезапуске сеансы удаляются.
+
+Media автоматически поднимает SeaweedFS, init-джобу и Migrator как зависимости.
+Дождитесь его готовности. Если миграция 00002 уже применена без `is_public`,
+сначала обновите локальную БД по [инструкции Migrator](../migrator/README.md).
+Для запуска Media тоже напрямую используйте [его инструкцию](../media/README.md).
+Не запускайте контейнер и локальный процесс одного сервиса на одном порту.
+В Bash вместо `$env:NAME = 'value'` используется `export NAME=value`.
 
 ## HTTP API
 
@@ -52,6 +57,23 @@ go run ./cmd/gateway -config cmd/gateway/config.example.yaml
 - `GET /api/v1/sessions/current`: требует Bearer-токен и подтверждённую почту, возвращает `user_id`.
 - `DELETE /api/v1/sessions/current`: отзывает Bearer-токен, возвращает `204`; отзыв доступен и для старого неподтверждённого сеанса.
 - `GET /health`: проверка процесса.
+
+Маршруты файлов и примеры полного сценария описаны в [README HTTP API](../../api/http/README.md):
+
+| HTTP | RPC Media | Доступ |
+| --- | --- | --- |
+| `POST /api/v1/media/files` | `CreateUpload` | Сеанс и подтверждённая почта |
+| `POST /api/v1/media/files/{id}/complete` | `CompleteUpload` | Владелец с подтверждённой почтой |
+| `GET /api/v1/media/files/{id}` | `GetFile` | Владелец или любой читатель публичного файла |
+| `GET /api/v1/media/files/{id}/download-url` | `CreateDownloadURL` | Те же права; файл должен быть ready |
+
+Настройка `media.host`/`media.port` обязательна: локально `localhost:8085`,
+в Compose `media:8085`. При прямом запуске также запустите Media по его
+[инструкции](../media/README.md). Gateway ждёт подключения к Media при старте;
+вызовы Media ограничены 10 секундами и передают контекст HTTP-запроса.
+Если Authorization передан в запросе чтения, проверяются сеанс и почта;
+без заголовка запрос гостевой. Пользовательский `user_id` не принимается.
+Ответы Media не кешируются. Данные файла проходят напрямую через S3.
 
 Фронтенд после регистрации показывает «Перейдите по ссылке в письме и подтвердите регистрацию». Mail добавляет токен в URL из `smtp.verification_url` (локально `http://localhost:5173/verify-email`). На этой странице фронтенд читает `token` из query string, вызывает API подтверждения и после `204` показывает «Адрес подтверждён» с переходом ко входу. Страница фронтенда находится в отдельном приложении. В этом репозитории реализован API для неё.
 
