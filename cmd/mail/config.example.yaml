@@ -2,7 +2,7 @@ grpc:
   host: 0.0.0.0
   port: 8083
 smtp:
-  host: connect.smtp.bz
+  host: postbox.cloud.yandex.net
   port: 587
   from: noreply@matchlab.space
   verification_url: https://matchlab.space/verify-email
