@@ -1,0 +1,17 @@
+# Сборка и предложение деплоя
+
+В GitHub Actions workflow **Собрать и опубликовать образы** запускается кнопкой **Run workflow**. `service=all` собирает Gateway, Auth, User, Mail и Scalar (`api-docs`); можно выбрать отдельный сервис. Перед публикацией выполняются обычные и интеграционные тесты. Образы публикуются для `linux/amd64` в `ghcr.io/hse-scientists-team/matchlab-backend/<service>:sha-<commit>` через встроенный `GITHUB_TOKEN` с `packages: write`.
+
+`propose_deploy=true` после успешной сборки создаёт PR в [matchlab-infra](https://github.com/HSE-Scientists-Team/matchlab-infra). PR обновляет только выбранные сервисы в `clusters/homelab/images.yaml`, закрепляя результат по digest. Он не сливается автоматически. После слияния Flux применяет манифесты; CI не имеет kubeconfig и не подключается к кластеру. Для общего релиза выбирайте `all`, для отдельного — конкретный сервис. Изменения миграций должны оставаться совместимыми с уже работающими сервисами.
+
+Для PR настройте GitHub Actions Secret `INFRA_REPO_TOKEN`: fine-grained PAT с доступом только к `matchlab-infra`, разрешения **Contents: Read and write** и **Pull requests: Read and write**. При политике организации может понадобиться одобрение. Токен должен принадлежать учётной записи с доступом к infra; установите срок действия и ротацию. Для команды вместо PAT предпочтителен GitHub App с теми же ограниченными разрешениями. Обычный `GITHUB_TOKEN` backend не имеет доступа к записи в другой репозиторий.
+
+Без токена используйте `propose_deploy=false` и обновляйте image refs в infra вручную. В summary каждого build job и артефактах `image-*` доступны опубликованные digest. Сборка одного коммита может повторно записать SHA-тег, поэтому GitOps использует digest. Новые GHCR-пакеты могут быть приватными: их видимость настраивается отдельно от видимости GitHub-репозитория.
+
+## Конфигурация и секреты
+
+Несекретные YAML-настройки принадлежат infra и монтируются из ConfigMap. PostgreSQL, Redis и SMTP credentials поступают в сервисы через `secretKeyRef`, соответственно `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SMTP_USERNAME`, `SMTP_PASSWORD`. Секреты не входят в Docker-образы.
+
+GitHub Secrets нужны для CI-доступа, например `INFRA_REPO_TOKEN`; кластер не может читать их напрямую. Пароли приложения хранятся в Kubernetes Secret; для GitOps их зашифрованные декларации хранятся через SOPS/age в infra, а Flux расшифровывает их ключом из своего namespace. Private age key хранится вне Git и требует отдельной защищённой резервной копии. Изменение Secret не перезапускает Pod автоматически; после ротации нужен rollout. Пароль уже созданного PostgreSQL нужно менять в самой БД согласованно с Secret.
+
+Для более сложной инфраструктуры можно подключить External Secrets Operator к Vault или облачному secret manager. Для текущего проекта SOPS обходится без отдельного сервиса хранения секретов.

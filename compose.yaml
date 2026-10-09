@@ -43,12 +43,15 @@ services:
       - source: mail-compose-config
         target: /etc/app/config.yaml
     environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
     ports:
       - "127.0.0.1:${MAIL_GRPC_PORT:-8083}:8083"
     restart: on-failure
     depends_on:
+      postgres:
+        condition: service_healthy
       mailpit:
         condition: service_started
 
@@ -61,27 +64,15 @@ services:
       - source: auth-compose-config
         target: /etc/app/config.yaml
     environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-matchlab_redis_local}
     ports:
       - "127.0.0.1:${AUTH_GRPC_PORT:-8081}:8081"
     restart: on-failure
     depends_on:
-      redis:
-        condition: service_healthy
-
-  migrator:
-    build:
-      context: .
-      dockerfile: cmd/migrator/Dockerfile
-    command: ["-config", "/etc/app/config.yaml"]
-    configs:
-      - source: migrator-compose-config
-        target: /etc/app/config.yaml
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
-    restart: on-failure
-    depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   user:
@@ -98,8 +89,8 @@ services:
       - "127.0.0.1:${USER_GRPC_PORT:-8082}:8082"
     restart: on-failure
     depends_on:
-      migrator:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       auth:
         condition: service_started
       mail:
@@ -113,10 +104,14 @@ services:
     configs:
       - source: gateway-compose-config
         target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
     restart: on-failure
     depends_on:
+      postgres:
+        condition: service_healthy
       auth:
         condition: service_started
       user:
@@ -133,8 +128,6 @@ services:
         condition: service_started
 
 configs:
-  migrator-compose-config:
-    file: ./cmd/migrator/config.compose.yaml
   auth-compose-config:
     file: ./cmd/auth/config.compose.yaml
   user-compose-config:

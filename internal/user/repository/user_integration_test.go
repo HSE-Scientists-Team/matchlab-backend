@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/migrator/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"

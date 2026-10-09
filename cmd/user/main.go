@@ -21,6 +21,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/repository"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -41,6 +42,13 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	version, err := migrations.Apply(ctx, cfg.DB)
+	if err != nil {
+		return err
+	}
+	logger.Info("миграции PostgreSQL применены", "version", version)
 
 	db, err := sql.Open("pgx", cfg.DB.URL())
 	if err != nil {
@@ -54,14 +62,14 @@ func run(logger *slog.Logger) error {
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
-	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
+	startupCtx, cancelStartup := context.WithTimeout(ctx, 10*time.Second)
 	if err := db.PingContext(startupCtx); err != nil {
 		cancelStartup()
 		return fmt.Errorf("подключение к PostgreSQL: %w", err)
 	}
 	cancelStartup()
 
-	dialCtx, cancelDial := context.WithTimeout(context.Background(), 5*time.Second)
+	dialCtx, cancelDial := context.WithTimeout(ctx, 5*time.Second)
 	authConn, err := grpc.DialContext(dialCtx, cfg.Auth.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	cancelDial()
 	if err != nil {
@@ -72,7 +80,7 @@ func run(logger *slog.Logger) error {
 			logger.Error("закрытие gRPC-соединения с Auth", "error", err)
 		}
 	}()
-	mailCtx, cancelMail := context.WithTimeout(context.Background(), 5*time.Second)
+	mailCtx, cancelMail := context.WithTimeout(ctx, 5*time.Second)
 	mailConn, err := grpc.DialContext(mailCtx, cfg.Mail.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	cancelMail()
 	if err != nil {
@@ -93,8 +101,7 @@ func run(logger *slog.Logger) error {
 	server := grpc.NewServer()
 	health := healthcheck.RegisterGRPC(server)
 	userv1.RegisterUserServiceServer(server, usergrpc.NewServer(users))
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
 	logger.Info("сервис User запущен", "address", listener.Addr().String())

@@ -9,3 +9,10 @@ user:
   port: 8082
 cors:
   allowed_origins: []
+postgres:
+  host: localhost
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+  migration_timeout: 5m
