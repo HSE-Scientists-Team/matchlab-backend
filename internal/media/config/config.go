@@ -59,10 +59,18 @@ type Config struct {
 	Download struct {
 		URLTTL time.Duration `mapstructure:"url_ttl"`
 	} `mapstructure:"download"`
+	Multipart struct {
+		PartSizeBytes   int64         `mapstructure:"part_size_bytes"`
+		SessionTTL      time.Duration `mapstructure:"session_ttl"`
+		CleanupInterval time.Duration `mapstructure:"cleanup_interval"`
+	} `mapstructure:"multipart"`
 }
 
 func Load(path string) (Config, error) {
 	v := viper.New()
+	v.SetDefault("multipart.part_size_bytes", 8*1024*1024)
+	v.SetDefault("multipart.session_ttl", "24h")
+	v.SetDefault("multipart.cleanup_interval", "10m")
 	v.SetConfigFile(path)
 	var cfg Config
 	if err := v.ReadInConfig(); err != nil {
@@ -92,6 +100,9 @@ func Load(path string) (Config, error) {
 }
 
 func (c Config) Validate() error {
+	if c.Multipart.PartSizeBytes < 5242880 || c.Multipart.PartSizeBytes > 5368709120 || !validTTL(c.Multipart.SessionTTL) || c.Multipart.CleanupInterval <= 0 || c.Upload.MaxSizeBytes > c.Multipart.PartSizeBytes*10000 {
+		return fmt.Errorf("некорректные multipart.part_size_bytes, multipart.session_ttl, multipart.cleanup_interval или upload.max_size_bytes")
+	}
 	if strings.TrimSpace(c.GRPC.Host) == "" || c.GRPC.Port < 1 || c.GRPC.Port > 65535 {
 		return fmt.Errorf("требуются grpc.host и grpc.port (1–65535)")
 	}

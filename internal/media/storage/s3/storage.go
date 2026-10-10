@@ -118,6 +118,20 @@ func (s *Storage) PresignDownload(ctx context.Context, input domain.DownloadInpu
 	return signedRequest(result, expiresAt), nil
 }
 
+func (s *Storage) DeleteObject(ctx context.Context, bucket, key string) error {
+	if bucket == "" || key == "" {
+		return domain.ErrInvalidArgument
+	}
+	ctx, cancel := context.WithTimeout(ctx, s.timeout)
+	defer cancel()
+	_, err := s.client.DeleteObject(ctx, &awss3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchKey" {
+		return nil
+	}
+	return storageError(ctx, err)
+}
+
 func validTTL(ttl time.Duration) bool {
 	return ttl >= time.Second && ttl <= 7*24*time.Hour && ttl%time.Second == 0
 }

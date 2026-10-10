@@ -645,6 +645,540 @@ func (x *CreateDownloadURLResponse) GetExpiresAtUnix() int64 {
 	return 0
 }
 
+type MultipartPart struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PartNumber    int32                  `protobuf:"varint,1,opt,name=part_number,json=partNumber,proto3" json:"part_number,omitempty"`
+	Etag          string                 `protobuf:"bytes,2,opt,name=etag,proto3" json:"etag,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MultipartPart) Reset() {
+	*x = MultipartPart{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MultipartPart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MultipartPart) ProtoMessage() {}
+
+func (x *MultipartPart) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MultipartPart.ProtoReflect.Descriptor instead.
+func (*MultipartPart) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *MultipartPart) GetPartNumber() int32 {
+	if x != nil {
+		return x.PartNumber
+	}
+	return 0
+}
+
+func (x *MultipartPart) GetEtag() string {
+	if x != nil {
+		return x.Etag
+	}
+	return ""
+}
+
+func (x *MultipartPart) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type MultipartState struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	File              *File                  `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	Status            string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	ExpectedSizeBytes int64                  `protobuf:"varint,3,opt,name=expected_size_bytes,json=expectedSizeBytes,proto3" json:"expected_size_bytes,omitempty"`
+	PartSizeBytes     int64                  `protobuf:"varint,4,opt,name=part_size_bytes,json=partSizeBytes,proto3" json:"part_size_bytes,omitempty"`
+	PartCount         int32                  `protobuf:"varint,5,opt,name=part_count,json=partCount,proto3" json:"part_count,omitempty"`
+	ExpiresAtUnix     int64                  `protobuf:"varint,6,opt,name=expires_at_unix,json=expiresAtUnix,proto3" json:"expires_at_unix,omitempty"`
+	UploadedBytes     int64                  `protobuf:"varint,7,opt,name=uploaded_bytes,json=uploadedBytes,proto3" json:"uploaded_bytes,omitempty"`
+	Parts             []*MultipartPart       `protobuf:"bytes,8,rep,name=parts,proto3" json:"parts,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *MultipartState) Reset() {
+	*x = MultipartState{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MultipartState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MultipartState) ProtoMessage() {}
+
+func (x *MultipartState) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MultipartState.ProtoReflect.Descriptor instead.
+func (*MultipartState) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *MultipartState) GetFile() *File {
+	if x != nil {
+		return x.File
+	}
+	return nil
+}
+
+func (x *MultipartState) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *MultipartState) GetExpectedSizeBytes() int64 {
+	if x != nil {
+		return x.ExpectedSizeBytes
+	}
+	return 0
+}
+
+func (x *MultipartState) GetPartSizeBytes() int64 {
+	if x != nil {
+		return x.PartSizeBytes
+	}
+	return 0
+}
+
+func (x *MultipartState) GetPartCount() int32 {
+	if x != nil {
+		return x.PartCount
+	}
+	return 0
+}
+
+func (x *MultipartState) GetExpiresAtUnix() int64 {
+	if x != nil {
+		return x.ExpiresAtUnix
+	}
+	return 0
+}
+
+func (x *MultipartState) GetUploadedBytes() int64 {
+	if x != nil {
+		return x.UploadedBytes
+	}
+	return 0
+}
+
+func (x *MultipartState) GetParts() []*MultipartPart {
+	if x != nil {
+		return x.Parts
+	}
+	return nil
+}
+
+type CreatePartURLsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FileId        string                 `protobuf:"bytes,2,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	PartNumbers   []int32                `protobuf:"varint,3,rep,packed,name=part_numbers,json=partNumbers,proto3" json:"part_numbers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePartURLsRequest) Reset() {
+	*x = CreatePartURLsRequest{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePartURLsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePartURLsRequest) ProtoMessage() {}
+
+func (x *CreatePartURLsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePartURLsRequest.ProtoReflect.Descriptor instead.
+func (*CreatePartURLsRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *CreatePartURLsRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *CreatePartURLsRequest) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
+func (x *CreatePartURLsRequest) GetPartNumbers() []int32 {
+	if x != nil {
+		return x.PartNumbers
+	}
+	return nil
+}
+
+type PartURL struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PartNumber    int32                  `protobuf:"varint,1,opt,name=part_number,json=partNumber,proto3" json:"part_number,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	UploadUrl     string                 `protobuf:"bytes,3,opt,name=upload_url,json=uploadUrl,proto3" json:"upload_url,omitempty"`
+	Method        string                 `protobuf:"bytes,4,opt,name=method,proto3" json:"method,omitempty"`
+	Headers       map[string]string      `protobuf:"bytes,5,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ExpiresAtUnix int64                  `protobuf:"varint,6,opt,name=expires_at_unix,json=expiresAtUnix,proto3" json:"expires_at_unix,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PartURL) Reset() {
+	*x = PartURL{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PartURL) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PartURL) ProtoMessage() {}
+
+func (x *PartURL) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PartURL.ProtoReflect.Descriptor instead.
+func (*PartURL) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *PartURL) GetPartNumber() int32 {
+	if x != nil {
+		return x.PartNumber
+	}
+	return 0
+}
+
+func (x *PartURL) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *PartURL) GetUploadUrl() string {
+	if x != nil {
+		return x.UploadUrl
+	}
+	return ""
+}
+
+func (x *PartURL) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *PartURL) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
+func (x *PartURL) GetExpiresAtUnix() int64 {
+	if x != nil {
+		return x.ExpiresAtUnix
+	}
+	return 0
+}
+
+type CreatePartURLsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Parts         []*PartURL             `protobuf:"bytes,1,rep,name=parts,proto3" json:"parts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreatePartURLsResponse) Reset() {
+	*x = CreatePartURLsResponse{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreatePartURLsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreatePartURLsResponse) ProtoMessage() {}
+
+func (x *CreatePartURLsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreatePartURLsResponse.ProtoReflect.Descriptor instead.
+func (*CreatePartURLsResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CreatePartURLsResponse) GetParts() []*PartURL {
+	if x != nil {
+		return x.Parts
+	}
+	return nil
+}
+
+// Client provides the ETags returned by UploadPart. Size is checked against S3.
+type CompleteMultipartRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FileId        string                 `protobuf:"bytes,2,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	Parts         []*MultipartPart       `protobuf:"bytes,3,rep,name=parts,proto3" json:"parts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteMultipartRequest) Reset() {
+	*x = CompleteMultipartRequest{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteMultipartRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteMultipartRequest) ProtoMessage() {}
+
+func (x *CompleteMultipartRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteMultipartRequest.ProtoReflect.Descriptor instead.
+func (*CompleteMultipartRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CompleteMultipartRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *CompleteMultipartRequest) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
+func (x *CompleteMultipartRequest) GetParts() []*MultipartPart {
+	if x != nil {
+		return x.Parts
+	}
+	return nil
+}
+
+type AbortMultipartResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AbortMultipartResponse) Reset() {
+	*x = AbortMultipartResponse{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbortMultipartResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbortMultipartResponse) ProtoMessage() {}
+
+func (x *AbortMultipartResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbortMultipartResponse.ProtoReflect.Descriptor instead.
+func (*AbortMultipartResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{15}
+}
+
+// Required owner ID comes from the verified Gateway session.
+type DeleteFileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FileId        string                 `protobuf:"bytes,2,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFileRequest) Reset() {
+	*x = DeleteFileRequest{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFileRequest) ProtoMessage() {}
+
+func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFileRequest.ProtoReflect.Descriptor instead.
+func (*DeleteFileRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DeleteFileRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *DeleteFileRequest) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
+type DeleteFileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFileResponse) Reset() {
+	*x = DeleteFileResponse{}
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFileResponse) ProtoMessage() {}
+
+func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_media_v1_media_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFileResponse.ProtoReflect.Descriptor instead.
+func (*DeleteFileResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_media_v1_media_proto_rawDescGZIP(), []int{17}
+}
+
 var File_api_proto_media_v1_media_proto protoreflect.FileDescriptor
 
 const file_api_proto_media_v1_media_proto_rawDesc = "" +
@@ -695,7 +1229,51 @@ const file_api_proto_media_v1_media_proto_rawDesc = "" +
 	"\afile_id\x18\x02 \x01(\tR\x06fileId\"f\n" +
 	"\x19CreateDownloadURLResponse\x12!\n" +
 	"\fdownload_url\x18\x01 \x01(\tR\vdownloadUrl\x12&\n" +
-	"\x0fexpires_at_unix\x18\x02 \x01(\x03R\rexpiresAtUnix*\xa4\x01\n" +
+	"\x0fexpires_at_unix\x18\x02 \x01(\x03R\rexpiresAtUnix\"c\n" +
+	"\rMultipartPart\x12\x1f\n" +
+	"\vpart_number\x18\x01 \x01(\x05R\n" +
+	"partNumber\x12\x12\n" +
+	"\x04etag\x18\x02 \x01(\tR\x04etag\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\"\xd3\x02\n" +
+	"\x0eMultipartState\x12+\n" +
+	"\x04file\x18\x01 \x01(\v2\x17.matchlab.media.v1.FileR\x04file\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12.\n" +
+	"\x13expected_size_bytes\x18\x03 \x01(\x03R\x11expectedSizeBytes\x12&\n" +
+	"\x0fpart_size_bytes\x18\x04 \x01(\x03R\rpartSizeBytes\x12\x1d\n" +
+	"\n" +
+	"part_count\x18\x05 \x01(\x05R\tpartCount\x12&\n" +
+	"\x0fexpires_at_unix\x18\x06 \x01(\x03R\rexpiresAtUnix\x12%\n" +
+	"\x0euploaded_bytes\x18\a \x01(\x03R\ruploadedBytes\x126\n" +
+	"\x05parts\x18\b \x03(\v2 .matchlab.media.v1.MultipartPartR\x05parts\"l\n" +
+	"\x15CreatePartURLsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
+	"\afile_id\x18\x02 \x01(\tR\x06fileId\x12!\n" +
+	"\fpart_numbers\x18\x03 \x03(\x05R\vpartNumbers\"\xa7\x02\n" +
+	"\aPartURL\x12\x1f\n" +
+	"\vpart_number\x18\x01 \x01(\x05R\n" +
+	"partNumber\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x02 \x01(\x03R\tsizeBytes\x12\x1d\n" +
+	"\n" +
+	"upload_url\x18\x03 \x01(\tR\tuploadUrl\x12\x16\n" +
+	"\x06method\x18\x04 \x01(\tR\x06method\x12A\n" +
+	"\aheaders\x18\x05 \x03(\v2'.matchlab.media.v1.PartURL.HeadersEntryR\aheaders\x12&\n" +
+	"\x0fexpires_at_unix\x18\x06 \x01(\x03R\rexpiresAtUnix\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"J\n" +
+	"\x16CreatePartURLsResponse\x120\n" +
+	"\x05parts\x18\x01 \x03(\v2\x1a.matchlab.media.v1.PartURLR\x05parts\"\x84\x01\n" +
+	"\x18CompleteMultipartRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
+	"\afile_id\x18\x02 \x01(\tR\x06fileId\x126\n" +
+	"\x05parts\x18\x03 \x03(\v2 .matchlab.media.v1.MultipartPartR\x05parts\"\x18\n" +
+	"\x16AbortMultipartResponse\"E\n" +
+	"\x11DeleteFileRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
+	"\afile_id\x18\x02 \x01(\tR\x06fileId\"\x14\n" +
+	"\x12DeleteFileResponse*\xa4\x01\n" +
 	"\n" +
 	"FileStatus\x12\x1b\n" +
 	"\x17FILE_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -703,12 +1281,19 @@ const file_api_proto_media_v1_media_proto_rawDesc = "" +
 	"\x11FILE_STATUS_READY\x10\x02\x12\x18\n" +
 	"\x14FILE_STATUS_DELETING\x10\x03\x12\x17\n" +
 	"\x13FILE_STATUS_DELETED\x10\x04\x12\x16\n" +
-	"\x12FILE_STATUS_FAILED\x10\x052\x98\x03\n" +
-	"\fMediaService\x12_\n" +
+	"\x12FILE_STATUS_FAILED\x10\x052\xe2\a\n" +
+	"\fMediaService\x12Y\n" +
+	"\n" +
+	"DeleteFile\x12$.matchlab.media.v1.DeleteFileRequest\x1a%.matchlab.media.v1.DeleteFileResponse\x12_\n" +
 	"\fCreateUpload\x12&.matchlab.media.v1.CreateUploadRequest\x1a'.matchlab.media.v1.CreateUploadResponse\x12e\n" +
 	"\x0eCompleteUpload\x12(.matchlab.media.v1.CompleteUploadRequest\x1a).matchlab.media.v1.CompleteUploadResponse\x12P\n" +
 	"\aGetFile\x12!.matchlab.media.v1.GetFileRequest\x1a\".matchlab.media.v1.GetFileResponse\x12n\n" +
-	"\x11CreateDownloadURL\x12+.matchlab.media.v1.CreateDownloadURLRequest\x1a,.matchlab.media.v1.CreateDownloadURLResponseBOZMgithub.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1;mediav1b\x06proto3"
+	"\x11CreateDownloadURL\x12+.matchlab.media.v1.CreateDownloadURLRequest\x1a,.matchlab.media.v1.CreateDownloadURLResponse\x12\\\n" +
+	"\x0fCreateMultipart\x12&.matchlab.media.v1.CreateUploadRequest\x1a!.matchlab.media.v1.MultipartState\x12T\n" +
+	"\fGetMultipart\x12!.matchlab.media.v1.GetFileRequest\x1a!.matchlab.media.v1.MultipartState\x12e\n" +
+	"\x0eCreatePartURLs\x12(.matchlab.media.v1.CreatePartURLsRequest\x1a).matchlab.media.v1.CreatePartURLsResponse\x12k\n" +
+	"\x11CompleteMultipart\x12+.matchlab.media.v1.CompleteMultipartRequest\x1a).matchlab.media.v1.CompleteUploadResponse\x12e\n" +
+	"\x0eAbortMultipart\x12(.matchlab.media.v1.CompleteUploadRequest\x1a).matchlab.media.v1.AbortMultipartResponseBOZMgithub.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1;mediav1b\x06proto3"
 
 var (
 	file_api_proto_media_v1_media_proto_rawDescOnce sync.Once
@@ -723,7 +1308,7 @@ func file_api_proto_media_v1_media_proto_rawDescGZIP() []byte {
 }
 
 var file_api_proto_media_v1_media_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_api_proto_media_v1_media_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_api_proto_media_v1_media_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_api_proto_media_v1_media_proto_goTypes = []any{
 	(FileStatus)(0),                   // 0: matchlab.media.v1.FileStatus
 	(*File)(nil),                      // 1: matchlab.media.v1.File
@@ -735,27 +1320,54 @@ var file_api_proto_media_v1_media_proto_goTypes = []any{
 	(*GetFileResponse)(nil),           // 7: matchlab.media.v1.GetFileResponse
 	(*CreateDownloadURLRequest)(nil),  // 8: matchlab.media.v1.CreateDownloadURLRequest
 	(*CreateDownloadURLResponse)(nil), // 9: matchlab.media.v1.CreateDownloadURLResponse
-	nil,                               // 10: matchlab.media.v1.CreateUploadResponse.HeadersEntry
+	(*MultipartPart)(nil),             // 10: matchlab.media.v1.MultipartPart
+	(*MultipartState)(nil),            // 11: matchlab.media.v1.MultipartState
+	(*CreatePartURLsRequest)(nil),     // 12: matchlab.media.v1.CreatePartURLsRequest
+	(*PartURL)(nil),                   // 13: matchlab.media.v1.PartURL
+	(*CreatePartURLsResponse)(nil),    // 14: matchlab.media.v1.CreatePartURLsResponse
+	(*CompleteMultipartRequest)(nil),  // 15: matchlab.media.v1.CompleteMultipartRequest
+	(*AbortMultipartResponse)(nil),    // 16: matchlab.media.v1.AbortMultipartResponse
+	(*DeleteFileRequest)(nil),         // 17: matchlab.media.v1.DeleteFileRequest
+	(*DeleteFileResponse)(nil),        // 18: matchlab.media.v1.DeleteFileResponse
+	nil,                               // 19: matchlab.media.v1.CreateUploadResponse.HeadersEntry
+	nil,                               // 20: matchlab.media.v1.PartURL.HeadersEntry
 }
 var file_api_proto_media_v1_media_proto_depIdxs = []int32{
 	0,  // 0: matchlab.media.v1.File.status:type_name -> matchlab.media.v1.FileStatus
 	1,  // 1: matchlab.media.v1.CreateUploadResponse.file:type_name -> matchlab.media.v1.File
-	10, // 2: matchlab.media.v1.CreateUploadResponse.headers:type_name -> matchlab.media.v1.CreateUploadResponse.HeadersEntry
+	19, // 2: matchlab.media.v1.CreateUploadResponse.headers:type_name -> matchlab.media.v1.CreateUploadResponse.HeadersEntry
 	1,  // 3: matchlab.media.v1.CompleteUploadResponse.file:type_name -> matchlab.media.v1.File
 	1,  // 4: matchlab.media.v1.GetFileResponse.file:type_name -> matchlab.media.v1.File
-	2,  // 5: matchlab.media.v1.MediaService.CreateUpload:input_type -> matchlab.media.v1.CreateUploadRequest
-	4,  // 6: matchlab.media.v1.MediaService.CompleteUpload:input_type -> matchlab.media.v1.CompleteUploadRequest
-	6,  // 7: matchlab.media.v1.MediaService.GetFile:input_type -> matchlab.media.v1.GetFileRequest
-	8,  // 8: matchlab.media.v1.MediaService.CreateDownloadURL:input_type -> matchlab.media.v1.CreateDownloadURLRequest
-	3,  // 9: matchlab.media.v1.MediaService.CreateUpload:output_type -> matchlab.media.v1.CreateUploadResponse
-	5,  // 10: matchlab.media.v1.MediaService.CompleteUpload:output_type -> matchlab.media.v1.CompleteUploadResponse
-	7,  // 11: matchlab.media.v1.MediaService.GetFile:output_type -> matchlab.media.v1.GetFileResponse
-	9,  // 12: matchlab.media.v1.MediaService.CreateDownloadURL:output_type -> matchlab.media.v1.CreateDownloadURLResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	1,  // 5: matchlab.media.v1.MultipartState.file:type_name -> matchlab.media.v1.File
+	10, // 6: matchlab.media.v1.MultipartState.parts:type_name -> matchlab.media.v1.MultipartPart
+	20, // 7: matchlab.media.v1.PartURL.headers:type_name -> matchlab.media.v1.PartURL.HeadersEntry
+	13, // 8: matchlab.media.v1.CreatePartURLsResponse.parts:type_name -> matchlab.media.v1.PartURL
+	10, // 9: matchlab.media.v1.CompleteMultipartRequest.parts:type_name -> matchlab.media.v1.MultipartPart
+	17, // 10: matchlab.media.v1.MediaService.DeleteFile:input_type -> matchlab.media.v1.DeleteFileRequest
+	2,  // 11: matchlab.media.v1.MediaService.CreateUpload:input_type -> matchlab.media.v1.CreateUploadRequest
+	4,  // 12: matchlab.media.v1.MediaService.CompleteUpload:input_type -> matchlab.media.v1.CompleteUploadRequest
+	6,  // 13: matchlab.media.v1.MediaService.GetFile:input_type -> matchlab.media.v1.GetFileRequest
+	8,  // 14: matchlab.media.v1.MediaService.CreateDownloadURL:input_type -> matchlab.media.v1.CreateDownloadURLRequest
+	2,  // 15: matchlab.media.v1.MediaService.CreateMultipart:input_type -> matchlab.media.v1.CreateUploadRequest
+	6,  // 16: matchlab.media.v1.MediaService.GetMultipart:input_type -> matchlab.media.v1.GetFileRequest
+	12, // 17: matchlab.media.v1.MediaService.CreatePartURLs:input_type -> matchlab.media.v1.CreatePartURLsRequest
+	15, // 18: matchlab.media.v1.MediaService.CompleteMultipart:input_type -> matchlab.media.v1.CompleteMultipartRequest
+	4,  // 19: matchlab.media.v1.MediaService.AbortMultipart:input_type -> matchlab.media.v1.CompleteUploadRequest
+	18, // 20: matchlab.media.v1.MediaService.DeleteFile:output_type -> matchlab.media.v1.DeleteFileResponse
+	3,  // 21: matchlab.media.v1.MediaService.CreateUpload:output_type -> matchlab.media.v1.CreateUploadResponse
+	5,  // 22: matchlab.media.v1.MediaService.CompleteUpload:output_type -> matchlab.media.v1.CompleteUploadResponse
+	7,  // 23: matchlab.media.v1.MediaService.GetFile:output_type -> matchlab.media.v1.GetFileResponse
+	9,  // 24: matchlab.media.v1.MediaService.CreateDownloadURL:output_type -> matchlab.media.v1.CreateDownloadURLResponse
+	11, // 25: matchlab.media.v1.MediaService.CreateMultipart:output_type -> matchlab.media.v1.MultipartState
+	11, // 26: matchlab.media.v1.MediaService.GetMultipart:output_type -> matchlab.media.v1.MultipartState
+	14, // 27: matchlab.media.v1.MediaService.CreatePartURLs:output_type -> matchlab.media.v1.CreatePartURLsResponse
+	5,  // 28: matchlab.media.v1.MediaService.CompleteMultipart:output_type -> matchlab.media.v1.CompleteUploadResponse
+	16, // 29: matchlab.media.v1.MediaService.AbortMultipart:output_type -> matchlab.media.v1.AbortMultipartResponse
+	20, // [20:30] is the sub-list for method output_type
+	10, // [10:20] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_media_v1_media_proto_init() }
@@ -770,7 +1382,7 @@ func file_api_proto_media_v1_media_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_media_v1_media_proto_rawDesc), len(file_api_proto_media_v1_media_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

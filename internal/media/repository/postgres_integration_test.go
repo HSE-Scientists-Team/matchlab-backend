@@ -76,6 +76,186 @@ func TestPostgresFiles(t *testing.T) {
 	etag := "object-etag"
 	checksum := fmt.Sprintf("%064x", 1)
 	object := domain.ObjectInfo{SizeBytes: 42, ContentType: "application/pdf", ETag: &etag, ChecksumSHA256: &checksum}
+	t.Run("pending recovery selection locks rollback and expected size", func(t *testing.T) {
+		input := newInput()
+		input.ExpectedSizeBytes = 42
+		file, err := repo.CreatePending(ctx, input)
+		if err != nil || file.ExpectedSizeBytes == nil || *file.ExpectedSizeBytes != 42 {
+			t.Fatalf("expected size: %+v %v", file, err)
+		}
+		cutoff := time.Now().Add(-24 * time.Hour)
+		called := false
+		fn := func(file *domain.File, upload *domain.Multipart) error {
+			called = true
+			file.Status = domain.FileStatusFailed
+			return nil
+		}
+		if err := repo.WithStalePending(ctx, input.ID, input.OwnerUserID, cutoff, fn); err != nil || called {
+			t.Fatal("fresh file changed", err)
+		}
+		if _, err := db.ExecContext(ctx, `UPDATE media.file SET updated_at=now()-interval '25 hours' WHERE id=$1`, input.ID); err != nil {
+			t.Fatal(err)
+		}
+		files, err := repo.StalePendingFiles(ctx, cutoff, "")
+		if err != nil || len(files) != 1 || files[0].FileID != input.ID {
+			t.Fatalf("stale selection: %+v %v", files, err)
+		}
+		if err := repo.WithStalePending(ctx, input.ID, input.OwnerUserID, cutoff, func(file *domain.File, _ *domain.Multipart) error {
+			file.Status = domain.FileStatusFailed
+			return errors.New("s3 unavailable")
+		}); err == nil {
+			t.Fatal("expected rollback")
+		}
+		file, err = repo.FindOwned(ctx, input.ID, input.OwnerUserID)
+		if err != nil || file.Status != domain.FileStatusPending {
+			t.Fatal("failed callback committed", err)
+		}
+		if _, err := repo.MarkReady(ctx, input.ID, input.OwnerUserID, object); err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.WithStalePending(ctx, input.ID, input.OwnerUserID, cutoff, fn); err != nil || called {
+			t.Fatal("completed row not skipped", err)
+		}
+	})
+	t.Run("deletion ownership lifecycle and completion race", func(t *testing.T) {
+		input := createPending(t)
+		if _, err := repo.BeginDeletion(ctx, input.ID, input.OwnerUserID); !errors.Is(err, domain.ErrInvalidStatus) {
+			t.Fatal(err)
+		}
+		if _, err := repo.MarkReady(ctx, input.ID, input.OwnerUserID, object); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := repo.BeginDeletion(ctx, input.ID, uuid.NewString()); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatal(err)
+		}
+		for attempt := 0; attempt < 2; attempt++ {
+			file, err := repo.BeginDeletion(ctx, input.ID, input.OwnerUserID)
+			if err != nil || file.Status != domain.FileStatusDeleting {
+				t.Fatalf("intent: %+v %v", file, err)
+			}
+		}
+		if _, err := repo.MarkReady(ctx, input.ID, input.OwnerUserID, object); !errors.Is(err, domain.ErrInvalidStatus) {
+			t.Fatalf("completion resurrected deleting file: %v", err)
+		}
+		entries, err := repo.DeletingFiles(ctx)
+		if err != nil || len(entries) != 1 || entries[0].FileID != input.ID {
+			t.Fatalf("recovery query: %+v %v", entries, err)
+		}
+		if err := repo.FinishDeletion(ctx, input.ID, uuid.NewString()); !errors.Is(err, domain.ErrInvalidStatus) {
+			t.Fatal(err)
+		}
+		if err := repo.FinishDeletion(ctx, input.ID, input.OwnerUserID); err != nil {
+			t.Fatal(err)
+		}
+		file, err := repo.BeginDeletion(ctx, input.ID, input.OwnerUserID)
+		if err != nil || file.Status != domain.FileStatusDeleted || file.DeletedAt == nil {
+			t.Fatalf("deleted: %+v %v", file, err)
+		}
+		if err := repo.FinishDeletion(ctx, input.ID, input.OwnerUserID); err != nil {
+			t.Fatal(err)
+		}
+		again, err := repo.FindOwned(ctx, input.ID, input.OwnerUserID)
+		if err != nil || !again.DeletedAt.Equal(*file.DeletedAt) {
+			t.Fatalf("repeat changed deleted_at: %v", err)
+		}
+	})
+	t.Run("multipart ownership rollback and atomic completion", func(t *testing.T) {
+		input := newInput()
+		upload := domain.Multipart{UploadID: "s3-session", ExpectedSize: 42, PartSize: domain.MinPartSize, ExpiresAt: time.Now().Add(time.Hour)}
+		if _, err := repo.CreateMultipart(ctx, input, upload); err != nil {
+			t.Fatal(err)
+		}
+		if ok, err := repo.IsMultipart(ctx, input.ID); err != nil || !ok {
+			t.Fatal("missing session", err)
+		}
+		if err := repo.WithMultipart(ctx, input.ID, uuid.NewString(), func(*domain.File, *domain.Multipart) error { t.Fatal("foreign callback called"); return nil }); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatal(err)
+		}
+		rollbackErr := errors.New("rollback")
+		if err := repo.WithMultipart(ctx, input.ID, input.OwnerUserID, func(file *domain.File, m *domain.Multipart) error {
+			file.Status = domain.FileStatusFailed
+			m.Status = domain.MultipartAborted
+			return rollbackErr
+		}); !errors.Is(err, rollbackErr) {
+			t.Fatal(err)
+		}
+		if err := repo.WithMultipart(ctx, input.ID, input.OwnerUserID, func(file *domain.File, m *domain.Multipart) error {
+			if file.Status != domain.FileStatusPending || m.Status != domain.MultipartUploading {
+				t.Fatal("rollback failed")
+			}
+			m.Status = domain.MultipartCompleting
+			m.Manifest = []domain.Part{{Number: 1, ETag: "etag"}}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.WithMultipart(ctx, input.ID, input.OwnerUserID, func(file *domain.File, m *domain.Multipart) error {
+			if len(m.Manifest) != 1 || m.Manifest[0].ETag != "etag" {
+				t.Fatal("manifest lost")
+			}
+			now := time.Now()
+			file.Status = domain.FileStatusReady
+			file.SizeBytes = &object.SizeBytes
+			file.UploadedAt = &now
+			m.Status = domain.MultipartCompleted
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		file, err := repo.FindOwned(ctx, input.ID, input.OwnerUserID)
+		if err != nil || file.Status != domain.FileStatusReady || file.SizeBytes == nil || *file.SizeBytes != 42 {
+			t.Fatal("file not committed", err)
+		}
+	})
+	t.Run("multipart failed creation rolls back file", func(t *testing.T) {
+		input := newInput()
+		if _, err := repo.CreateMultipart(ctx, input, domain.Multipart{UploadID: "id", ExpectedSize: 1, PartSize: 1, ExpiresAt: time.Now().Add(time.Hour)}); err == nil {
+			t.Fatal("invalid session accepted")
+		}
+		if _, err := repo.FindOwned(ctx, input.ID, input.OwnerUserID); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatal("file left after failure", err)
+		}
+	})
+	t.Run("concurrent multipart terminal states serialize", func(t *testing.T) {
+		input := newInput()
+		if _, err := repo.CreateMultipart(ctx, input, domain.Multipart{UploadID: "concurrent", ExpectedSize: 42, PartSize: domain.MinPartSize, ExpiresAt: time.Now().Add(time.Hour)}); err != nil {
+			t.Fatal(err)
+		}
+		start := make(chan struct{})
+		results := make(chan error, 2)
+		for _, complete := range []bool{true, false} {
+			go func() {
+				<-start
+				results <- repo.WithMultipart(ctx, input.ID, input.OwnerUserID, func(file *domain.File, m *domain.Multipart) error {
+					if m.Status != domain.MultipartUploading {
+						return nil
+					}
+					if complete {
+						file.Status = domain.FileStatusReady
+						m.Status = domain.MultipartCompleted
+					} else {
+						file.Status = domain.FileStatusFailed
+						m.Status = domain.MultipartAborted
+					}
+					return nil
+				})
+			}()
+		}
+		close(start)
+		for i := 0; i < 2; i++ {
+			if err := <-results; err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := repo.WithMultipart(ctx, input.ID, input.OwnerUserID, func(file *domain.File, m *domain.Multipart) error {
+			if !(file.Status == domain.FileStatusReady && m.Status == domain.MultipartCompleted || file.Status == domain.FileStatusFailed && m.Status == domain.MultipartAborted) {
+				t.Fatal("inconsistent terminal state")
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	})
 
 	t.Run("private by database default", func(t *testing.T) {
 		input := newInput()

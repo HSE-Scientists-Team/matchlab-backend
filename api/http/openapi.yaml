@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MatchLab Gateway API
-  version: 2.1.0
+  version: 2.3.0
   description: |
     Текущий публичный HTTP API MatchLab: учётные записи, сеансы, подтверждение почты и файлы.
     Это описание реализованных маршрутов Gateway. Для локальной проверки сначала
@@ -18,6 +18,7 @@ tags:
   - name: Почта
   - name: Сеанс
   - name: Файлы
+    description: Цельная загрузка, метаданные, скачивание и удаление; затем загрузка частями, прогресс, завершение и отмена.
 paths:
   /api/v1/media/files:
     post:
@@ -77,6 +78,9 @@ paths:
       description: |
         Только владелец с подтверждённой почтой, включая публичные файлы.
         Тело запроса не требуется. Media проверяет объект в S3 и переводит pending в ready.
+        Проверяются тип, лимит и ожидаемый размер (для новых загрузок).
+        Pending без обновления БД 24 часа также обрабатывает фоновая задача:
+        подтверждает корректный объект или очищает S3 и сохраняет failed.
         Повтор возвращает сохранённые метаданные ready.
       security:
         - bearerAuth: []
@@ -103,9 +107,33 @@ paths:
           $ref: '#/components/responses/Unavailable'
         '504':
           $ref: '#/components/responses/MediaTimeout'
+
   /api/v1/media/files/{id}:
     parameters:
       - $ref: '#/components/parameters/MediaFileID'
+    delete:
+      tags: [Файлы]
+      summary: Удалить файл из S3
+      operationId: deleteMediaFile
+      description: |
+        Только владелец с действующим сеансом и подтверждённой почтой, включая публичные файлы.
+        user_id берётся из сеанса. Чужой или отсутствующий файл возвращает 404.
+        Для ready удаляет объект из S3 и сохраняет deleted в БД; повтор владельцем возвращает 204.
+        Если удаление не завершилось, файл остаётся deleting, скрывается из чтения и
+        обрабатывается фоновой задачей при старте Media и каждые 10 минут.
+        pending и failed возвращают 409; для отмены multipart используйте DELETE /{id}/multipart.
+        Удаление объекта не отзывает ранее выданные подписанные PUT-ссылки.
+      security: [ { bearerAuth: [ ] } ]
+      responses:
+        '204': { description: Объект удалён или файл уже был удалён этим владельцем. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/MediaForbidden' }
+        '404': { $ref: '#/components/responses/MediaNotFound' }
+        '409': { $ref: '#/components/responses/MediaConflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+        '504': { $ref: '#/components/responses/MediaTimeout' }
     get:
       tags: [Файлы]
       summary: Получить метаданные файла
@@ -116,8 +144,8 @@ paths:
         Недействительный токен возвращает 401, а не гостевой доступ.
         Не передавайте user_id в запросе. Ответы не кешируются (Cache-Control no-store).
       security:
-        - {}
-        - bearerAuth: []
+        - { }
+        - bearerAuth: [ ]
       responses:
         '200':
           description: Метаданные без ссылки на содержимое; доступны и в состоянии pending.
@@ -152,8 +180,8 @@ paths:
         Ответ Cache-Control no-store. Выполните GET по download_url напрямую в S3,
         без Bearer-токена Gateway. Ссылка даёт доступ любому её получателю до истечения TTL.
       security:
-        - {}
-        - bearerAuth: []
+        - { }
+        - bearerAuth: [ ]
       responses:
         '200':
           description: Подписанная GET-ссылка на содержимое.
@@ -180,6 +208,187 @@ paths:
           $ref: '#/components/responses/Unavailable'
         '504':
           $ref: '#/components/responses/MediaTimeout'
+  /api/v1/media/files/multipart:
+    post:
+      tags: [Файлы]
+      summary: Начать загрузку файла частями
+      operationId: createMediaMultipart
+      description: |
+        Требует сеанс и подтверждённую почту. Возвращает pending-файл и параметры сессии.
+        Размер части задаёт Media; последняя часть может быть меньше. Байты передаются
+        напрямую в S3 через part-urls. Существующая загрузка одним PUT также доступна.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateMediaUpload'}
+            example: {original_name: report.pdf, content_type: application/pdf, size_bytes: 8388611, is_public: false}
+      responses:
+        '201':
+          description: Созданы pending-файл и сессия загрузки.
+          headers:
+            Location:
+              schema: {type: string}
+              description: Путь к состоянию multipart-сессии.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MediaMultipartState'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/MediaForbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+        '504': {$ref: '#/components/responses/MediaTimeout'}
+  /api/v1/media/files/{id}/multipart:
+    parameters:
+      - $ref: '#/components/parameters/MediaFileID'
+    get:
+      tags: [Файлы]
+      summary: Получить прогресс загрузки частями
+      operationId: getMediaMultipart
+      description: |
+        Только владелец с подтверждённой почтой, даже для публичного файла.
+        Прогресс учитывает полностью принятые S3 части. В SeaweedFS после повторного PUT
+        возможны несколько ETag одного номера; uploaded_bytes учитывает этот номер один раз.
+        Сохраняйте ETag ответов PUT для завершения. Ответ Cache-Control no-store.
+      security: [ { bearerAuth: [ ] } ]
+      responses:
+        '200':
+          description: Состояние сессии и принятые части; для completed uploaded_bytes равен размеру файла.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MediaMultipartState' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/MediaForbidden' }
+        '404': { $ref: '#/components/responses/MediaNotFound' }
+        '409': { $ref: '#/components/responses/MediaConflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+        '504': { $ref: '#/components/responses/MediaTimeout' }
+    delete:
+      tags: [Файлы]
+      summary: Отменить загрузку частями
+      operationId: abortMediaMultipart
+      description: |
+        Только владелец с подтверждённой почтой. Прерывает S3-сессию и переводит файл
+        в failed. Повтор отмены возвращает 204. Для completing и completed возвращает 409.
+        Перед отменой остановите отправку частей на клиенте.
+      security: [ { bearerAuth: [ ] } ]
+      responses:
+        '204': { description: Загрузка отменена. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/MediaForbidden' }
+        '404': { $ref: '#/components/responses/MediaNotFound' }
+        '409': { $ref: '#/components/responses/MediaConflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+        '504': { $ref: '#/components/responses/MediaTimeout' }
+  /api/v1/media/files/{id}/multipart/part-urls:
+    parameters:
+      - $ref: '#/components/parameters/MediaFileID'
+    post:
+      tags: [Файлы]
+      summary: Получить ссылки для отправки частей
+      operationId: createMediaPartURLs
+      description: |
+        Только владелец с подтверждённой почтой. Допускает 1–100 уникальных номеров
+        от 1 до part_count. Передайте каждую часть напрямую в S3 методом PUT с выданными
+        headers и ровно size_bytes байтов. Не используйте multipart/form-data.
+        Сохраните ETag ответа PUT. Для повтора части или истечения ссылки запросите новую.
+        Ссылка действует не дольше срока сессии. Completing, completed, aborted и просроченная сессия дают 409.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [part_numbers]
+              properties:
+                part_numbers:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  uniqueItems: true
+                  items: {type: integer, format: int32, minimum: 1, maximum: 10000}
+            example: {part_numbers: [1, 2]}
+      responses:
+        '200':
+          description: Подписанные PUT-ссылки для частей.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [parts]
+                properties:
+                  parts:
+                    type: array
+                    items: {$ref: '#/components/schemas/MediaPartURL'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/MediaForbidden'}
+        '404': {$ref: '#/components/responses/MediaNotFound'}
+        '409': {$ref: '#/components/responses/MediaConflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+        '504': {$ref: '#/components/responses/MediaTimeout'}
+  /api/v1/media/files/{id}/multipart/complete:
+    parameters:
+      - $ref: '#/components/parameters/MediaFileID'
+    post:
+      tags: [Файлы]
+      summary: Собрать и подтвердить загруженные части
+      operationId: completeMediaMultipart
+      description: |
+        Только владелец с подтверждённой почтой. Передайте полный список номеров и ETag
+        из ответов PUT, включая кавычки ETag. Порядок списка произвольный, номера уникальны.
+        Media проверяет части и размер, собирает объект в S3 и переводит файл в ready.
+        Лимит JSON — 1 МиБ. Повтор с тем же списком безопасен после потери ответа.
+        Прерванное completing восстанавливается Media. При конфликте ETag загрузка
+        возвращается в uploading: получите состояние, повторите части и завершение.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [parts]
+              properties:
+                parts:
+                  type: array
+                  minItems: 1
+                  maxItems: 10000
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [part_number, etag]
+                    properties:
+                      part_number: {type: integer, format: int32, minimum: 1, maximum: 10000}
+                      etag: {type: string, minLength: 1}
+            example:
+              parts:
+                - {part_number: 1, etag: '"ETAG_FROM_FIRST_PUT"'}
+                - {part_number: 2, etag: '"ETAG_FROM_SECOND_PUT"'}
+      responses:
+        '200':
+          description: Файл готов; повтор возвращает сохранённые метаданные.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MediaFileResult'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/MediaForbidden'}
+        '404': {$ref: '#/components/responses/MediaNotFound'}
+        '409': {$ref: '#/components/responses/MediaConflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/Unavailable'}
+        '504': {$ref: '#/components/responses/MediaTimeout'}
   /health:
     get:
       tags: [Состояние]
@@ -397,6 +606,38 @@ components:
       scheme: bearer
       description: Токен access_token из ответа POST /api/v1/auth/login.
   schemas:
+    MediaMultipartState:
+      type: object
+      required: [file, status, expected_size_bytes, part_size_bytes, part_count, expires_at_unix, uploaded_bytes, parts]
+      properties:
+        file: {$ref: '#/components/schemas/MediaFile'}
+        status: {type: string, enum: [uploading, completing, completed, aborted]}
+        expected_size_bytes: {type: integer, format: int64, minimum: 1}
+        part_size_bytes: {type: integer, format: int64, minimum: 5242880, maximum: 5368709120}
+        part_count: {type: integer, format: int32, minimum: 1, maximum: 10000}
+        expires_at_unix: {type: integer, format: int64}
+        uploaded_bytes: {type: integer, format: int64, minimum: 0}
+        parts:
+          type: array
+          items:
+            type: object
+            required: [part_number, etag, size_bytes]
+            properties:
+              part_number: {type: integer, format: int32}
+              etag: {type: string}
+              size_bytes: {type: integer, format: int64}
+    MediaPartURL:
+      type: object
+      required: [part_number, size_bytes, upload_url, method, headers, expires_at_unix]
+      properties:
+        part_number: {type: integer, format: int32}
+        size_bytes: {type: integer, format: int64}
+        upload_url: {type: string, format: uri}
+        method: {type: string, enum: [PUT]}
+        headers:
+          type: object
+          additionalProperties: {type: string}
+        expires_at_unix: {type: integer, format: int64}
     CreateMediaUpload:
       type: object
       additionalProperties: false
@@ -415,7 +656,7 @@ components:
           type: integer
           format: int64
           minimum: 1
-          description: Размер в байтах; лимит из конфигурации Media (локально 10 MiB).
+          description: Размер в байтах; лимит из конфигурации Media (локально 100 MiB).
         is_public:
           type: boolean
           default: false

@@ -16,6 +16,12 @@ import (
 )
 
 type MediaClient interface {
+	DeleteFile(context.Context, *mediav1.DeleteFileRequest, ...grpc.CallOption) (*mediav1.DeleteFileResponse, error)
+	CreateMultipart(context.Context, *mediav1.CreateUploadRequest, ...grpc.CallOption) (*mediav1.MultipartState, error)
+	GetMultipart(context.Context, *mediav1.GetFileRequest, ...grpc.CallOption) (*mediav1.MultipartState, error)
+	CreatePartURLs(context.Context, *mediav1.CreatePartURLsRequest, ...grpc.CallOption) (*mediav1.CreatePartURLsResponse, error)
+	CompleteMultipart(context.Context, *mediav1.CompleteMultipartRequest, ...grpc.CallOption) (*mediav1.CompleteUploadResponse, error)
+	AbortMultipart(context.Context, *mediav1.CompleteUploadRequest, ...grpc.CallOption) (*mediav1.AbortMultipartResponse, error)
 	CreateUpload(context.Context, *mediav1.CreateUploadRequest, ...grpc.CallOption) (*mediav1.CreateUploadResponse, error)
 	CompleteUpload(context.Context, *mediav1.CompleteUploadRequest, ...grpc.CallOption) (*mediav1.CompleteUploadResponse, error)
 	GetFile(context.Context, *mediav1.GetFileRequest, ...grpc.CallOption) (*mediav1.GetFileResponse, error)
@@ -33,9 +39,15 @@ func RegisterMedia(router *mux.Router, media MediaClient, auth AuthClient, user 
 	h := &mediaHandler{media: media, auth: auth, user: user, logger: logger}
 	routes := router.PathPrefix("/api/v1/media/files").Subrouter()
 	routes.Use(h.authorize)
+	routes.HandleFunc("/multipart", h.createMultipart).Methods(http.MethodPost)
+	routes.HandleFunc("/{id}/multipart", h.getMultipart).Methods(http.MethodGet)
+	routes.HandleFunc("/{id}/multipart", h.abortMultipart).Methods(http.MethodDelete)
+	routes.HandleFunc("/{id}/multipart/part-urls", h.partURLs).Methods(http.MethodPost)
+	routes.HandleFunc("/{id}/multipart/complete", h.completeMultipart).Methods(http.MethodPost)
 	routes.HandleFunc("", h.create).Methods(http.MethodPost)
 	routes.HandleFunc("/{id}/complete", h.complete).Methods(http.MethodPost)
 	routes.HandleFunc("/{id}", h.get).Methods(http.MethodGet)
+	routes.HandleFunc("/{id}", h.delete).Methods(http.MethodDelete)
 	routes.HandleFunc("/{id}/download-url", h.download).Methods(http.MethodGet)
 }
 
@@ -43,7 +55,7 @@ func RegisterMedia(router *mux.Router, media MediaClient, auth AuthClient, user 
 func (h *mediaHandler) authorize(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		if r.Method == http.MethodGet && len(r.Header.Values("Authorization")) == 0 {
+		if r.Method == http.MethodGet && !strings.HasSuffix(r.URL.Path, "/multipart") && len(r.Header.Values("Authorization")) == 0 {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -95,6 +107,17 @@ func mediaFileJSON(file *mediav1.File) mediaFile {
 }
 
 const mediaCallTimeout = 10 * time.Second
+
+func (h *mediaHandler) delete(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), mediaCallTimeout)
+	defer cancel()
+	_, err := h.media.DeleteFile(ctx, &mediav1.DeleteFileRequest{UserId: AuthenticatedUserID(r.Context()), FileId: mux.Vars(r)["id"]})
+	if err != nil {
+		h.rpcError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
 
 func (h *mediaHandler) create(w http.ResponseWriter, r *http.Request) {
 	var req struct {

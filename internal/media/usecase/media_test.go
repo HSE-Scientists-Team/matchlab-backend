@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/media/domain"
+	"github.com/HSE-Scientists-Team/matchlab-backend/internal/media/repository"
 )
 
 const testUser = "00000000-0000-4000-8000-000000000001"
@@ -15,10 +16,15 @@ const testFile = "00000000-0000-4000-8000-000000000002"
 const otherUser = "00000000-0000-4000-8000-000000000003"
 
 type fakeFiles struct {
-	file      domain.File
-	createErr error
-	created   bool
-	marked    bool
+	stalePages      [][]repository.UploadOwner
+	staleQueries    int
+	staleVisits     []string
+	finishDeleteErr error
+	upload          domain.Multipart
+	file            domain.File
+	createErr       error
+	created         bool
+	marked          bool
 }
 
 func (f *fakeFiles) CreatePending(ctx context.Context, in domain.NewFile) (domain.File, error) {
@@ -27,6 +33,10 @@ func (f *fakeFiles) CreatePending(ctx context.Context, in domain.NewFile) (domai
 	}
 	f.created = true
 	f.file = domain.File{ID: in.ID, OwnerUserID: in.OwnerUserID, IsPublic: in.IsPublic, BucketName: in.BucketName, ObjectKey: in.ObjectKey, OriginalName: in.OriginalName, ContentType: in.ContentType, Status: domain.FileStatusPending}
+	if in.ExpectedSizeBytes > 0 {
+		f.file.ExpectedSizeBytes = &in.ExpectedSizeBytes
+	}
+	f.file.UpdatedAt = time.Now().UTC()
 	return f.file, nil
 }
 
@@ -52,11 +62,24 @@ func (f *fakeFiles) MarkReady(ctx context.Context, id, owner string, object doma
 }
 
 type fakeStorage struct {
-	upload    domain.UploadInput
-	download  domain.DownloadInput
-	object    domain.ObjectInfo
-	headCalls int
-	err       error
+	deleteErr               error
+	abortErr                error
+	listErr                 error
+	deleteCalls             int
+	deleteBucket, deleteKey string
+	parts                   []domain.Part
+	headErr                 error
+	finishErr               error
+	finishCalls             int
+	abortCalls              int
+	partCalls               int
+	partTTL                 time.Duration
+	partSize                int64
+	upload                  domain.UploadInput
+	download                domain.DownloadInput
+	object                  domain.ObjectInfo
+	headCalls               int
+	err                     error
 }
 
 func (f *fakeStorage) PresignUpload(ctx context.Context, in domain.UploadInput) (domain.SignedRequest, error) {
@@ -69,6 +92,9 @@ func (f *fakeStorage) PresignUpload(ctx context.Context, in domain.UploadInput) 
 
 func (f *fakeStorage) HeadObject(ctx context.Context, bucket, key string) (domain.ObjectInfo, error) {
 	f.headCalls++
+	if f.headErr != nil {
+		return domain.ObjectInfo{}, f.headErr
+	}
 	return f.object, f.err
 }
 
@@ -258,5 +284,238 @@ func TestPublicUploadAccess(t *testing.T) {
 	}
 	if _, err := service.GetFile(context.Background(), created.File.ID, "invalid"); !errors.Is(err, domain.ErrInvalidArgument) {
 		t.Fatalf("invalid reader ID: %v", err)
+	}
+}
+
+func (f *fakeFiles) BeginDeletion(ctx context.Context, id, owner string) (domain.File, error) {
+	file, err := f.FindOwned(ctx, id, owner)
+	if err != nil {
+		return domain.File{}, err
+	}
+	switch file.Status {
+	case domain.FileStatusReady:
+		f.file.Status = domain.FileStatusDeleting
+	case domain.FileStatusDeleting, domain.FileStatusDeleted:
+	default:
+		return domain.File{}, domain.ErrInvalidStatus
+	}
+	return f.file, nil
+}
+
+func (f *fakeFiles) FinishDeletion(ctx context.Context, id, owner string) error {
+	if f.finishDeleteErr != nil {
+		return f.finishDeleteErr
+	}
+	f.file.Status = domain.FileStatusDeleted
+	now := time.Now()
+	f.file.DeletedAt = &now
+	return nil
+}
+
+func (f *fakeFiles) DeletingFiles(context.Context) ([]repository.UploadOwner, error) {
+	if f.file.Status != domain.FileStatusDeleting {
+		return nil, nil
+	}
+	return []repository.UploadOwner{{FileID: f.file.ID, UserID: f.file.OwnerUserID}}, nil
+}
+
+func (f *fakeStorage) DeleteObject(ctx context.Context, bucket, key string) error {
+	f.deleteCalls++
+	f.deleteBucket, f.deleteKey = bucket, key
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	return f.err
+}
+
+func (f *fakeFiles) StalePendingFiles(ctx context.Context, cutoff time.Time, after string) ([]repository.UploadOwner, error) {
+	f.staleQueries++
+	if f.stalePages != nil {
+		if f.staleQueries <= len(f.stalePages) {
+			return f.stalePages[f.staleQueries-1], nil
+		}
+		return nil, nil
+	}
+	if f.file.Status == domain.FileStatusPending && !f.file.UpdatedAt.After(cutoff) && f.file.ID > after {
+		return []repository.UploadOwner{{FileID: f.file.ID, UserID: f.file.OwnerUserID}}, nil
+	}
+	return nil, nil
+}
+
+func (f *fakeFiles) WithStalePending(ctx context.Context, id, owner string, cutoff time.Time, fn func(*domain.File, *domain.Multipart) error) error {
+	f.staleVisits = append(f.staleVisits, id)
+	if f.file.ID != id || f.file.OwnerUserID != owner || f.file.Status != domain.FileStatusPending || f.file.UpdatedAt.After(cutoff) {
+		return nil
+	}
+	file, upload := f.file, f.upload
+	var multipart *domain.Multipart
+	if upload.UploadID != "" {
+		multipart = &upload
+	}
+	if err := fn(&file, multipart); err != nil {
+		return err
+	}
+	file.UpdatedAt = time.Now().UTC()
+	f.file, f.upload = file, upload
+	return nil
+}
+
+func TestRecoverPendingSingle(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		object  domain.ObjectInfo
+		headErr error
+		want    domain.FileStatus
+		deletes int
+	}{
+		{"complete", domain.ObjectInfo{SizeBytes: 5, ContentType: "application/pdf"}, nil, domain.FileStatusReady, 0},
+		{"absent", domain.ObjectInfo{}, domain.ErrObjectNotFound, domain.FileStatusFailed, 1},
+		{"wrong type", domain.ObjectInfo{SizeBytes: 5, ContentType: "image/png"}, nil, domain.FileStatusFailed, 1},
+		{"wrong size", domain.ObjectInfo{SizeBytes: 3, ContentType: "application/pdf"}, nil, domain.FileStatusFailed, 1},
+		{"empty", domain.ObjectInfo{SizeBytes: 0, ContentType: "application/pdf"}, nil, domain.FileStatusFailed, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, files, storage := setup(t)
+			expected := int64(5)
+			files.file.ExpectedSizeBytes, files.file.UpdatedAt = &expected, time.Now().Add(-25*time.Hour)
+			storage.object, storage.headErr = tc.object, tc.headErr
+			if err := s.RecoverPending(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if files.file.Status != tc.want || storage.deleteCalls != tc.deletes {
+				t.Fatalf("state=%s deletes=%d", files.file.Status, storage.deleteCalls)
+			}
+			if tc.want == domain.FileStatusReady && (files.file.UploadedAt == nil || files.file.SizeBytes == nil || *files.file.SizeBytes != 5) {
+				t.Fatal("ready metadata missing")
+			}
+		})
+	}
+}
+
+func TestRecoverPendingEligibilityAndRecheck(t *testing.T) {
+	s, files, storage := setup(t)
+	files.file.UpdatedAt = time.Now().Add(-23 * time.Hour)
+	if err := s.RecoverPending(context.Background()); err != nil || storage.headCalls != 0 {
+		t.Fatal("fresh file processed", err)
+	}
+	// The row changed after selection: the locked recheck must skip it.
+	files.stalePages = [][]repository.UploadOwner{{{FileID: testFile, UserID: testUser}}}
+	files.staleQueries = 0
+	if err := s.RecoverPending(context.Background()); err != nil || storage.headCalls != 0 {
+		t.Fatal("recheck ignored update", err)
+	}
+	files.file.Status, files.file.UpdatedAt = domain.FileStatusReady, time.Now().Add(-25*time.Hour)
+	files.staleQueries = 0
+	if err := s.RecoverPending(context.Background()); err != nil || storage.headCalls != 0 {
+		t.Fatal("ready file processed", err)
+	}
+}
+
+func TestRecoverPendingRetriesTemporaryFailures(t *testing.T) {
+	for _, failure := range []string{"head", "delete"} {
+		t.Run(failure, func(t *testing.T) {
+			s, files, storage := setup(t)
+			files.file.UpdatedAt = time.Now().Add(-25 * time.Hour)
+			before := files.file.UpdatedAt
+			storage.headErr = domain.ErrStorageUnavailable
+			if failure == "delete" {
+				storage.headErr, storage.deleteErr = domain.ErrObjectNotFound, domain.ErrStorageUnavailable
+			}
+			if err := s.RecoverPending(context.Background()); !errors.Is(err, domain.ErrStorageUnavailable) {
+				t.Fatal(err)
+			}
+			if files.file.Status != domain.FileStatusPending || !files.file.UpdatedAt.Equal(before) {
+				t.Fatal("temporary failure committed state")
+			}
+			storage.headErr, storage.deleteErr = domain.ErrObjectNotFound, nil
+			if err := s.RecoverPending(context.Background()); err != nil || files.file.Status != domain.FileStatusFailed {
+				t.Fatal("retry failed", err)
+			}
+		})
+	}
+}
+
+func TestRecoverPendingVisitsEveryBatchDespiteFailure(t *testing.T) {
+	s, files, storage := setup(t)
+	files.file.UpdatedAt = time.Now().Add(-25 * time.Hour)
+	files.stalePages = [][]repository.UploadOwner{
+		{{FileID: testFile, UserID: testUser}}, {{FileID: "later-file", UserID: testUser}},
+	}
+	storage.headErr = domain.ErrStorageUnavailable
+	if err := s.RecoverPending(context.Background()); !errors.Is(err, domain.ErrStorageUnavailable) {
+		t.Fatal(err)
+	}
+	if files.staleQueries != 3 || len(files.staleVisits) != 2 || files.staleVisits[1] != "later-file" {
+		t.Fatal("failed first batch starved later files")
+	}
+}
+
+func TestDeleteFileOwnerAndLifecycle(t *testing.T) {
+	ctx := context.Background()
+	for _, public := range []bool{false, true} {
+		s, files, storage := setup(t)
+		files.file.Status, files.file.IsPublic = domain.FileStatusReady, public
+		for _, user := range []string{otherUser, ""} {
+			want := domain.ErrNotFound
+			if user == "" {
+				want = domain.ErrInvalidArgument
+			}
+			if err := s.DeleteFile(ctx, testFile, user); !errors.Is(err, want) || storage.deleteCalls != 0 || files.file.Status != domain.FileStatusReady {
+				t.Fatalf("unauthorized delete: %v", err)
+			}
+		}
+		if err := s.DeleteFile(ctx, testFile, testUser); err != nil {
+			t.Fatal(err)
+		}
+		if files.file.Status != domain.FileStatusDeleted || files.file.DeletedAt == nil || storage.deleteBucket != "matchlab-media" || storage.deleteKey != "users/key" {
+			t.Fatal("deletion not persisted")
+		}
+		if _, err := s.GetFile(ctx, testFile, testUser); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatal(err)
+		}
+		if _, err := s.CreateDownloadURL(ctx, testFile, testUser); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatal(err)
+		}
+		if err := s.DeleteFile(ctx, testFile, testUser); err != nil || storage.deleteCalls != 1 {
+			t.Fatalf("repeat: %v", err)
+		}
+		if err := s.DeleteFile(ctx, testFile, otherUser); !errors.Is(err, domain.ErrNotFound) {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestDeleteFileRecovery(t *testing.T) {
+	ctx := context.Background()
+	for _, failure := range []string{"s3", "database"} {
+		t.Run(failure, func(t *testing.T) {
+			s, files, storage := setup(t)
+			files.file.Status = domain.FileStatusReady
+			if failure == "s3" {
+				storage.err = domain.ErrStorageUnavailable
+			} else {
+				files.finishDeleteErr = errors.New("commit failed")
+			}
+			if err := s.DeleteFile(ctx, testFile, testUser); err == nil || files.file.Status != domain.FileStatusDeleting {
+				t.Fatalf("lost intent: %v", err)
+			}
+			if _, err := s.GetFile(ctx, testFile, testUser); !errors.Is(err, domain.ErrNotFound) {
+				t.Fatalf("deleting file visible: %v", err)
+			}
+			storage.err, files.finishDeleteErr = nil, nil
+			if err := s.RecoverDeletions(ctx); err != nil || files.file.Status != domain.FileStatusDeleted || storage.deleteCalls != 2 {
+				t.Fatalf("recovery: %v", err)
+			}
+		})
+	}
+}
+
+func TestDeleteFileRejectsUnfinishedUpload(t *testing.T) {
+	for _, state := range []domain.FileStatus{domain.FileStatusPending, domain.FileStatusFailed} {
+		s, files, storage := setup(t)
+		files.file.Status = state
+		if err := s.DeleteFile(context.Background(), testFile, testUser); !errors.Is(err, domain.ErrInvalidStatus) || storage.deleteCalls != 0 {
+			t.Fatalf("state %s: %v", state, err)
+		}
 	}
 }

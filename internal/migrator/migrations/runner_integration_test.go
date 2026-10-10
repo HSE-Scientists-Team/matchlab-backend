@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -59,8 +60,8 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 
 func applyMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
 	t.Helper()
-	if version, err := Up(ctx, db); err != nil || version != 2 {
-		t.Fatalf("apply migrations: version=%d, want=2, error=%v", version, err)
+	if version, err := Up(ctx, db); err != nil || version != 3 {
+		t.Fatalf("apply migrations: version=%d, want=3, error=%v", version, err)
 	}
 }
 
@@ -129,11 +130,21 @@ func TestMediaSchema(t *testing.T) {
 	t.Run("private pending defaults", func(t *testing.T) {
 		var id, state string
 		var public bool
-		var size, uploaded sql.NullInt64
+		var size, uploaded, expected sql.NullInt64
 		var created, updated time.Time
-		err := db.QueryRowContext(ctx, insertFile+` RETURNING id::text, status::text, is_public, size_bytes, extract(epoch FROM uploaded_at)::bigint, created_at, updated_at`, owner, "defaults").Scan(&id, &state, &public, &size, &uploaded, &created, &updated)
-		if err != nil || id == "" || state != "pending" || public || size.Valid || uploaded.Valid || created.IsZero() || updated.IsZero() {
+		err := db.QueryRowContext(ctx, insertFile+` RETURNING id::text, status::text, is_public, size_bytes, extract(epoch FROM uploaded_at)::bigint, created_at, updated_at, expected_size_bytes`, owner, "defaults").Scan(&id, &state, &public, &size, &uploaded, &created, &updated, &expected)
+		if err != nil || id == "" || state != "pending" || public || size.Valid || uploaded.Valid || expected.Valid || created.IsZero() || updated.IsZero() {
 			t.Fatalf("defaults: id=%s state=%s public=%t size=%v uploaded=%v error=%v", id, state, public, size, uploaded, err)
+		}
+	})
+	t.Run("expected size persists and pending index exists", func(t *testing.T) {
+		var expected int64
+		if err := db.QueryRowContext(ctx, `UPDATE media.file SET expected_size_bytes=42 WHERE object_key='constraint-target' RETURNING expected_size_bytes`).Scan(&expected); err != nil || expected != 42 {
+			t.Fatalf("expected size: %d, %v", expected, err)
+		}
+		var definition string
+		if err := db.QueryRowContext(ctx, `SELECT indexdef FROM pg_indexes WHERE schemaname='media' AND indexname='media_file_pending_updated_idx'`).Scan(&definition); err != nil || !strings.Contains(definition, "(updated_at, id)") || !strings.Contains(definition, "pending") {
+			t.Fatalf("pending index: %s, %v", definition, err)
 		}
 	})
 	t.Run("public flag persists", func(t *testing.T) {
@@ -155,6 +166,8 @@ func TestMediaSchema(t *testing.T) {
 	t.Run("object metadata constraints", func(t *testing.T) {
 		for _, tc := range []struct{ name, expression, code string }{
 			{"negative size", "size_bytes=-1", "23514"},
+			{"negative expected size", "expected_size_bytes=-1", "23514"},
+			{"zero expected size", "expected_size_bytes=0", "23514"},
 			{"empty key", "object_key=''", "23514"},
 			{"long key", "object_key=repeat('x',1025)", "23514"},
 			{"invalid checksum", "checksum_sha256='invalid'", "23514"},
@@ -197,9 +210,19 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve' AND is_public`, 1)
-		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2) AND is_applied`, 2)
+		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3) AND is_applied`, 3)
+	})
+	t.Run("multipart rollback preserves files", func(t *testing.T) {
+		down(t)
+		requireVersion(t, 2)
+		requireCount(t, `SELECT count(*) FROM pg_tables WHERE schemaname='media' AND tablename='multipart_upload'`, 0)
+		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve'`, 1)
+		requireCount(t, `SELECT count(*) FROM information_schema.columns WHERE table_schema='media' AND table_name='file' AND column_name='expected_size_bytes'`, 1)
+		requireCount(t, `SELECT count(*) FROM pg_indexes WHERE schemaname='media' AND indexname='media_file_pending_updated_idx'`, 1)
+		applyMigrations(t, ctx, db)
 	})
 	t.Run("media rollback preserves users", func(t *testing.T) {
+		down(t)
 		down(t)
 		requireVersion(t, 1)
 		requireCount(t, `SELECT count(*) FROM pg_tables WHERE schemaname='media' AND tablename='file'`, 0)
@@ -210,6 +233,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 	})
 	t.Run("full rollback and reapply", func(t *testing.T) {
+		down(t)
 		down(t)
 		down(t)
 		requireVersion(t, 0)

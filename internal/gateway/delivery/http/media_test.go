@@ -17,12 +17,142 @@ import (
 )
 
 type mockMedia struct {
+	numbers        []int32
+	parts          []*mediav1.MultipartPart
 	create         *mediav1.CreateUploadRequest
 	userID, fileID string
 	calls          int
 	err            error
 	file           *mediav1.File
 	deadline       bool
+}
+
+func (m *mockMedia) DeleteFile(ctx context.Context, req *mediav1.DeleteFileRequest, _ ...grpc.CallOption) (*mediav1.DeleteFileResponse, error) {
+	m.capture(ctx, req.GetUserId(), req.GetFileId())
+	return &mediav1.DeleteFileResponse{}, m.err
+}
+
+func TestMediaDelete(t *testing.T) {
+	media := &mockMedia{}
+	router := mediaTestRouter(media, &mockAuth{}, &mockUser{})
+	response := mediaRequest(router, "DELETE", "/api/v1/media/files/id", "", "")
+	if response.Code != 401 || media.calls != 0 {
+		t.Fatalf("anonymous delete: %d", response.Code)
+	}
+	response = mediaRequest(router, "DELETE", "/api/v1/media/files/id?user_id=other", `{"user_id":"other"}`, "Bearer token")
+	if response.Code != 204 || response.Body.Len() != 0 || media.fileID != "id" || media.userID != "4f9a4c95-6144-4ec8-89e8-3866207d7561" || !media.deadline {
+		t.Fatalf("delete: %d %+v", response.Code, media)
+	}
+	for _, auth := range []struct {
+		auth *mockAuth
+		user *mockUser
+		want int
+	}{
+		{&mockAuth{validateErr: status.Error(codes.Unauthenticated, "invalid")}, &mockUser{}, 401},
+		{&mockAuth{}, &mockUser{emailStatus: "pending"}, 403},
+	} {
+		m := &mockMedia{}
+		response := mediaRequest(mediaTestRouter(m, auth.auth, auth.user), "DELETE", "/api/v1/media/files/id", "", "Bearer token")
+		if response.Code != auth.want || m.calls != 0 {
+			t.Fatalf("unauthorized delete forwarded: %d", response.Code)
+		}
+	}
+	for _, tc := range []struct {
+		code codes.Code
+		http int
+	}{
+		{codes.NotFound, 404}, {codes.FailedPrecondition, 409}, {codes.Unavailable, 503},
+	} {
+		media.err = status.Error(tc.code, "failed")
+		if response := mediaRequest(router, "DELETE", "/api/v1/media/files/id", "", "Bearer token"); response.Code != tc.http {
+			t.Fatalf("delete error: %d", response.Code)
+		}
+	}
+}
+
+func (m *mockMedia) CreateMultipart(ctx context.Context, req *mediav1.CreateUploadRequest, _ ...grpc.CallOption) (*mediav1.MultipartState, error) {
+	m.create = req
+	m.capture(ctx, req.GetUserId(), "")
+	return &mediav1.MultipartState{File: m.file, Status: "uploading", ExpectedSizeBytes: req.GetSizeBytes(), PartSizeBytes: 8388608, PartCount: 2, ExpiresAtUnix: 600}, m.err
+}
+func (m *mockMedia) GetMultipart(ctx context.Context, req *mediav1.GetFileRequest, _ ...grpc.CallOption) (*mediav1.MultipartState, error) {
+	m.capture(ctx, req.GetUserId(), req.GetFileId())
+	return &mediav1.MultipartState{File: m.file, Status: "uploading", UploadedBytes: 5, Parts: []*mediav1.MultipartPart{{PartNumber: 1, Etag: "etag", SizeBytes: 5}}}, m.err
+}
+func (m *mockMedia) CreatePartURLs(ctx context.Context, req *mediav1.CreatePartURLsRequest, _ ...grpc.CallOption) (*mediav1.CreatePartURLsResponse, error) {
+	m.capture(ctx, req.GetUserId(), req.GetFileId())
+	m.numbers = req.GetPartNumbers()
+	return &mediav1.CreatePartURLsResponse{Parts: []*mediav1.PartURL{{PartNumber: 1, SizeBytes: 5, UploadUrl: "http://s3/part", Method: "PUT", Headers: map[string]string{"Content-Length": "5"}, ExpiresAtUnix: 600}}}, m.err
+}
+func (m *mockMedia) CompleteMultipart(ctx context.Context, req *mediav1.CompleteMultipartRequest, _ ...grpc.CallOption) (*mediav1.CompleteUploadResponse, error) {
+	m.capture(ctx, req.GetUserId(), req.GetFileId())
+	m.parts = req.GetParts()
+	return &mediav1.CompleteUploadResponse{File: m.file}, m.err
+}
+func (m *mockMedia) AbortMultipart(ctx context.Context, req *mediav1.CompleteUploadRequest, _ ...grpc.CallOption) (*mediav1.AbortMultipartResponse, error) {
+	m.capture(ctx, req.GetUserId(), req.GetFileId())
+	return &mediav1.AbortMultipartResponse{}, m.err
+}
+
+func TestMultipartHTTPRoutes(t *testing.T) {
+	media := &mockMedia{file: &mediav1.File{Id: "id", Status: mediav1.FileStatus_FILE_STATUS_PENDING}}
+	router := mediaTestRouter(media, &mockAuth{}, &mockUser{})
+	for _, test := range []struct {
+		method, path, body string
+		code               int
+	}{
+		{"POST", "/multipart", `{"original_name":"report.pdf","content_type":"application/pdf","size_bytes":8388611,"is_public":true}`, 201},
+		{"GET", "/id/multipart", "", 200},
+		{"POST", "/id/multipart/part-urls", `{"part_numbers":[1,2]}`, 200},
+		{"POST", "/id/multipart/complete", `{"parts":[{"part_number":1,"etag":"etag"}]}`, 200},
+		{"DELETE", "/id/multipart", "", 204},
+	} {
+		t.Run(test.method+test.path, func(t *testing.T) {
+			path := "/api/v1/media/files" + test.path
+			calls := media.calls
+			response := mediaRequest(router, test.method, path, test.body, "")
+			if response.Code != 401 || media.calls != calls {
+				t.Fatalf("anonymous: %d", response.Code)
+			}
+			response = mediaRequest(router, test.method, path, test.body, "Bearer token")
+			if response.Code != test.code || media.userID == "" || !media.deadline || response.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("response=%d %s", response.Code, response.Body)
+			}
+			if test.code != 204 && !json.Valid(response.Body.Bytes()) {
+				t.Fatal("invalid JSON")
+			}
+		})
+	}
+	if !media.create.GetIsPublic() || len(media.numbers) != 2 || len(media.parts) != 1 || media.parts[0].GetEtag() != "etag" {
+		t.Fatal("request fields not forwarded")
+	}
+	media.err = status.Error(codes.NotFound, "missing")
+	response := mediaRequest(router, "GET", "/api/v1/media/files/id/multipart", "", "Bearer token")
+	if response.Code != 404 {
+		t.Fatalf("owner failure: %d", response.Code)
+	}
+}
+
+func TestMultipartCompletionJSONLimit(t *testing.T) {
+	media := &mockMedia{file: &mediav1.File{Id: "id"}}
+	router := mediaTestRouter(media, &mockAuth{}, &mockUser{})
+	parts := make([]map[string]any, 1000)
+	for i := range parts {
+		parts[i] = map[string]any{"part_number": i + 1, "etag": strings.Repeat("a", 32)}
+	}
+	body, err := json.Marshal(map[string]any{"parts": parts})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := mediaRequest(router, "POST", "/api/v1/media/files/id/multipart/complete", string(body), "Bearer token")
+	if response.Code != 200 || len(media.parts) != 1000 {
+		t.Fatalf("large manifest: %d", response.Code)
+	}
+	calls := media.calls
+	response = mediaRequest(router, "POST", "/api/v1/media/files/id/multipart/complete", `{"parts":[{"part_number":1,"etag":"`+strings.Repeat("a", 1024*1024)+`"}]}`, "Bearer token")
+	if response.Code != 400 || media.calls != calls {
+		t.Fatalf("oversized body accepted: %d", response.Code)
+	}
 }
 
 func (m *mockMedia) capture(ctx context.Context, user, id string) {

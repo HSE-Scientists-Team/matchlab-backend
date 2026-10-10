@@ -11,6 +11,12 @@ import (
 )
 
 type Media interface {
+	DeleteFile(context.Context, string, string) error
+	CreateMultipart(context.Context, string, string, string, int64, bool) (domain.MultipartState, error)
+	GetMultipart(context.Context, string, string) (domain.MultipartState, error)
+	PartURLs(context.Context, string, string, []int32) ([]domain.PartURL, error)
+	CompleteMultipart(context.Context, string, string, []domain.Part) (domain.File, error)
+	AbortMultipart(context.Context, string, string) error
 	CreateUpload(context.Context, string, string, string, int64, bool) (domain.Upload, error)
 	CompleteUpload(context.Context, string, string) (domain.File, error)
 	GetFile(context.Context, string, string) (domain.File, error)
@@ -25,6 +31,13 @@ type Server struct {
 func NewServer(media Media) *Server { return &Server{media: media} }
 
 var _ mediav1.MediaServiceServer = (*Server)(nil)
+
+func (s *Server) DeleteFile(ctx context.Context, req *mediav1.DeleteFileRequest) (*mediav1.DeleteFileResponse, error) {
+	if err := s.media.DeleteFile(ctx, req.GetFileId(), req.GetUserId()); err != nil {
+		return nil, toGRPCError(err)
+	}
+	return &mediav1.DeleteFileResponse{}, nil
+}
 
 func (s *Server) CreateUpload(ctx context.Context, req *mediav1.CreateUploadRequest) (*mediav1.CreateUploadResponse, error) {
 	result, err := s.media.CreateUpload(ctx, req.GetUserId(), req.GetOriginalName(), req.GetContentType(), req.GetSizeBytes(), req.GetIsPublic())

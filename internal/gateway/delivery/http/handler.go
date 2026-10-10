@@ -115,7 +115,11 @@ func decodeCredentials(w http.ResponseWriter, r *http.Request) (credentials, boo
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
+	return decodeJSONLimit(w, r, target, 16*1024)
+}
+
+func decodeJSONLimit(w http.ResponseWriter, r *http.Request, target any, limit int64) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {

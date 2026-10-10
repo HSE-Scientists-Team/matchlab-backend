@@ -63,9 +63,10 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	if err == nil {
 		// Проверка схемы не применяет миграции: это ответственность Migrator.
 		var exists bool
-		err = db.QueryRowContext(startupCtx, `SELECT to_regclass('media.file') IS NOT NULL`).Scan(&exists)
+		err = db.QueryRowContext(startupCtx, `SELECT to_regclass('media.file') IS NOT NULL AND to_regclass('media.multipart_upload') IS NOT NULL
+			AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='media' AND table_name='file' AND column_name='expected_size_bytes')`).Scan(&exists)
 		if err == nil && !exists {
-			err = fmt.Errorf("таблица media.file отсутствует: запустите Migrator")
+			err = fmt.Errorf("схема Media не актуальна: запустите Migrator")
 		}
 	}
 	cancelStartup()
@@ -83,10 +84,39 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Bucket: cfg.S3.Bucket, MaxSizeBytes: cfg.Upload.MaxSizeBytes,
 		AllowedContentTypes: cfg.Upload.AllowedContentTypes,
 		UploadTTL:           cfg.Upload.URLTTL, DownloadTTL: cfg.Download.URLTTL,
+		MultipartPartSize: cfg.Multipart.PartSizeBytes, MultipartTTL: cfg.Multipart.SessionTTL,
 	})
 	if err != nil {
 		return err
 	}
+	cleanupCtx, cancelCleanup := context.WithCancel(ctx)
+	cleanupDone := make(chan struct{})
+	go func() {
+		defer close(cleanupDone)
+		interval := cfg.Multipart.CleanupInterval
+		if interval <= 0 {
+			interval = 10 * time.Minute
+		}
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			if err := media.RecoverPending(cleanupCtx); err != nil && cleanupCtx.Err() == nil {
+				logger.Error("не удалось обработать устаревшие pending-файлы")
+			}
+			if err := media.RecoverDeletions(cleanupCtx); err != nil && cleanupCtx.Err() == nil {
+				logger.Error("не удалось завершить удаление файлов")
+			}
+			if err := media.RecoverMultipart(cleanupCtx); err != nil && cleanupCtx.Err() == nil {
+				logger.Error("не удалось восстановить или очистить multipart-загрузки")
+			}
+			select {
+			case <-cleanupCtx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+	defer func() { cancelCleanup(); <-cleanupDone }()
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
 	if err != nil {
 		return fmt.Errorf("запуск прослушивания gRPC: %w", err)

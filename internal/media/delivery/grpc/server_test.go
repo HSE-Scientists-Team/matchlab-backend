@@ -19,12 +19,90 @@ import (
 )
 
 type fakeMedia struct {
+	partNumbers                               []int32
+	parts                                     []domain.Part
 	file                                      domain.File
 	request                                   domain.SignedRequest
 	err                                       error
 	userID, fileID, originalName, contentType string
 	size                                      int64
 	isPublic                                  bool
+}
+
+func (f *fakeMedia) DeleteFile(ctx context.Context, id, user string) error {
+	f.fileID, f.userID = id, user
+	return f.err
+}
+
+func TestDeleteFileRPC(t *testing.T) {
+	f := &fakeMedia{}
+	client := newTestClient(t, f)
+	_, err := client.DeleteFile(context.Background(), &mediav1.DeleteFileRequest{UserId: "owner", FileId: "file"})
+	if err != nil || f.userID != "owner" || f.fileID != "file" {
+		t.Fatalf("delete: %v", err)
+	}
+	for _, tc := range []struct {
+		err  error
+		code codes.Code
+	}{
+		{domain.ErrNotFound, codes.NotFound}, {domain.ErrInvalidStatus, codes.FailedPrecondition}, {domain.ErrStorageUnavailable, codes.Unavailable},
+	} {
+		f.err = tc.err
+		if _, err := client.DeleteFile(context.Background(), &mediav1.DeleteFileRequest{}); status.Code(err) != tc.code {
+			t.Fatal(err)
+		}
+	}
+}
+
+func (f *fakeMedia) CreateMultipart(ctx context.Context, user, name, typ string, size int64, public bool) (domain.MultipartState, error) {
+	f.userID, f.originalName, f.contentType, f.size, f.isPublic = user, name, typ, size, public
+	return domain.MultipartState{File: f.file, Upload: domain.Multipart{ExpectedSize: size, PartSize: domain.MinPartSize, Status: domain.MultipartUploading, ExpiresAt: time.Unix(600, 0)}}, f.err
+}
+func (f *fakeMedia) GetMultipart(ctx context.Context, id, user string) (domain.MultipartState, error) {
+	f.fileID, f.userID = id, user
+	return domain.MultipartState{File: f.file, Upload: domain.Multipart{ExpectedSize: 5, PartSize: domain.MinPartSize, Status: domain.MultipartUploading}, Parts: []domain.Part{{Number: 1, ETag: "etag", SizeBytes: 5}}, UploadedBytes: 5}, f.err
+}
+func (f *fakeMedia) PartURLs(ctx context.Context, id, user string, numbers []int32) ([]domain.PartURL, error) {
+	f.fileID, f.userID, f.partNumbers = id, user, numbers
+	return []domain.PartURL{{Number: 1, SizeBytes: 5, Request: f.request}}, f.err
+}
+func (f *fakeMedia) CompleteMultipart(ctx context.Context, id, user string, parts []domain.Part) (domain.File, error) {
+	f.fileID, f.userID, f.parts = id, user, parts
+	return f.file, f.err
+}
+func (f *fakeMedia) AbortMultipart(ctx context.Context, id, user string) error {
+	f.fileID, f.userID = id, user
+	return f.err
+}
+
+func TestMultipartRPCMessages(t *testing.T) {
+	f := &fakeMedia{file: domain.File{ID: "file", Status: domain.FileStatusPending}, request: domain.SignedRequest{URL: "http://storage/part", Method: "PUT", Headers: map[string]string{"Content-Length": "5"}, ExpiresAt: time.Unix(600, 0)}}
+	client := newTestClient(t, f)
+	ctx := context.Background()
+	state, err := client.CreateMultipart(ctx, &mediav1.CreateUploadRequest{UserId: "owner", OriginalName: "report.pdf", ContentType: "application/pdf", SizeBytes: 5, IsPublic: true})
+	if err != nil || state.GetPartCount() != 1 || state.GetExpiresAtUnix() != 600 || f.userID != "owner" || !f.isPublic {
+		t.Fatalf("create: %v %v", state, err)
+	}
+	state, err = client.GetMultipart(ctx, &mediav1.GetFileRequest{UserId: "owner", FileId: "file"})
+	if err != nil || state.GetUploadedBytes() != 5 || len(state.GetParts()) != 1 || state.GetParts()[0].GetEtag() != "etag" {
+		t.Fatalf("get: %v %v", state, err)
+	}
+	urls, err := client.CreatePartURLs(ctx, &mediav1.CreatePartURLsRequest{UserId: "owner", FileId: "file", PartNumbers: []int32{1}})
+	if err != nil || len(urls.GetParts()) != 1 || urls.GetParts()[0].GetUploadUrl() != f.request.URL || urls.GetParts()[0].GetHeaders()["Content-Length"] != "5" || f.partNumbers[0] != 1 {
+		t.Fatalf("urls: %v %v", urls, err)
+	}
+	_, err = client.CompleteMultipart(ctx, &mediav1.CompleteMultipartRequest{UserId: "owner", FileId: "file", Parts: []*mediav1.MultipartPart{{PartNumber: 1, Etag: "etag"}}})
+	if err != nil || len(f.parts) != 1 || f.parts[0].ETag != "etag" {
+		t.Fatalf("complete: %v", err)
+	}
+	_, err = client.AbortMultipart(ctx, &mediav1.CompleteUploadRequest{UserId: "owner", FileId: "file"})
+	if err != nil || f.fileID != "file" || f.userID != "owner" {
+		t.Fatal(err)
+	}
+	f.err = domain.ErrInvalidStatus
+	if _, err = client.CompleteMultipart(ctx, &mediav1.CompleteMultipartRequest{}); status.Code(err) != codes.FailedPrecondition {
+		t.Fatal(err)
+	}
 }
 
 func (f *fakeMedia) CreateUpload(ctx context.Context, user, name, typ string, size int64, isPublic bool) (domain.Upload, error) {

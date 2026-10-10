@@ -70,6 +70,11 @@ func TestInvalidSettings(t *testing.T) {
 		{"timeout", func(c *Config) { c.S3.RequestTimeout = 0 }},
 		{"ttl", func(c *Config) { c.Upload.URLTTL = 8 * 24 * time.Hour }},
 		{"size", func(c *Config) { c.Upload.MaxSizeBytes = 0 }},
+		{"small part", func(c *Config) { c.Multipart.PartSizeBytes = 5242879 }},
+		{"large part", func(c *Config) { c.Multipart.PartSizeBytes = 5368709121 }},
+		{"multipart ttl", func(c *Config) { c.Multipart.SessionTTL = 0 }},
+		{"cleanup interval", func(c *Config) { c.Multipart.CleanupInterval = 0 }},
+		{"too many parts", func(c *Config) { c.Upload.MaxSizeBytes = c.Multipart.PartSizeBytes*10000 + 1 }},
 		{"types", func(c *Config) { c.Upload.AllowedContentTypes = []string{"image/*"} }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -19,20 +19,32 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	MediaService_DeleteFile_FullMethodName        = "/matchlab.media.v1.MediaService/DeleteFile"
 	MediaService_CreateUpload_FullMethodName      = "/matchlab.media.v1.MediaService/CreateUpload"
 	MediaService_CompleteUpload_FullMethodName    = "/matchlab.media.v1.MediaService/CompleteUpload"
 	MediaService_GetFile_FullMethodName           = "/matchlab.media.v1.MediaService/GetFile"
 	MediaService_CreateDownloadURL_FullMethodName = "/matchlab.media.v1.MediaService/CreateDownloadURL"
+	MediaService_CreateMultipart_FullMethodName   = "/matchlab.media.v1.MediaService/CreateMultipart"
+	MediaService_GetMultipart_FullMethodName      = "/matchlab.media.v1.MediaService/GetMultipart"
+	MediaService_CreatePartURLs_FullMethodName    = "/matchlab.media.v1.MediaService/CreatePartURLs"
+	MediaService_CompleteMultipart_FullMethodName = "/matchlab.media.v1.MediaService/CompleteMultipart"
+	MediaService_AbortMultipart_FullMethodName    = "/matchlab.media.v1.MediaService/AbortMultipart"
 )
 
 // MediaServiceClient is the client API for MediaService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MediaServiceClient interface {
+	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
 	CreateUpload(ctx context.Context, in *CreateUploadRequest, opts ...grpc.CallOption) (*CreateUploadResponse, error)
 	CompleteUpload(ctx context.Context, in *CompleteUploadRequest, opts ...grpc.CallOption) (*CompleteUploadResponse, error)
 	GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (*GetFileResponse, error)
 	CreateDownloadURL(ctx context.Context, in *CreateDownloadURLRequest, opts ...grpc.CallOption) (*CreateDownloadURLResponse, error)
+	CreateMultipart(ctx context.Context, in *CreateUploadRequest, opts ...grpc.CallOption) (*MultipartState, error)
+	GetMultipart(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (*MultipartState, error)
+	CreatePartURLs(ctx context.Context, in *CreatePartURLsRequest, opts ...grpc.CallOption) (*CreatePartURLsResponse, error)
+	CompleteMultipart(ctx context.Context, in *CompleteMultipartRequest, opts ...grpc.CallOption) (*CompleteUploadResponse, error)
+	AbortMultipart(ctx context.Context, in *CompleteUploadRequest, opts ...grpc.CallOption) (*AbortMultipartResponse, error)
 }
 
 type mediaServiceClient struct {
@@ -41,6 +53,16 @@ type mediaServiceClient struct {
 
 func NewMediaServiceClient(cc grpc.ClientConnInterface) MediaServiceClient {
 	return &mediaServiceClient{cc}
+}
+
+func (c *mediaServiceClient) DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteFileResponse)
+	err := c.cc.Invoke(ctx, MediaService_DeleteFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *mediaServiceClient) CreateUpload(ctx context.Context, in *CreateUploadRequest, opts ...grpc.CallOption) (*CreateUploadResponse, error) {
@@ -83,14 +105,70 @@ func (c *mediaServiceClient) CreateDownloadURL(ctx context.Context, in *CreateDo
 	return out, nil
 }
 
+func (c *mediaServiceClient) CreateMultipart(ctx context.Context, in *CreateUploadRequest, opts ...grpc.CallOption) (*MultipartState, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MultipartState)
+	err := c.cc.Invoke(ctx, MediaService_CreateMultipart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *mediaServiceClient) GetMultipart(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (*MultipartState, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MultipartState)
+	err := c.cc.Invoke(ctx, MediaService_GetMultipart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *mediaServiceClient) CreatePartURLs(ctx context.Context, in *CreatePartURLsRequest, opts ...grpc.CallOption) (*CreatePartURLsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreatePartURLsResponse)
+	err := c.cc.Invoke(ctx, MediaService_CreatePartURLs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *mediaServiceClient) CompleteMultipart(ctx context.Context, in *CompleteMultipartRequest, opts ...grpc.CallOption) (*CompleteUploadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CompleteUploadResponse)
+	err := c.cc.Invoke(ctx, MediaService_CompleteMultipart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *mediaServiceClient) AbortMultipart(ctx context.Context, in *CompleteUploadRequest, opts ...grpc.CallOption) (*AbortMultipartResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AbortMultipartResponse)
+	err := c.cc.Invoke(ctx, MediaService_AbortMultipart_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MediaServiceServer is the server API for MediaService service.
 // All implementations must embed UnimplementedMediaServiceServer
 // for forward compatibility.
 type MediaServiceServer interface {
+	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
 	CreateUpload(context.Context, *CreateUploadRequest) (*CreateUploadResponse, error)
 	CompleteUpload(context.Context, *CompleteUploadRequest) (*CompleteUploadResponse, error)
 	GetFile(context.Context, *GetFileRequest) (*GetFileResponse, error)
 	CreateDownloadURL(context.Context, *CreateDownloadURLRequest) (*CreateDownloadURLResponse, error)
+	CreateMultipart(context.Context, *CreateUploadRequest) (*MultipartState, error)
+	GetMultipart(context.Context, *GetFileRequest) (*MultipartState, error)
+	CreatePartURLs(context.Context, *CreatePartURLsRequest) (*CreatePartURLsResponse, error)
+	CompleteMultipart(context.Context, *CompleteMultipartRequest) (*CompleteUploadResponse, error)
+	AbortMultipart(context.Context, *CompleteUploadRequest) (*AbortMultipartResponse, error)
 	mustEmbedUnimplementedMediaServiceServer()
 }
 
@@ -101,6 +179,9 @@ type MediaServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedMediaServiceServer struct{}
 
+func (UnimplementedMediaServiceServer) DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteFile not implemented")
+}
 func (UnimplementedMediaServiceServer) CreateUpload(context.Context, *CreateUploadRequest) (*CreateUploadResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateUpload not implemented")
 }
@@ -112,6 +193,21 @@ func (UnimplementedMediaServiceServer) GetFile(context.Context, *GetFileRequest)
 }
 func (UnimplementedMediaServiceServer) CreateDownloadURL(context.Context, *CreateDownloadURLRequest) (*CreateDownloadURLResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateDownloadURL not implemented")
+}
+func (UnimplementedMediaServiceServer) CreateMultipart(context.Context, *CreateUploadRequest) (*MultipartState, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateMultipart not implemented")
+}
+func (UnimplementedMediaServiceServer) GetMultipart(context.Context, *GetFileRequest) (*MultipartState, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMultipart not implemented")
+}
+func (UnimplementedMediaServiceServer) CreatePartURLs(context.Context, *CreatePartURLsRequest) (*CreatePartURLsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreatePartURLs not implemented")
+}
+func (UnimplementedMediaServiceServer) CompleteMultipart(context.Context, *CompleteMultipartRequest) (*CompleteUploadResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CompleteMultipart not implemented")
+}
+func (UnimplementedMediaServiceServer) AbortMultipart(context.Context, *CompleteUploadRequest) (*AbortMultipartResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AbortMultipart not implemented")
 }
 func (UnimplementedMediaServiceServer) mustEmbedUnimplementedMediaServiceServer() {}
 func (UnimplementedMediaServiceServer) testEmbeddedByValue()                      {}
@@ -132,6 +228,24 @@ func RegisterMediaServiceServer(s grpc.ServiceRegistrar, srv MediaServiceServer)
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&MediaService_ServiceDesc, srv)
+}
+
+func _MediaService_DeleteFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MediaServiceServer).DeleteFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MediaService_DeleteFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MediaServiceServer).DeleteFile(ctx, req.(*DeleteFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _MediaService_CreateUpload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -206,6 +320,96 @@ func _MediaService_CreateDownloadURL_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MediaService_CreateMultipart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateUploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MediaServiceServer).CreateMultipart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MediaService_CreateMultipart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MediaServiceServer).CreateMultipart(ctx, req.(*CreateUploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MediaService_GetMultipart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MediaServiceServer).GetMultipart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MediaService_GetMultipart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MediaServiceServer).GetMultipart(ctx, req.(*GetFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MediaService_CreatePartURLs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreatePartURLsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MediaServiceServer).CreatePartURLs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MediaService_CreatePartURLs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MediaServiceServer).CreatePartURLs(ctx, req.(*CreatePartURLsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MediaService_CompleteMultipart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompleteMultipartRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MediaServiceServer).CompleteMultipart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MediaService_CompleteMultipart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MediaServiceServer).CompleteMultipart(ctx, req.(*CompleteMultipartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MediaService_AbortMultipart_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompleteUploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MediaServiceServer).AbortMultipart(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MediaService_AbortMultipart_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MediaServiceServer).AbortMultipart(ctx, req.(*CompleteUploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MediaService_ServiceDesc is the grpc.ServiceDesc for MediaService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -213,6 +417,10 @@ var MediaService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "matchlab.media.v1.MediaService",
 	HandlerType: (*MediaServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "DeleteFile",
+			Handler:    _MediaService_DeleteFile_Handler,
+		},
 		{
 			MethodName: "CreateUpload",
 			Handler:    _MediaService_CreateUpload_Handler,
@@ -228,6 +436,26 @@ var MediaService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateDownloadURL",
 			Handler:    _MediaService_CreateDownloadURL_Handler,
+		},
+		{
+			MethodName: "CreateMultipart",
+			Handler:    _MediaService_CreateMultipart_Handler,
+		},
+		{
+			MethodName: "GetMultipart",
+			Handler:    _MediaService_GetMultipart_Handler,
+		},
+		{
+			MethodName: "CreatePartURLs",
+			Handler:    _MediaService_CreatePartURLs_Handler,
+		},
+		{
+			MethodName: "CompleteMultipart",
+			Handler:    _MediaService_CompleteMultipart_Handler,
+		},
+		{
+			MethodName: "AbortMultipart",
+			Handler:    _MediaService_AbortMultipart_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

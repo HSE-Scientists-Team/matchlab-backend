@@ -104,3 +104,33 @@ func TestHeadObjectErrors(t *testing.T) {
 		t.Fatalf("cancel: %v", err)
 	}
 }
+
+func TestDeleteObject(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		body   string
+		want   error
+	}{
+		{204, "", nil},
+		{404, `<Error><Code>NoSuchKey</Code></Error>`, nil},
+		{403, `<Error><Code>AccessDenied</Code></Error>`, domain.ErrStorageUnavailable},
+	} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodDelete || r.URL.Path != "/matchlab-media/files/key" || r.Header.Get("Authorization") == "" {
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			}
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(tc.status)
+			w.Write([]byte(tc.body))
+		}))
+		storage, err := New(testConfig(server.URL))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = storage.DeleteObject(context.Background(), "matchlab-media", "files/key")
+		server.Close()
+		if !errors.Is(err, tc.want) {
+			t.Fatalf("status %d: %v", tc.status, err)
+		}
+	}
+}

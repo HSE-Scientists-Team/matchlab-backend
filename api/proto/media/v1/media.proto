@@ -5,10 +5,16 @@ package matchlab.media.v1;
 option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1;mediav1";
 
 service MediaService {
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
   rpc CreateUpload(CreateUploadRequest) returns (CreateUploadResponse);
   rpc CompleteUpload(CompleteUploadRequest) returns (CompleteUploadResponse);
   rpc GetFile(GetFileRequest) returns (GetFileResponse);
   rpc CreateDownloadURL(CreateDownloadURLRequest) returns (CreateDownloadURLResponse);
+  rpc CreateMultipart(CreateUploadRequest) returns (MultipartState);
+  rpc GetMultipart(GetFileRequest) returns (MultipartState);
+  rpc CreatePartURLs(CreatePartURLsRequest) returns (CreatePartURLsResponse);
+  rpc CompleteMultipart(CompleteMultipartRequest) returns (CompleteUploadResponse);
+  rpc AbortMultipart(CompleteUploadRequest) returns (AbortMultipartResponse);
 }
 
 enum FileStatus {
@@ -85,3 +91,54 @@ message CreateDownloadURLResponse {
   string download_url = 1;
   int64 expires_at_unix = 2;
 }
+
+message MultipartPart {
+  int32 part_number = 1;
+  string etag = 2;
+  int64 size_bytes = 3;
+}
+
+message MultipartState {
+  File file = 1;
+  string status = 2;
+  int64 expected_size_bytes = 3;
+  int64 part_size_bytes = 4;
+  int32 part_count = 5;
+  int64 expires_at_unix = 6;
+  int64 uploaded_bytes = 7;
+  repeated MultipartPart parts = 8;
+}
+
+message CreatePartURLsRequest {
+  string user_id = 1;
+  string file_id = 2;
+  repeated int32 part_numbers = 3;
+}
+
+message PartURL {
+  int32 part_number = 1;
+  int64 size_bytes = 2;
+  string upload_url = 3;
+  string method = 4;
+  map<string,string> headers = 5;
+  int64 expires_at_unix = 6;
+}
+
+message CreatePartURLsResponse { repeated PartURL parts = 1; }
+
+// Client provides the ETags returned by UploadPart. Size is checked against S3.
+message CompleteMultipartRequest {
+  string user_id = 1;
+  string file_id = 2;
+  repeated MultipartPart parts = 3;
+}
+
+message AbortMultipartResponse {}
+
+// Required owner ID comes from the verified Gateway session.
+message DeleteFileRequest {
+  string user_id = 1;
+  string file_id = 2;
+}
+
+message DeleteFileResponse {}

@@ -18,6 +18,7 @@ CREATE TABLE media.file (
     original_name varchar(255) NOT NULL,
     content_type varchar(255) NOT NULL,
     size_bytes bigint,
+    expected_size_bytes bigint CHECK (expected_size_bytes IS NULL OR expected_size_bytes > 0),
     etag text,
     checksum_sha256 char(64),
     status media.file_status NOT NULL DEFAULT 'pending',
@@ -43,6 +44,9 @@ CREATE INDEX media_file_owner_created_idx
 
 CREATE INDEX media_file_status_idx
     ON media.file (status);
+
+CREATE INDEX media_file_pending_updated_idx
+    ON media.file (updated_at, id) WHERE status='pending';
 
 -- +goose Down
 DROP TABLE IF EXISTS media.file;
