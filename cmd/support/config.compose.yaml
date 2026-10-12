@@ -1,0 +1,13 @@
+grpc:
+  host: 0.0.0.0
+  port: 8086
+media:
+  host: media
+  port: 8085
+postgres:
+  host: postgres
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+  migration_timeout: 5m
