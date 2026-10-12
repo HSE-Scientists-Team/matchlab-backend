@@ -156,7 +156,11 @@ multipart:
 	}
 	t.Cleanup(func() { _ = conn.Close() })
 	client := mediav1.NewMediaServiceClient(conn)
-	health, err := grpc_health_v1.NewHealthClient(conn).Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: mediav1.MediaService_ServiceDesc.ServiceName})
+	// Docker proxy может открыть порт до завершения startup-миграций.
+	// Дожидаемся готового gRPC API, а не только успешного TCP connect.
+	healthCtx, cancelHealth := context.WithTimeout(ctx, 60*time.Second)
+	health, err := grpc_health_v1.NewHealthClient(conn).Check(healthCtx, &grpc_health_v1.HealthCheckRequest{Service: mediav1.MediaService_ServiceDesc.ServiceName}, grpc.WaitForReady(true))
+	cancelHealth()
 	if err != nil || health.GetStatus() != grpc_health_v1.HealthCheckResponse_SERVING {
 		t.Fatalf("health: %v, %v", health, err)
 	}
