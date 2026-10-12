@@ -34,6 +34,61 @@ services:
       - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
       - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
 
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.47
+    command: ["mini", "-dir=/data", "-admin.port=12646", "-s3.config=/etc/seaweedfs/s3.json"]
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-matchlab_admin_local}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-matchlab_admin_local_secret}
+      S3_MEDIA_ACCESS_KEY: ${S3_MEDIA_ACCESS_KEY:-matchlab_media_local}
+      S3_MEDIA_SECRET_KEY: ${S3_MEDIA_SECRET_KEY:-matchlab_media_local_secret}
+      S3_BUCKET: ${S3_BUCKET:-matchlab-media}
+    ports:
+      - "127.0.0.1:${S3_PORT:-8333}:8333"
+      - "127.0.0.1:${SEAWEEDFS_FILER_PORT:-8888}:8888"
+      - "127.0.0.1:${SEAWEEDFS_MASTER_PORT:-9333}:9333"
+      - "127.0.0.1:${SEAWEEDFS_ADMIN_PORT:-12646}:12646"
+    volumes:
+      - seaweedfs-data:/data
+      - ./compose/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9333/cluster/status"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  seaweedfs-init:
+    image: amazon/aws-cli:2.36.42
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        until aws --endpoint-url "$${S3_ENDPOINT}" s3api list-buckets >/dev/null 2>&1; do
+          echo "ожидание S3 API SeaweedFS..."
+          sleep 2
+        done
+        if ! aws --endpoint-url "$${S3_ENDPOINT}" s3api head-bucket --bucket "$${S3_BUCKET}" >/dev/null 2>&1; then
+          aws --endpoint-url "$${S3_ENDPOINT}" s3api create-bucket --bucket "$${S3_BUCKET}"
+        fi
+        aws --endpoint-url "$${S3_ENDPOINT}" s3api put-bucket-cors \
+          --bucket "$${S3_BUCKET}" \
+          --cors-configuration file:///etc/seaweedfs/cors.json
+        aws --endpoint-url "$${S3_ENDPOINT}" s3api head-bucket --bucket "$${S3_BUCKET}"
+        echo "bucket $${S3_BUCKET} готов и остаётся приватным"
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-matchlab_admin_local}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-matchlab_admin_local_secret}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT: http://seaweedfs:8333
+      S3_BUCKET: ${S3_BUCKET:-matchlab-media}
+    volumes:
+      - ./compose/seaweedfs/cors.json:/etc/seaweedfs/cors.json:ro
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    restart: "no"
+
   mail:
     build:
       context: .
@@ -96,6 +151,27 @@ services:
       mail:
         condition: service_started
 
+  media:
+    build:
+      context: .
+      dockerfile: cmd/media/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: media-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+      S3_MEDIA_ACCESS_KEY: ${S3_MEDIA_ACCESS_KEY:-matchlab_media_local}
+      S3_MEDIA_SECRET_KEY: ${S3_MEDIA_SECRET_KEY:-matchlab_media_local_secret}
+    ports:
+      - "127.0.0.1:${MEDIA_GRPC_PORT:-8085}:8085"
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seaweedfs-init:
+        condition: service_completed_successfully
+
   gateway:
     build:
       context: .
@@ -116,6 +192,8 @@ services:
         condition: service_started
       user:
         condition: service_started
+      media:
+        condition: service_started
 
   api-docs:
     build:
@@ -128,6 +206,8 @@ services:
         condition: service_started
 
 configs:
+  media-compose-config:
+    file: ./cmd/media/config.compose.yaml
   auth-compose-config:
     file: ./cmd/auth/config.compose.yaml
   user-compose-config:
@@ -139,3 +219,4 @@ configs:
 
 volumes:
   postgres-data:
+  seaweedfs-data:

@@ -7,6 +7,9 @@ auth:
 user:
   host: user
   port: 8082
+media:
+  host: media
+  port: 8085
 cors:
   allowed_origins:
     - http://localhost:8084

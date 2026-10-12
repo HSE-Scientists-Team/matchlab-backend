@@ -4,7 +4,7 @@ import json
 import re
 from pathlib import Path
 
-SERVICES = {name: name.upper().replace("-", "_") + "_IMAGE" for name in ("gateway", "auth", "user", "mail", "api-docs")}
+SERVICES = {name: name.upper().replace("-", "_") + "_IMAGE" for name in ("gateway", "auth", "user", "mail", "media", "api-docs")}
 
 
 def update(content, records, repository):

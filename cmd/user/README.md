@@ -18,13 +18,13 @@ User проверяет активные правила `users.trusted_email_dom
 
 ## PostgreSQL и миграции
 
-Все сервисы применяют миграции перед открытием API через общий [runner](../../pkg/migrations/README.md). Начальная миграция `00001_create_accounts.sql` сразу создаёт схему с заявками на регистрацию, обязательным уникальным email аккаунта и связями подтверждения. Она предназначена для пустой БД. Перед запуском обновлённого приложения старую учебную БД нужно пересоздать вместе с историей Goose. Откат удаляет таблицы и типы с данными.
+Миграции из `pkg/migrations` применяет каждый сервис перед открытием API. Общая версия — `3`: аккаунты, файлы и multipart-сессии. PostgreSQL advisory lock сериализует параллельные старты, SQL-отпечатки защищают историю. User не обращается к данным `media`. Откат удаляет данные соответствующих таблиц.
 
 ## Локальный запуск
 
 Для запуска всех сервисов выполните `docker compose up --build`. Gateway доступен по адресу `http://localhost:8080`, а письма с подтверждением — в Mailpit по адресу `http://localhost:8025`.
 
-Для локальной проверки с доменами HSE после запуска сервисов однократно выполните:
+Для локальной проверки с доменами HSE после запуска мигратора однократно выполните:
 
 ```sh
 docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < scripts/db/seed_local_hse_domains.sql
@@ -43,4 +43,5 @@ docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USE
 
 Проверка: `go test ./internal/user/...`. Интеграционные тесты: `go test -tags=integration ./internal/user/repository ./pkg/migrations`.
 
-При запуске обязательны настройки `postgres` и переменная `POSTGRES_PASSWORD` для применения всего SQL-набора. `postgres.migration_timeout` по умолчанию равен `5m`; ошибочная или более новая схема блокирует запуск API. Секрет PostgreSQL не хранится в YAML. Подробнее — [миграции](../../pkg/migrations/README.md).
+При прямом запуске Gateway также требуется доступный Media; подготовка
+его зависимостей описана в [README Gateway](../gateway/README.md).

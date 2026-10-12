@@ -1,0 +1,30 @@
+grpc:
+  host: 127.0.0.1
+  port: 8085
+postgres:
+  host: localhost
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+  migration_timeout: 5m
+s3:
+  endpoint: http://localhost:8333
+  public_endpoint: http://localhost:8333
+  region: us-east-1
+  bucket: matchlab-media
+  use_path_style: true
+  request_timeout: 5s
+upload:
+  url_ttl: 10m
+  max_size_bytes: 104857600
+  allowed_content_types:
+    - application/pdf
+    - image/jpeg
+    - image/png
+download:
+  url_ttl: 5m
+multipart:
+  part_size_bytes: 8388608
+  session_ttl: 24h
+  cleanup_interval: 10m

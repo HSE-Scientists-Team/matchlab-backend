@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package matchlab.media.v1;
+
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1;mediav1";
+
+service MediaService {
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc CreateUpload(CreateUploadRequest) returns (CreateUploadResponse);
+  rpc CompleteUpload(CompleteUploadRequest) returns (CompleteUploadResponse);
+  rpc GetFile(GetFileRequest) returns (GetFileResponse);
+  rpc CreateDownloadURL(CreateDownloadURLRequest) returns (CreateDownloadURLResponse);
+  rpc CreateMultipart(CreateUploadRequest) returns (MultipartState);
+  rpc GetMultipart(GetFileRequest) returns (MultipartState);
+  rpc CreatePartURLs(CreatePartURLsRequest) returns (CreatePartURLsResponse);
+  rpc CompleteMultipart(CompleteMultipartRequest) returns (CompleteUploadResponse);
+  rpc AbortMultipart(CompleteUploadRequest) returns (AbortMultipartResponse);
+}
+
+enum FileStatus {
+  FILE_STATUS_UNSPECIFIED = 0;
+  FILE_STATUS_PENDING = 1;
+  FILE_STATUS_READY = 2;
+  reserved 3;
+  reserved "FILE_STATUS_DELETING";
+  FILE_STATUS_DELETED = 4;
+  FILE_STATUS_FAILED = 5;
+}
+
+message File {
+  string id = 1;
+  string owner_user_id = 2;
+  string original_name = 3;
+  string content_type = 4;
+  optional int64 size_bytes = 5;
+  FileStatus status = 6;
+  int64 created_at_unix = 7;
+  optional int64 uploaded_at_unix = 8;
+  bool is_public = 9;
+}
+
+// Gateway передаёт user_id из проверенного сеанса.
+// Bucket и object_key определяет Media, а не клиент.
+message CreateUploadRequest {
+  string user_id = 1;
+  string original_name = 2;
+  string content_type = 3;
+  int64 size_bytes = 4;
+  // Defaults to false: only the owner can read a private file.
+  bool is_public = 5;
+}
+
+message CreateUploadResponse {
+  File file = 1;
+  string upload_url = 2;
+  string method = 3;
+  map<string, string> headers = 4;
+  int64 expires_at_unix = 5;
+}
+
+// Фактические метаданные Media получает из S3.
+// Повторное подтверждение готового файла возвращает его метаданные.
+message CompleteUploadRequest {
+  // Required owner ID, including for public files.
+  string user_id = 1;
+  string file_id = 2;
+}
+
+message CompleteUploadResponse {
+  File file = 1;
+}
+
+// Возвращает только метаданные доступного пользователю файла.
+message GetFileRequest {
+  // May be omitted for anonymous access to a public file.
+  string user_id = 1;
+  string file_id = 2;
+}
+
+message GetFileResponse {
+  File file = 1;
+}
+
+// Выдаёт временный доступ к содержимому готового файла.
+message CreateDownloadURLRequest {
+  // May be omitted for anonymous access to a public file.
+  string user_id = 1;
+  string file_id = 2;
+}
+
+message CreateDownloadURLResponse {
+  string download_url = 1;
+  int64 expires_at_unix = 2;
+}
+
+message MultipartPart {
+  int32 part_number = 1;
+  string etag = 2;
+  int64 size_bytes = 3;
+}
+
+message MultipartState {
+  File file = 1;
+  string status = 2;
+  int64 expected_size_bytes = 3;
+  int64 part_size_bytes = 4;
+  int32 part_count = 5;
+  int64 expires_at_unix = 6;
+  int64 uploaded_bytes = 7;
+  repeated MultipartPart parts = 8;
+}
+
+message CreatePartURLsRequest {
+  string user_id = 1;
+  string file_id = 2;
+  repeated int32 part_numbers = 3;
+}
+
+message PartURL {
+  int32 part_number = 1;
+  int64 size_bytes = 2;
+  string upload_url = 3;
+  string method = 4;
+  map<string,string> headers = 5;
+  int64 expires_at_unix = 6;
+}
+
+message CreatePartURLsResponse { repeated PartURL parts = 1; }
+
+// Client provides the ETags returned by UploadPart. Size is checked against S3.
+message CompleteMultipartRequest {
+  string user_id = 1;
+  string file_id = 2;
+  repeated MultipartPart parts = 3;
+}
+
+message AbortMultipartResponse {}
+
+// Required owner ID comes from the verified Gateway session.
+message DeleteFileRequest {
+  string user_id = 1;
+  string file_id = 2;
+}
+
+message DeleteFileResponse {}

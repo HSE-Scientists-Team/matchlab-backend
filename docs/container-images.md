@@ -10,7 +10,7 @@
 
 ## Конфигурация и секреты
 
-Несекретные YAML-настройки принадлежат infra и монтируются из ConfigMap. PostgreSQL, Redis и SMTP credentials поступают в сервисы через `secretKeyRef`, соответственно `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SMTP_USERNAME`, `SMTP_PASSWORD`. Секреты не входят в Docker-образы.
+Несекретные YAML-настройки принадлежат infra и монтируются из ConfigMap. PostgreSQL, Redis, S3 и SMTP credentials поступают в сервисы через `secretKeyRef`, соответственно `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `SMTP_USERNAME`, `SMTP_PASSWORD`. Секреты не входят в Docker-образы.
 
 GitHub Secrets нужны для CI-доступа, например `INFRA_REPO_TOKEN`; кластер не может читать их напрямую. Пароли приложения хранятся в Kubernetes Secret; для GitOps их зашифрованные декларации хранятся через SOPS/age в infra, а Flux расшифровывает их ключом из своего namespace. Private age key хранится вне Git и требует отдельной защищённой резервной копии. Изменение Secret не перезапускает Pod автоматически; после ротации нужен rollout. Пароль уже созданного PostgreSQL нужно менять в самой БД согласованно с Secret.
 

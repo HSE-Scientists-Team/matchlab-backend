@@ -3,3 +3,7 @@
 *.local.yaml
 *.secret.yaml
 coverage/
+*.matchlab-upload.json
+*.matchlab-upload.json.tmp
+__pycache__/
+/scripts/media/

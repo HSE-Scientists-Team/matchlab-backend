@@ -7,38 +7,41 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/postgres"
+	"github.com/docker/go-connections/nat"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func integrationDB(t *testing.T) (context.Context, *sql.DB) {
+// Each test gets its own database. Goose settings are global: do not use t.Parallel.
+func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	t.Cleanup(cancel)
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image: "postgres:17-alpine",
-			Env: map[string]string{
-				"POSTGRES_DB":       "matchlab",
-				"POSTGRES_USER":     "matchlab",
-				"POSTGRES_PASSWORD": "integration-only",
-			},
+			Image:        "postgres:17-alpine",
+			Env:          map[string]string{"POSTGRES_DB": "matchlab", "POSTGRES_USER": "matchlab", "POSTGRES_PASSWORD": "integration-only"},
 			ExposedPorts: []string{"5432/tcp"},
-			WaitingFor:   wait.ForListeningPort("5432/tcp").WithStartupTimeout(90 * time.Second),
-		},
-		Started: true,
+			WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port nat.Port) string {
+				return (postgres.Config{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}).URL()
+			}).WithStartupTimeout(90 * time.Second),
+		}, Started: true,
 	})
+	if container != nil {
+		t.Cleanup(func() { _ = container.Terminate(context.Background()) })
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = container.Terminate(context.Background()) })
 	host, err := container.Host(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -53,104 +56,206 @@ func integrationDB(t *testing.T) (context.Context, *sql.DB) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	for attempt := 0; attempt < 30; attempt++ {
-		if err := db.PingContext(ctx); err == nil {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			t.Fatalf("PostgreSQL не стал готовым: %v", ctx.Err())
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
-
 	return ctx, db
 }
 
-func TestMigrationsApplyAndStayCurrent(t *testing.T) {
-	ctx, db := integrationDB(t)
-
-	version, err := Up(ctx, db)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if version != 1 {
-		t.Fatalf("версия миграции = %d, ожидалась 1", version)
-	}
-	version, err = Up(ctx, db)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if version != 1 {
-		t.Fatalf("версия после повтора миграции = %d, ожидалась 1", version)
-	}
-	var tableCount int
-	err = db.QueryRowContext(ctx, `SELECT count(*) FROM information_schema.tables WHERE table_schema = 'users' AND table_name IN ('user_account', 'trusted_email_domain', 'user_email', 'registration_request')`).Scan(&tableCount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if tableCount != 4 {
-		t.Fatalf("created %d tables, want 4", tableCount)
-	}
-	userA := "00000000-0000-4000-8000-000000000001"
-	userB := "00000000-0000-4000-8000-000000000002"
-
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (id, email, password_hash) VALUES ($1, 'a@example.org', 'hash'), ($2, 'b@example.org', 'hash')`, userA, userB); err != nil {
-		t.Fatal(err)
-	}
-	for _, address := range []string{"a@example.org", "A@example.org"} {
-		if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email, password_hash) VALUES ($1, 'hash')`, address); err == nil {
-			t.Fatalf("duplicate email accepted: %s", address)
-		}
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (password_hash) VALUES ('hash')`); err == nil {
-		t.Fatal("missing email accepted")
-	}
-
-	// Заявка существует без аккаунта и содержит собственный хеш пароля.
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.registration_request (email, password_hash, token_hash, expires_at) VALUES ('pending@example.org', 'hash', $1, now() + interval '30 minutes')`, fmt.Sprintf("%064x", 1)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.registration_request (email, password_hash, token_hash, expires_at) VALUES ('pending@example.org', 'other-hash', $1, now() + interval '30 minutes')`, fmt.Sprintf("%064x", 2)); err == nil {
-		t.Fatal("duplicate registration request accepted")
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'a@example.org')`, userA); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'a@example.org')`, userB); err == nil {
-		t.Fatal("confirmation for another account email accepted")
-	}
-	var versionTableExists bool
-	err = db.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, fmt.Sprint("users.goose_db_version")).Scan(&versionTableExists)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !versionTableExists {
-		t.Fatal("таблица версий Goose не создана в схеме users")
-	}
-	// Полный откат удаляет таблицы; повторное применение создаёт пустую схему.
-	provider, err := goose.NewProvider(goose.DialectPostgres, db, Files, goose.WithTableName(versionTable), goose.WithDisableGlobalRegistry(true))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := provider.Down(ctx); err != nil {
-		t.Fatal(err)
-	}
-	var accountTableExists bool
-	if err := db.QueryRowContext(ctx, `SELECT to_regclass('users.user_account') IS NOT NULL`).Scan(&accountTableExists); err != nil || accountTableExists {
-		t.Fatalf("account table after rollback: exists %t, error %v", accountTableExists, err)
-	}
-	if version, err := Up(ctx, db); err != nil || version != 1 {
-		t.Fatalf("reapply migration: version %d, error %v", version, err)
-	}
-	var accountCount int
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.user_account`).Scan(&accountCount); err != nil || accountCount != 0 {
-		t.Fatalf("accounts after reapply: count %d, error %v", accountCount, err)
+func applyMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
+	t.Helper()
+	if version, err := Up(ctx, db); err != nil || version != 3 {
+		t.Fatalf("apply migrations: version=%d, want=3, error=%v", version, err)
 	}
 }
 
+func requireSQLState(t *testing.T, err error, code string) {
+	t.Helper()
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != code {
+		t.Fatalf("SQLSTATE: want=%s, error=%v", code, err)
+	}
+}
+
+func TestUsersSchema(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	applyMigrations(t, ctx, db)
+	var tableCount int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM information_schema.tables WHERE table_schema = 'users' AND table_name IN ('user_account', 'trusted_email_domain', 'user_email', 'registration_request')`).Scan(&tableCount); err != nil || tableCount != 4 {
+		t.Fatalf("users tables: count=%d, error=%v", tableCount, err)
+	}
+	userA := "00000000-0000-4000-8000-000000000001"
+	userB := "00000000-0000-4000-8000-000000000002"
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (id, email, password_hash) VALUES ($1, 'a@example.org', 'hash'), ($2, 'b@example.org', 'hash')`, userA, userB); err != nil {
+		t.Fatal(err)
+	}
+	t.Run("account email constraints", func(t *testing.T) {
+		_, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email, password_hash) VALUES ('a@example.org', 'hash')`)
+		requireSQLState(t, err, "23505")
+		_, err = db.ExecContext(ctx, `INSERT INTO users.user_account (email, password_hash) VALUES ('A@example.org', 'hash')`)
+		if err == nil {
+			t.Fatal("uppercase duplicate email accepted")
+		}
+		_, err = db.ExecContext(ctx, `INSERT INTO users.user_account (password_hash) VALUES ('hash')`)
+		requireSQLState(t, err, "23502")
+	})
+	t.Run("registration without account", func(t *testing.T) {
+		if _, err := db.ExecContext(ctx, `INSERT INTO users.registration_request (email, password_hash, token_hash, expires_at) VALUES ('pending@example.org', 'hash', $1, now() + interval '30 minutes')`, fmt.Sprintf("%064x", 1)); err != nil {
+			t.Fatal(err)
+		}
+		_, err := db.ExecContext(ctx, `INSERT INTO users.registration_request (email, password_hash, token_hash, expires_at) VALUES ('pending@example.org', 'other-hash', $1, now() + interval '30 minutes')`, fmt.Sprintf("%064x", 2))
+		requireSQLState(t, err, "23505")
+	})
+	t.Run("confirmed email belongs to account", func(t *testing.T) {
+		if _, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'a@example.org')`, userA); err != nil {
+			t.Fatal(err)
+		}
+		_, err := db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'a@example.org')`, userB)
+		requireSQLState(t, err, "23505")
+		_, err = db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'unrelated@example.org')`, userB)
+		requireSQLState(t, err, "23503")
+	})
+	t.Run("no automatic domain seed", func(t *testing.T) {
+		var count int
+		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.trusted_email_domain`).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("domain seed: count=%d, error=%v", count, err)
+		}
+	})
+}
+
+func TestMediaSchema(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	applyMigrations(t, ctx, db)
+	const owner = "00000000-0000-4000-8000-000000000001"
+	const insertFile = `INSERT INTO media.file (owner_user_id, bucket_name, object_key, original_name, content_type) VALUES ($1, 'matchlab-media', $2, 'avatar.png', 'image/png')`
+	if _, err := db.ExecContext(ctx, insertFile, owner, "constraint-target"); err != nil {
+		t.Fatal(err)
+	}
+	t.Run("private pending defaults", func(t *testing.T) {
+		var id, state string
+		var public bool
+		var size, uploaded, expected sql.NullInt64
+		var created, updated time.Time
+		err := db.QueryRowContext(ctx, insertFile+` RETURNING id::text, status::text, is_public, size_bytes, extract(epoch FROM uploaded_at)::bigint, created_at, updated_at, expected_size_bytes`, owner, "defaults").Scan(&id, &state, &public, &size, &uploaded, &created, &updated, &expected)
+		if err != nil || id == "" || state != "pending" || public || size.Valid || uploaded.Valid || expected.Valid || created.IsZero() || updated.IsZero() {
+			t.Fatalf("defaults: id=%s state=%s public=%t size=%v uploaded=%v error=%v", id, state, public, size, uploaded, err)
+		}
+	})
+	t.Run("expected size persists and pending index exists", func(t *testing.T) {
+		var expected int64
+		if err := db.QueryRowContext(ctx, `UPDATE media.file SET expected_size_bytes=42 WHERE object_key='constraint-target' RETURNING expected_size_bytes`).Scan(&expected); err != nil || expected != 42 {
+			t.Fatalf("expected size: %d, %v", expected, err)
+		}
+		var definition string
+		if err := db.QueryRowContext(ctx, `SELECT indexdef FROM pg_indexes WHERE schemaname='media' AND indexname='media_file_pending_updated_idx'`).Scan(&definition); err != nil || !strings.Contains(definition, "(updated_at, id)") || !strings.Contains(definition, "pending") {
+			t.Fatalf("pending index: %s, %v", definition, err)
+		}
+	})
+	t.Run("public flag persists", func(t *testing.T) {
+		var id string
+		if err := db.QueryRowContext(ctx, `INSERT INTO media.file (owner_user_id, bucket_name, object_key, original_name, content_type, is_public) VALUES ($1, 'matchlab-media', 'public', 'avatar.png', 'image/png', true) RETURNING id::text`, owner).Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		var public bool
+		if err := db.QueryRowContext(ctx, `SELECT is_public FROM media.file WHERE id=$1`, id).Scan(&public); err != nil || !public {
+			t.Fatalf("stored public flag: %t, %v", public, err)
+		}
+		_, err := db.ExecContext(ctx, `UPDATE media.file SET is_public=NULL WHERE id=$1`, id)
+		requireSQLState(t, err, "23502")
+	})
+	t.Run("storage location is unique", func(t *testing.T) {
+		_, err := db.ExecContext(ctx, insertFile, owner, "constraint-target")
+		requireSQLState(t, err, "23505")
+	})
+	t.Run("object metadata constraints", func(t *testing.T) {
+		for _, tc := range []struct{ name, expression, code string }{
+			{"negative size", "size_bytes=-1", "23514"},
+			{"negative expected size", "expected_size_bytes=-1", "23514"},
+			{"zero expected size", "expected_size_bytes=0", "23514"},
+			{"empty key", "object_key=''", "23514"},
+			{"long key", "object_key=repeat('x',1025)", "23514"},
+			{"invalid checksum", "checksum_sha256='invalid'", "23514"},
+			{"invalid state", "status='unknown'", "22P02"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := db.ExecContext(ctx, `UPDATE media.file SET `+tc.expression+` WHERE object_key='constraint-target'`)
+				requireSQLState(t, err, tc.code)
+			})
+		}
+	})
+}
+
+func TestMigrationsApplyAndStayCurrent(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	applyMigrations(t, ctx, db)
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email,password_hash) VALUES ('preserve@example.org','hash'); INSERT INTO media.file (owner_user_id,bucket_name,object_key,original_name,content_type,is_public) VALUES ('00000000-0000-4000-8000-000000000001','matchlab-media','preserve','avatar.png','image/png',true)`); err != nil {
+		t.Fatal(err)
+	}
+	requireCount := func(t *testing.T, query string, want int) {
+		t.Helper()
+		var count int
+		if err := db.QueryRowContext(ctx, query).Scan(&count); err != nil || count != want {
+			t.Fatalf("count: want=%d got=%d query=%s error=%v", want, count, query, err)
+		}
+	}
+	requireVersion := func(t *testing.T, want int64) {
+		t.Helper()
+		if version, err := migrationVersion(ctx, db); err != nil || version != want {
+			t.Fatalf("version: want=%d got=%d error=%v", want, version, err)
+		}
+	}
+	down := func(t *testing.T) {
+		t.Helper()
+		provider, err := goose.NewProvider(goose.DialectPostgres, db, Files, goose.WithTableName(versionTable), goose.WithDisableGlobalRegistry(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := provider.Down(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Run("repeat preserves data and history", func(t *testing.T) {
+		applyMigrations(t, ctx, db)
+		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
+		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve' AND is_public`, 1)
+		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3) AND is_applied`, 3)
+	})
+	t.Run("multipart rollback preserves files", func(t *testing.T) {
+		down(t)
+		requireVersion(t, 2)
+		requireCount(t, `SELECT count(*) FROM pg_tables WHERE schemaname='media' AND tablename='multipart_upload'`, 0)
+		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve'`, 1)
+		requireCount(t, `SELECT count(*) FROM information_schema.columns WHERE table_schema='media' AND table_name='file' AND column_name='expected_size_bytes'`, 1)
+		requireCount(t, `SELECT count(*) FROM pg_indexes WHERE schemaname='media' AND indexname='media_file_pending_updated_idx'`, 1)
+		applyMigrations(t, ctx, db)
+	})
+	t.Run("media rollback preserves users", func(t *testing.T) {
+		down(t)
+		down(t)
+		requireVersion(t, 1)
+		requireCount(t, `SELECT count(*) FROM pg_tables WHERE schemaname='media' AND tablename='file'`, 0)
+		requireCount(t, `SELECT count(*) FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='media' AND t.typname='file_status'`, 0)
+		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
+		applyMigrations(t, ctx, db)
+		requireCount(t, `SELECT count(*) FROM media.file`, 0)
+		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
+	})
+	t.Run("full rollback and reapply", func(t *testing.T) {
+		down(t)
+		down(t)
+		down(t)
+		requireVersion(t, 0)
+		requireCount(t, `SELECT count(*) FROM pg_tables WHERE schemaname='users' AND tablename IN ('user_account','user_email','registration_request','trusted_email_domain')`, 0)
+		requireCount(t, `SELECT count(*) FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='users' AND t.typname IN ('user_account_status','system_role_code')`, 0)
+		applyMigrations(t, ctx, db)
+		requireCount(t, `SELECT count(*) FROM users.user_account`, 0)
+		requireCount(t, `SELECT count(*) FROM media.file`, 0)
+		var public bool
+		if err := db.QueryRowContext(ctx, `INSERT INTO media.file (owner_user_id,bucket_name,object_key,original_name,content_type) VALUES ('00000000-0000-4000-8000-000000000001','matchlab-media','reapplied','avatar.png','image/png') RETURNING is_public`).Scan(&public); err != nil || public {
+			t.Fatalf("visibility after reapply: public=%t error=%v", public, err)
+		}
+	})
+}
+
 func TestParallelReleasesApplyMigrationsExactlyOnce(t *testing.T) {
-	ctx, db := integrationDB(t)
+	ctx, db := newMigrationDatabase(t)
 	db.SetMaxOpenConns(8)
 	files := fstest.MapFS{
 		"00001_once.sql": {Data: []byte("-- +goose Up\nCREATE TABLE users.execution (id integer PRIMARY KEY);\nINSERT INTO users.execution VALUES (1);\nSELECT pg_sleep(0.1);\n-- +goose Down\nDROP TABLE users.execution;\n")},
@@ -180,7 +285,7 @@ func TestParallelReleasesApplyMigrationsExactlyOnce(t *testing.T) {
 }
 
 func TestOlderOrConflictingReleaseCannotChangeSchema(t *testing.T) {
-	ctx, db := integrationDB(t)
+	ctx, db := newMigrationDatabase(t)
 	old := fstest.MapFS{"00001_test.sql": {Data: []byte("-- +goose Up\nCREATE TABLE users.release_guard(id integer);\n-- +goose Down\nDROP TABLE users.release_guard;\n")}}
 	newer := fstest.MapFS{"00001_test.sql": old["00001_test.sql"], "00002_new.sql": {Data: []byte("-- +goose Up\nALTER TABLE users.release_guard ADD COLUMN value text;\n-- +goose Down\nALTER TABLE users.release_guard DROP COLUMN value;\n")}}
 	if _, err := up(ctx, db, newer); err != nil {
@@ -199,7 +304,7 @@ func TestOlderOrConflictingReleaseCannotChangeSchema(t *testing.T) {
 }
 
 func TestMigrationLockCancellationAndRecovery(t *testing.T) {
-	ctx, db := integrationDB(t)
+	ctx, db := newMigrationDatabase(t)
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -223,7 +328,7 @@ func TestMigrationLockCancellationAndRecovery(t *testing.T) {
 }
 
 func TestFailedSQLRollsBackFingerprintAndDDL(t *testing.T) {
-	ctx, db := integrationDB(t)
+	ctx, db := newMigrationDatabase(t)
 	files := fstest.MapFS{"00001_test.sql": {Data: []byte("-- +goose Up\nCREATE TABLE users.failed(id integer);\nSELECT 1/0;\n-- +goose Down\nDROP TABLE users.failed;\n")}}
 	if _, err := up(ctx, db, files); err == nil {
 		t.Fatal("broken migration succeeded")
@@ -239,5 +344,37 @@ func TestFailedSQLRollsBackFingerprintAndDDL(t *testing.T) {
 	files["00001_test.sql"].Data = []byte("-- +goose Up\nCREATE TABLE users.failed(id integer);\n-- +goose Down\nDROP TABLE users.failed;\n")
 	if _, err := up(ctx, db, files); err != nil {
 		t.Fatalf("retry after transactional rollback failed: %v", err)
+	}
+}
+
+func migrationVersion(ctx context.Context, db *sql.DB) (int64, error) {
+	var version int64
+	err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version_id),0) FROM users.goose_db_version WHERE is_applied`).Scan(&version)
+	return version, err
+}
+
+func TestUpgradeAccountsSchemaToMediaPreservesUsers(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	sql, err := Files.ReadFile("00001_create_accounts.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial := fstest.MapFS{"00001_create_accounts.sql": {Data: sql}}
+	if version, err := up(ctx, db, initial); err != nil || version != 1 {
+		t.Fatalf("initial: %d %v", version, err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email,password_hash) VALUES ('upgrade@example.org','hash')`); err != nil {
+		t.Fatal(err)
+	}
+	if version, err := Up(ctx, db); err != nil || version != 3 {
+		t.Fatalf("upgrade: %d %v", version, err)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.user_account WHERE email='upgrade@example.org'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("account lost: %d %v", count, err)
+	}
+	var exists bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('media.file') IS NOT NULL AND to_regclass('media.multipart_upload') IS NOT NULL`).Scan(&exists); err != nil || !exists {
+		t.Fatalf("media tables: %t %v", exists, err)
 	}
 }
