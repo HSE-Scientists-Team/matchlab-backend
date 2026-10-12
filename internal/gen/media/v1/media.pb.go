@@ -27,7 +27,6 @@ const (
 	FileStatus_FILE_STATUS_UNSPECIFIED FileStatus = 0
 	FileStatus_FILE_STATUS_PENDING     FileStatus = 1
 	FileStatus_FILE_STATUS_READY       FileStatus = 2
-	FileStatus_FILE_STATUS_DELETING    FileStatus = 3
 	FileStatus_FILE_STATUS_DELETED     FileStatus = 4
 	FileStatus_FILE_STATUS_FAILED      FileStatus = 5
 )
@@ -38,7 +37,6 @@ var (
 		0: "FILE_STATUS_UNSPECIFIED",
 		1: "FILE_STATUS_PENDING",
 		2: "FILE_STATUS_READY",
-		3: "FILE_STATUS_DELETING",
 		4: "FILE_STATUS_DELETED",
 		5: "FILE_STATUS_FAILED",
 	}
@@ -46,7 +44,6 @@ var (
 		"FILE_STATUS_UNSPECIFIED": 0,
 		"FILE_STATUS_PENDING":     1,
 		"FILE_STATUS_READY":       2,
-		"FILE_STATUS_DELETING":    3,
 		"FILE_STATUS_DELETED":     4,
 		"FILE_STATUS_FAILED":      5,
 	}
@@ -1273,15 +1270,14 @@ const file_api_proto_media_v1_media_proto_rawDesc = "" +
 	"\x11DeleteFileRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
 	"\afile_id\x18\x02 \x01(\tR\x06fileId\"\x14\n" +
-	"\x12DeleteFileResponse*\xa4\x01\n" +
+	"\x12DeleteFileResponse*\xa6\x01\n" +
 	"\n" +
 	"FileStatus\x12\x1b\n" +
 	"\x17FILE_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13FILE_STATUS_PENDING\x10\x01\x12\x15\n" +
-	"\x11FILE_STATUS_READY\x10\x02\x12\x18\n" +
-	"\x14FILE_STATUS_DELETING\x10\x03\x12\x17\n" +
+	"\x11FILE_STATUS_READY\x10\x02\x12\x17\n" +
 	"\x13FILE_STATUS_DELETED\x10\x04\x12\x16\n" +
-	"\x12FILE_STATUS_FAILED\x10\x052\xe2\a\n" +
+	"\x12FILE_STATUS_FAILED\x10\x05\"\x04\b\x03\x10\x03*\x14FILE_STATUS_DELETING2\xe2\a\n" +
 	"\fMediaService\x12Y\n" +
 	"\n" +
 	"DeleteFile\x12$.matchlab.media.v1.DeleteFileRequest\x1a%.matchlab.media.v1.DeleteFileResponse\x12_\n" +

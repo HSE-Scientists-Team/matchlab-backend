@@ -16,7 +16,6 @@ import (
 	"time"
 
 	mediav1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/migrator/migrations"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
@@ -82,10 +81,7 @@ func TestMediaContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	// Тест готовит схему до запуска Media, сам сервис её не изменяет.
-	if _, err := migrations.Up(ctx, db); err != nil {
-		t.Fatal(err)
-	}
+	// Media сам применяет весь SQL-набор к пустой БД до открытия gRPC.
 	seaweed := start(testcontainers.ContainerRequest{
 		Image:        "chrislusf/seaweedfs:4.47",
 		Cmd:          []string{"mini", "-dir=/data", "-s3.config=/etc/seaweedfs/s3.json"},

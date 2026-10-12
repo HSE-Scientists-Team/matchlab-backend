@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/migrator/config"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/postgres"
 	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -31,7 +32,7 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 			Env:          map[string]string{"POSTGRES_DB": "matchlab", "POSTGRES_USER": "matchlab", "POSTGRES_PASSWORD": "integration-only"},
 			ExposedPorts: []string{"5432/tcp"},
 			WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port nat.Port) string {
-				return (config.Postgres{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}).URL()
+				return (postgres.Config{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}).URL()
 			}).WithStartupTimeout(90 * time.Second),
 		}, Started: true,
 	})
@@ -49,7 +50,7 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := config.Postgres{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}
+	cfg := postgres.Config{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}
 	db, err := sql.Open("pgx", cfg.URL())
 	if err != nil {
 		t.Fatal(err)
@@ -196,13 +197,17 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 	}
 	requireVersion := func(t *testing.T, want int64) {
 		t.Helper()
-		if version, err := goose.GetDBVersionContext(ctx, db); err != nil || version != want {
+		if version, err := migrationVersion(ctx, db); err != nil || version != want {
 			t.Fatalf("version: want=%d got=%d error=%v", want, version, err)
 		}
 	}
 	down := func(t *testing.T) {
 		t.Helper()
-		if err := goose.DownContext(ctx, db, "."); err != nil {
+		provider, err := goose.NewProvider(goose.DialectPostgres, db, Files, goose.WithTableName(versionTable), goose.WithDisableGlobalRegistry(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := provider.Down(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -247,4 +252,129 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 			t.Fatalf("visibility after reapply: public=%t error=%v", public, err)
 		}
 	})
+}
+
+func TestParallelReleasesApplyMigrationsExactlyOnce(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	db.SetMaxOpenConns(8)
+	files := fstest.MapFS{
+		"00001_once.sql": {Data: []byte("-- +goose Up\nCREATE TABLE users.execution (id integer PRIMARY KEY);\nINSERT INTO users.execution VALUES (1);\nSELECT pg_sleep(0.1);\n-- +goose Down\nDROP TABLE users.execution;\n")},
+	}
+	results := make(chan error, 12)
+	for i := 0; i < 12; i++ {
+		go func() {
+			version, err := up(ctx, db, files)
+			if err == nil && version != 1 {
+				err = fmt.Errorf("version %d", version)
+			}
+			results <- err
+		}()
+	}
+	for i := 0; i < 12; i++ {
+		if err := <-results; err != nil {
+			t.Fatal(err)
+		}
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.execution`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("count %d, error %v", count, err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.migration_checksum`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("fingerprints %d, error %v", count, err)
+	}
+}
+
+func TestOlderOrConflictingReleaseCannotChangeSchema(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	old := fstest.MapFS{"00001_test.sql": {Data: []byte("-- +goose Up\nCREATE TABLE users.release_guard(id integer);\n-- +goose Down\nDROP TABLE users.release_guard;\n")}}
+	newer := fstest.MapFS{"00001_test.sql": old["00001_test.sql"], "00002_new.sql": {Data: []byte("-- +goose Up\nALTER TABLE users.release_guard ADD COLUMN value text;\n-- +goose Down\nALTER TABLE users.release_guard DROP COLUMN value;\n")}}
+	if _, err := up(ctx, db, newer); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := up(ctx, db, old); err == nil {
+		t.Fatal("older release accepted newer schema")
+	}
+	conflict := fstest.MapFS{"00001_test.sql": {Data: append(append([]byte{}, old["00001_test.sql"].Data...), []byte("\n-- different SQL")...)}, "00002_new.sql": newer["00002_new.sql"]}
+	if _, err := up(ctx, db, conflict); err == nil {
+		t.Fatal("different SQL with same version accepted")
+	}
+	if version, err := up(ctx, db, newer); err != nil || version != 2 {
+		t.Fatalf("failed startup leaked lock: version %d error %v", version, err)
+	}
+}
+
+func TestMigrationLockCancellationAndRecovery(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, err := conn.ExecContext(ctx, `SELECT pg_advisory_lock($1)`, advisoryLockID); err != nil {
+		t.Fatal(err)
+	}
+	waiting, cancel := context.WithTimeout(ctx, 150*time.Millisecond)
+	_, err = Up(waiting, db)
+	cancel()
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("wait cancellation: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, `SELECT pg_advisory_unlock($1)`, advisoryLockID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Up(ctx, db); err != nil {
+		t.Fatalf("could not migrate after canceled wait: %v", err)
+	}
+}
+
+func TestFailedSQLRollsBackFingerprintAndDDL(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	files := fstest.MapFS{"00001_test.sql": {Data: []byte("-- +goose Up\nCREATE TABLE users.failed(id integer);\nSELECT 1/0;\n-- +goose Down\nDROP TABLE users.failed;\n")}}
+	if _, err := up(ctx, db, files); err == nil {
+		t.Fatal("broken migration succeeded")
+	}
+	var exists bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('users.failed') IS NOT NULL`).Scan(&exists); err != nil || exists {
+		t.Fatalf("partial DDL persisted: %t %v", exists, err)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.migration_checksum`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("failed migration fingerprint persisted: %d %v", count, err)
+	}
+	files["00001_test.sql"].Data = []byte("-- +goose Up\nCREATE TABLE users.failed(id integer);\n-- +goose Down\nDROP TABLE users.failed;\n")
+	if _, err := up(ctx, db, files); err != nil {
+		t.Fatalf("retry after transactional rollback failed: %v", err)
+	}
+}
+
+func migrationVersion(ctx context.Context, db *sql.DB) (int64, error) {
+	var version int64
+	err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version_id),0) FROM users.goose_db_version WHERE is_applied`).Scan(&version)
+	return version, err
+}
+
+func TestUpgradeAccountsSchemaToMediaPreservesUsers(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	sql, err := Files.ReadFile("00001_create_accounts.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial := fstest.MapFS{"00001_create_accounts.sql": {Data: sql}}
+	if version, err := up(ctx, db, initial); err != nil || version != 1 {
+		t.Fatalf("initial: %d %v", version, err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email,password_hash) VALUES ('upgrade@example.org','hash')`); err != nil {
+		t.Fatal(err)
+	}
+	if version, err := Up(ctx, db); err != nil || version != 3 {
+		t.Fatalf("upgrade: %d %v", version, err)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.user_account WHERE email='upgrade@example.org'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("account lost: %d %v", count, err)
+	}
+	var exists bool
+	if err := db.QueryRowContext(ctx, `SELECT to_regclass('media.file') IS NOT NULL AND to_regclass('media.multipart_upload') IS NOT NULL`).Scan(&exists); err != nil || !exists {
+		t.Fatalf("media tables: %t %v", exists, err)
+	}
 }

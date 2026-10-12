@@ -84,9 +84,8 @@ func toProtoFile(file domain.File) *mediav1.File {
 		result.Status = mediav1.FileStatus_FILE_STATUS_PENDING
 	case domain.FileStatusReady:
 		result.Status = mediav1.FileStatus_FILE_STATUS_READY
-	case domain.FileStatusDeleting:
-		result.Status = mediav1.FileStatus_FILE_STATUS_DELETING
-	case domain.FileStatusDeleted:
+	// Намерение удаления — внутреннее состояние; клиент видит файл как удалённый.
+	case domain.FileStatusDeleting, domain.FileStatusDeleted:
 		result.Status = mediav1.FileStatus_FILE_STATUS_DELETED
 	case domain.FileStatusFailed:
 		result.Status = mediav1.FileStatus_FILE_STATUS_FAILED

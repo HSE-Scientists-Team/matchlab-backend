@@ -7,3 +7,10 @@ smtp:
   from: no-reply@matchlab.local
   verification_url: http://localhost:5173/verify-email
   require_starttls: false
+postgres:
+  host: postgres
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+  migration_timeout: 5m

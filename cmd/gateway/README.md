@@ -1,12 +1,12 @@
 # Сервис Gateway
 
-Gateway — публичная точка входа по HTTP. Он отвечает за маршруты, идентификаторы запросов, промежуточные обработчики и преобразование ошибок gRPC в HTTP. Gateway не обращается к PostgreSQL или Redis напрямую. Auth проверяет сеансы, User обрабатывает учётные записи, Media предоставляет работу с файлами. Gateway вызывает эти сервисы по gRPC.
+Gateway — публичная точка входа по HTTP. Он отвечает за маршруты, идентификаторы запросов, промежуточные обработчики и преобразование ошибок gRPC в HTTP. Перед открытием HTTP Gateway подключается к PostgreSQL только для общего запуска миграций. HTTP-запросы обслуживаются через внутренние сервисы; прямого доступа к данным PostgreSQL и Redis нет. Auth хранит и проверяет сеансы, User хранит учётные записи и обрабатывает регистрацию и вход по паролю. Media управляет файлами в S3. Gateway вызывает Auth, User и Media по gRPC.
 
 ## Конфигурация и локальный запуск
 
 Путь к конфигурации по умолчанию — `/etc/app/config.yaml`; изменить его можно флагом `-config`. В `config.example.yaml` указаны хосты и порты HTTP и внутренних gRPC-сервисов.
 
-Запустите весь проект из корня репозитория (PostgreSQL, Redis, SeaweedFS, Mailpit, Migrator, Auth, User, Mail, Media и Gateway):
+Запустите весь проект из корня репозитория (PostgreSQL, Redis, SeaweedFS, Mailpit, Auth, User, Mail, Media и Gateway):
 
 ```sh
 docker compose up --build
@@ -25,13 +25,14 @@ docker compose up -d postgres redis mailpit mail media
 
 Затем запустите каждый сервис в отдельном терминале:
 
-```powershell
-$env:REDIS_PASSWORD = 'matchlab_redis_local'
+```sh
+export POSTGRES_PASSWORD=matchlab_local_only
+export REDIS_PASSWORD=matchlab_redis_local
 go run ./cmd/auth -config cmd/auth/config.example.yaml
 ```
 
-```powershell
-$env:POSTGRES_PASSWORD = 'matchlab_local_only'
+```sh
+export POSTGRES_PASSWORD=matchlab_local_only
 go run ./cmd/user -config cmd/user/config.example.yaml
 ```
 
@@ -41,12 +42,10 @@ go run ./cmd/gateway -config cmd/gateway/config.example.yaml
 
 Учётные данные Compose предназначены только для локальной разработки. Данные PostgreSQL хранятся в именованном томе. У Redis тома нет, поэтому при его перезапуске сеансы удаляются.
 
-Media автоматически поднимает SeaweedFS, init-джобу и Migrator как зависимости.
-Дождитесь его готовности. Если миграция 00002 уже применена без `is_public`,
-сначала обновите локальную БД по [инструкции Migrator](../migrator/README.md).
+Media автоматически поднимает SeaweedFS и init-джобу как зависимости.
+Все сервисы применяют общий набор миграций при старте.
 Для запуска Media тоже напрямую используйте [его инструкцию](../media/README.md).
 Не запускайте контейнер и локальный процесс одного сервиса на одном порту.
-В Bash вместо `$env:NAME = 'value'` используется `export NAME=value`.
 
 ## HTTP API
 

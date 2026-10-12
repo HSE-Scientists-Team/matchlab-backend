@@ -18,6 +18,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/service"
 	mailsmtp "github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/smtp"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	"google.golang.org/grpc"
 )
 
@@ -36,6 +37,14 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	version, err := migrations.Apply(ctx, cfg.DB)
+	if err != nil {
+		return err
+	}
+	logger.Info("миграции PostgreSQL применены", "version", version)
+
 	sender := mailsmtp.NewSender(cfg.SMTP.SenderConfig())
 	mailService := service.NewService(sender)
 	listener, err := net.Listen("tcp", cfg.GRPC.Address())
@@ -45,8 +54,7 @@ func run(logger *slog.Logger) error {
 	server := grpc.NewServer()
 	health := healthcheck.RegisterGRPC(server)
 	mailv1.RegisterEmailServiceServer(server, mailgrpc.NewServer(mailService))
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
 	logger.Info("сервис Mail запущен", "address", listener.Addr().String())

@@ -7,6 +7,7 @@ postgres:
   database: matchlab
   user: matchlab
   ssl_mode: disable
+  migration_timeout: 5m
 s3:
   endpoint: http://seaweedfs:8333
   public_endpoint: http://localhost:8333

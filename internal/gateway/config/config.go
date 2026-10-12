@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/postgres"
 	"github.com/spf13/viper"
 )
 
@@ -18,10 +19,11 @@ type Endpoint struct {
 func (e Endpoint) Address() string { return net.JoinHostPort(e.Host, strconv.Itoa(e.Port)) }
 
 type Config struct {
-	HTTP  Endpoint `mapstructure:"http"`
-	Auth  Endpoint `mapstructure:"auth"`
-	User  Endpoint `mapstructure:"user"`
-	Media Endpoint `mapstructure:"media"`
+	DB    postgres.Config `mapstructure:"postgres"`
+	HTTP  Endpoint        `mapstructure:"http"`
+	Auth  Endpoint        `mapstructure:"auth"`
+	User  Endpoint        `mapstructure:"user"`
+	Media Endpoint        `mapstructure:"media"`
 	CORS  struct {
 		AllowedOrigins []string `mapstructure:"allowed_origins"`
 	} `mapstructure:"cors"`
@@ -54,6 +56,11 @@ func Load(path string) (Config, error) {
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
 			return Config{}, fmt.Errorf("cors.allowed_origins должен содержать только HTTP(S)-адреса источников без пути: %q", origin)
 		}
+	}
+	var err error
+	cfg.DB, err = postgres.Load(v)
+	if err != nil {
+		return Config{}, err
 	}
 	return cfg, nil
 }

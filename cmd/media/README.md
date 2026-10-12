@@ -4,8 +4,7 @@ Media обслуживает внутренний gRPC API для загрузк
 Контракт: `api/proto/media/v1/media.proto`.
 Сгенерированный Go-код: `internal/gen/media/v1`.
 
-При запуске проверяет PostgreSQL, наличие `media.file`, `media.multipart_upload`,
-поля ожидаемого размера и доступ к S3 bucket.
+При запуске применяет общий SQL-набор через `pkg/migrations`, затем проверяет PostgreSQL и доступ к S3 bucket. `postgres.migration_timeout` по умолчанию — `5m`.
 Регистрирует `grpc.health.v1.Health` для пустого имени и
 `matchlab.media.v1.MediaService`. При SIGTERM прекращает объявлять готовность
 и ожидает завершения запросов до 10 секунд. Сервер ограничивает каждый RPC
@@ -39,6 +38,10 @@ PostgreSQL-репозиторий `internal/media/repository` предостав
   успешен. При сбое S3 или БД намерение сохраняется; фоновая задача повторяет удаление
   при старте и каждые `multipart.cleanup_interval` (по умолчанию 10 минут).
 
+`deleting` — внутреннее намерение выполнить удаление в двух независимых системах,
+а не состояние физического удаления в S3. DeleteObject атомарен, но PostgreSQL
+не участвует в его транзакции. Сохранённое намерение позволяет повторить запрос
+после сбоя между S3 и БД. В публичном protobuf/HTTP-контракте этого статуса нет.
 `deleting` и `deleted` скрыты из чтения. Чужой файл, включая публичный, возвращает
 `NotFound`. Удаление `pending` и `failed` возвращает `FailedPrecondition`;
 для незавершённой multipart-загрузки используйте отмену сессии.
@@ -70,24 +73,10 @@ PUT подписывает `Content-Type`, `Content-Length` и `If-None-Match: *
 его нельзя задавать вручную. Не используйте multipart/form-data для PUT:
 телом должны быть байты самого файла.
 
-В существующую миграцию `00002_create_media_files.sql` добавлен
-`is_public boolean NOT NULL DEFAULT false`, `expected_size_bytes` для проверки
-обычной загрузки и индекс старых pending. Отдельной миграции 00004 больше нет.
-Срок PUT-ссылки для обычной загрузки отдельно в БД пока не сохраняется.
-Миграции применяет только отдельная джоба Migrator.
-
-Если миграция 00002 уже применена к локальной БД, Goose не выполнит её повторно.
-Для сохранения существующих данных выполните однократно в этой БД:
-
-```sql
-ALTER TABLE media.file ADD COLUMN IF NOT EXISTS is_public boolean NOT NULL DEFAULT false;
-ALTER TABLE media.file ADD COLUMN IF NOT EXISTS expected_size_bytes bigint
-    CHECK (expected_size_bytes IS NULL OR expected_size_bytes > 0);
-CREATE INDEX IF NOT EXISTS media_file_pending_updated_idx
-    ON media.file (updated_at, id) WHERE status='pending';
-```
-
-В новой БД поле создаст Migrator из исправленной миграции. Тесты используют новые БД.
+Миграции `00002` и `00003` создают таблицы файлов и multipart-сессий.
+Каждый сервис применяет весь SQL-набор при старте; параллельные релизы
+сериализуются session advisory lock. Уже применённый SQL менять нельзя:
+runner проверяет историю и отпечатки. Подробнее — [миграции](../../pkg/migrations/README.md).
 
 Новые загрузки сохраняют ожидаемый размер для сравнения с HEAD в `CompleteUpload`
 и фоновой проверке. Для старых обычных файлов размер неизвестен (`NULL`):
@@ -136,8 +125,8 @@ S3_MEDIA_SECRET_KEY
 docker compose up --build media
 ```
 
-Compose поднимает PostgreSQL, SeaweedFS, Migrator и `seaweedfs-init`.
-Media ждёт успешного завершения обеих джоб. gRPC доступен только локально:
+Compose поднимает PostgreSQL, SeaweedFS и `seaweedfs-init`.
+Media ждёт готовности PostgreSQL и успешного завершения init-джобы. gRPC доступен только локально:
 `localhost:8085` (переопределение порта — `MEDIA_GRPC_PORT`). Внутри Compose
 адрес сервиса — `media:8085`. Логи: `docker compose logs media`.
 
@@ -145,11 +134,9 @@ Media ждёт успешного завершения обеих джоб. gRPC
 
 ```sh
 docker compose up -d postgres seaweedfs seaweedfs-init
-docker compose run --rm --build migrator
 ```
 
-Дождитесь успешного завершения `seaweedfs-init`. Не запускайте параллельно
-второй Migrator. Для прямого запуска укажите в окружении `POSTGRES_PASSWORD`
+Дождитесь успешного завершения `seaweedfs-init`. Для прямого запуска укажите в окружении `POSTGRES_PASSWORD`
 (пароль пользователя PostgreSQL), `S3_MEDIA_ACCESS_KEY` и `S3_MEDIA_SECRET_KEY`
 (ключи Media с доступом к нужному bucket). Значения должны соответствовать
 настройкам выбранного локального окружения. В качестве конфигурации процесса
@@ -252,9 +239,6 @@ GET-ссылке проверяет скачивание диапазонов ч
 последний неполный блок, продолжение со смещения, суффикс и ответ `416` для
 диапазона вне файла. Полученные блоки собираются и сравниваются с исходным файлом.
 
-Если на Windows Testcontainers неправильно определяет сокет Docker Desktop,
-укажите в окружении `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`
-и перезапустите терминал/IDE, чтобы они получили новое значение.
 
 ## Публичный HTTP API
 
@@ -273,7 +257,7 @@ Gateway вызывает RPC Media через `/api/v1/media/files`. Созда�
 ожидаемый размер, размер части, срок, состояние и список ETag для завершения.
 Прогресс получается из S3 ListParts, отдельной таблицы частей нет.
 RPC использует общий ID файла для сессии и итогового объекта. При старте Media
-проверяет наличие обеих таблиц и поля ожидаемого размера.
+применяет общий SQL-набор до открытия API.
 
 Состояния: uploading → completing → completed; отмена uploading → aborted.
 Файл остаётся pending до завершения, затем становится ready; отмена переводит

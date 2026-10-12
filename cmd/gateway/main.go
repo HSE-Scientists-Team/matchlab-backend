@@ -19,6 +19,7 @@ import (
 	mediav1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
 	userv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -39,9 +40,16 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	version, err := migrations.Apply(ctx, cfg.DB)
+	if err != nil {
+		return err
+	}
+	logger.Info("миграции PostgreSQL применены", "version", version)
 
 	dial := func(address string) (*grpc.ClientConn, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		conn, err := grpc.DialContext(ctx, address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 		if err != nil {
@@ -88,8 +96,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
 	logger.Info("Gateway запущен", "address", listener.Addr().String())
@@ -101,7 +108,7 @@ func run(logger *slog.Logger) error {
 		return err
 	case <-ctx.Done():
 		logger.Info("Gateway завершает работу")
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			_ = server.Close()

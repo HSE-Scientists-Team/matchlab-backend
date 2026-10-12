@@ -20,6 +20,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/media/storage/s3"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/media/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -46,6 +47,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
+	version, err := migrations.Apply(ctx, cfg.DB)
+	if err != nil {
+		return err
+	}
+	logger.Info("миграции PostgreSQL применены", "version", version)
+
 	db, err := sql.Open("pgx", cfg.DB.URL())
 	if err != nil {
 		return fmt.Errorf("открытие соединения с PostgreSQL: %w", err)
@@ -60,15 +67,6 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	db.SetConnMaxLifetime(30 * time.Minute)
 	startupCtx, cancelStartup := context.WithTimeout(ctx, 10*time.Second)
 	err = db.PingContext(startupCtx)
-	if err == nil {
-		// Проверка схемы не применяет миграции: это ответственность Migrator.
-		var exists bool
-		err = db.QueryRowContext(startupCtx, `SELECT to_regclass('media.file') IS NOT NULL AND to_regclass('media.multipart_upload') IS NOT NULL
-			AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='media' AND table_name='file' AND column_name='expected_size_bytes')`).Scan(&exists)
-		if err == nil && !exists {
-			err = fmt.Errorf("схема Media не актуальна: запустите Migrator")
-		}
-	}
 	cancelStartup()
 	if err != nil {
 		return fmt.Errorf("проверка PostgreSQL: %w", err)

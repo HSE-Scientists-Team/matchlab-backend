@@ -202,3 +202,12 @@ func TestGRPCErrors(t *testing.T) {
 		})
 	}
 }
+
+// Удаление между PostgreSQL и S3 восстанавливается внутри Media,
+// но промежуточное состояние не является частью внешнего API.
+func TestDeletingHasNoPublicStatus(t *testing.T) {
+	result := toProtoFile(domain.File{Status: domain.FileStatusDeleting})
+	if result.Status != mediav1.FileStatus_FILE_STATUS_DELETED {
+		t.Fatalf("internal deleting leaked: %v", result.Status)
+	}
+}

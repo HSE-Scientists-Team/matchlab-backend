@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/postgres"
 	"github.com/spf13/viper"
 )
 
@@ -19,22 +20,7 @@ type Endpoint struct {
 
 func (e Endpoint) Address() string { return net.JoinHostPort(e.Host, strconv.Itoa(e.Port)) }
 
-type Postgres struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	Database string `mapstructure:"database"`
-	User     string `mapstructure:"user"`
-	SSLMode  string `mapstructure:"ssl_mode"`
-	Password string `mapstructure:"-"`
-}
-
-func (p Postgres) URL() string {
-	u := &url.URL{Scheme: "postgres", User: url.UserPassword(p.User, p.Password), Host: net.JoinHostPort(p.Host, strconv.Itoa(p.Port)), Path: p.Database}
-	q := u.Query()
-	q.Set("sslmode", p.SSLMode)
-	u.RawQuery = q.Encode()
-	return u.String()
-}
+type Postgres = postgres.Config
 
 type S3 struct {
 	Endpoint       string        `mapstructure:"endpoint"`
@@ -87,7 +73,11 @@ func Load(path string) (Config, error) {
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("разбор конфигурации: %w", err)
 	}
-	cfg.DB.Password = v.GetString("postgres.password")
+	var err error
+	cfg.DB, err = postgres.Load(v)
+	if err != nil {
+		return Config{}, err
+	}
 	cfg.S3.AccessKey = v.GetString("s3.access_key")
 	cfg.S3.SecretKey = v.GetString("s3.secret_key")
 	if cfg.DB.SSLMode == "" {

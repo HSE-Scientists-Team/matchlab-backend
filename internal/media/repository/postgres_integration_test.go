@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/media/domain"
-	"github.com/HSE-Scientists-Team/matchlab-backend/internal/migrator/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"

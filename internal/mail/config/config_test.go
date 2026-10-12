@@ -9,8 +9,9 @@ import (
 const testConfig = "grpc:\n  host: 0.0.0.0\n  port: 8083\nsmtp:\n  host: smtp.example.org\n  port: 587\n  from: no-reply@example.org\n  verification_url: https://example.org/verify\n  require_starttls: true\n"
 
 func TestLoadSMTPSettingsAndOptionalCredentials(t *testing.T) {
+	t.Setenv("POSTGRES_PASSWORD", "postgres-test")
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte(testConfig), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(testConfig+"postgres:\n  host: localhost\n  port: 5432\n  database: matchlab\n  user: matchlab\n  ssl_mode: disable\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := Load(path)
