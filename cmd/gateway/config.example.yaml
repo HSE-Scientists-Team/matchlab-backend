@@ -10,6 +10,9 @@ user:
 media:
   host: localhost
   port: 8085
+support:
+  host: localhost
+  port: 8086
 cors:
   allowed_origins: []
 postgres:

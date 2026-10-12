@@ -1,12 +1,12 @@
 # Сервис Gateway
 
-Gateway — публичная точка входа по HTTP. Он отвечает за маршруты, идентификаторы запросов, промежуточные обработчики и преобразование ошибок gRPC в HTTP. Перед открытием HTTP Gateway подключается к PostgreSQL только для общего запуска миграций. HTTP-запросы обслуживаются через внутренние сервисы; прямого доступа к данным PostgreSQL и Redis нет. Auth хранит и проверяет сеансы, User хранит учётные записи и обрабатывает регистрацию и вход по паролю. Media управляет файлами в S3. Gateway вызывает Auth, User и Media по gRPC.
+Gateway — публичная точка входа по HTTP. Он отвечает за маршруты, идентификаторы запросов, промежуточные обработчики и преобразование ошибок gRPC в HTTP. Перед открытием HTTP Gateway подключается к PostgreSQL только для общего запуска миграций. HTTP-запросы обслуживаются через внутренние сервисы; прямого доступа к данным PostgreSQL и Redis нет. Auth хранит и проверяет сеансы, User хранит учётные записи и обрабатывает регистрацию и вход по паролю. Media управляет файлами в S3. Gateway вызывает Auth, User, Media и Support по gRPC.
 
 ## Конфигурация и локальный запуск
 
 Путь к конфигурации по умолчанию — `/etc/app/config.yaml`; изменить его можно флагом `-config`. В `config.example.yaml` указаны хосты и порты HTTP и внутренних gRPC-сервисов.
 
-Запустите весь проект из корня репозитория (PostgreSQL, Redis, SeaweedFS, Mailpit, Auth, User, Mail, Media и Gateway):
+Запустите весь проект из корня репозитория (PostgreSQL, Redis, SeaweedFS, Mailpit, Auth, User, Mail, Media, Support и Gateway):
 
 ```sh
 docker compose up --build
@@ -17,7 +17,7 @@ Gateway доступен по адресу `http://localhost:8080`. Для ос�
 Интерактивное описание реализованного HTTP API и примеры запросов доступны в [Scalar](../../api/http/README.md) по адресу `http://localhost:8084` после запуска Compose.
 Для интерактивных запросов из Scalar локальная конфигурация разрешает CORS с адреса документации; в `config.example.yaml` список разрешённых источников пуст.
 
-Чтобы запускать Auth, User и Gateway напрямую, сначала поднимите зависимости, Mail и Media через Compose:
+Чтобы запускать Auth, User, Support и Gateway напрямую, сначала поднимите зависимости, Mail и Media через Compose:
 
 ```sh
 docker compose up -d postgres redis mailpit mail media
@@ -34,6 +34,10 @@ go run ./cmd/auth -config cmd/auth/config.example.yaml
 ```sh
 export POSTGRES_PASSWORD=matchlab_local_only
 go run ./cmd/user -config cmd/user/config.example.yaml
+```
+
+```sh
+go run ./cmd/support -config cmd/support/config.example.yaml
 ```
 
 ```sh
@@ -93,3 +97,12 @@ JSON до 1 МиБ со списком номеров и ETag частей; ос
 Регистрация и подтверждение не требуют сеанса. `AuthenticatedSubrouter` проверяет сеанс и email через User, включая сеансы, выданные до обновления. Публичные группы маршрутов сохраняют анонимный доступ. Все ответы содержат `X-Request-ID`; пароли и токены не записываются в журнал. Тестовые письма доступны в Mailpit: `http://localhost:8025`.
 
 Проверка: `go test ./...`. Сборка образа: `docker build -f cmd/gateway/Dockerfile -t gateway:local .`.
+
+## Жалобы
+
+`POST /api/v1/complaints` создаёт жалобу через Support. Требуется Bearer-токен и подтверждённая почта.
+Автор определяется по сеансу, `user_id` в JSON не принимается. Поля: `subject`, `description`,
+ровно один из `target_user_id` / `target_project_id`, необязательный массив `file_ids`.
+Файлы предварительно загружаются через Media; допускаются только готовые файлы автора.
+Адрес Support задаётся через `support.host` / `support.port` в YAML; локально — порт 8086.
+HTTP-ответ: `201` с `id`, `status: open`, `created_at`. Пример — в `api/http/README.md`.

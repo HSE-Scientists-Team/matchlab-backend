@@ -38,3 +38,11 @@ class ImageUpdateTest(unittest.TestCase):
         result = images.update(self.content + "  MEDIA_IMAGE: ''\n", [record], "org/matchlab-services")
         self.assertIn(record["image"], result)
         self.assertIn("GATEWAY_IMAGE: old-gateway", result)
+
+    def test_support_release_preserves_existing_images(self):
+        record = {"service": "support", "image": "ghcr.io/org/matchlab-services/support@sha256:" + "c" * 64}
+        result = images.update(self.content + "  SUPPORT_IMAGE: ''\n", [record], "org/matchlab-services")
+        self.assertIn(record["image"], result)
+        self.assertIn("GATEWAY_IMAGE: old-gateway", result)
+        with self.assertRaises(ValueError):
+            images.update(self.content, [record], "org/matchlab-services")

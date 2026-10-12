@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package matchlab.support.v1;
+
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/support/v1;supportv1";
+
+service SupportService {
+  rpc CreateComplaint(CreateComplaintRequest) returns (CreateComplaintResponse);
+}
+
+enum SupportTicketStatus {
+  SUPPORT_TICKET_STATUS_UNSPECIFIED = 0;
+  SUPPORT_TICKET_STATUS_OPEN = 1;
+  SUPPORT_TICKET_STATUS_RESOLVED = 2;
+  SUPPORT_TICKET_STATUS_DECLINED = 3;
+}
+
+message CreateComplaintRequest {
+  // Gateway supplies the author ID from a verified session.
+  string user_id = 1;
+  string subject = 2;
+  string description = 3;
+  // Exactly one non-empty target UUID is required. Both fields are optional
+  // rather than a oneof so supplying both can be rejected explicitly.
+  optional string target_user_id = 4;
+  optional string target_project_id = 5;
+  // Files must already be uploaded, ready and owned by the author in Media.
+  repeated string file_ids = 6;
+}
+
+message CreateComplaintResponse {
+  string id = 1;
+  SupportTicketStatus status = 2;
+  int64 created_at_unix = 3;
+}

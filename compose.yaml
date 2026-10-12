@@ -172,6 +172,23 @@ services:
       seaweedfs-init:
         condition: service_completed_successfully
 
+  support:
+    build:
+      context: .
+      dockerfile: cmd/support/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: support-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      media:
+        condition: service_started
+
   gateway:
     build:
       context: .
@@ -194,6 +211,8 @@ services:
         condition: service_started
       media:
         condition: service_started
+      support:
+        condition: service_started
 
   api-docs:
     build:
@@ -206,6 +225,8 @@ services:
         condition: service_started
 
 configs:
+  support-compose-config:
+    file: ./cmd/support/config.compose.yaml
   media-compose-config:
     file: ./cmd/media/config.compose.yaml
   auth-compose-config:

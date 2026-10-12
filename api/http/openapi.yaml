@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: MatchLab Gateway API
-  version: 2.3.0
+  version: 2.4.0
   description: |
-    Текущий публичный HTTP API MatchLab: учётные записи, сеансы, подтверждение почты и файлы.
+    Текущий публичный HTTP API MatchLab: учётные записи, сеансы, подтверждение почты, файлы и жалобы.
     Это описание реализованных маршрутов Gateway. Для локальной проверки сначала
     зарегистрируйтесь, подтвердите email из письма, затем войдите и укажите полученный токен доступа в Bearer Auth.
     Для регистрации администратор должен настроить разрешённые почтовые домены.
@@ -22,6 +22,8 @@ tags:
   - name: Сеанс
   - name: Файлы
     description: Цельная загрузка, метаданные, скачивание и удаление; затем загрузка частями, прогресс, завершение и отмена.
+  - name: Support
+    description: Создание жалоб
 paths:
   /api/v1/media/files:
     post:
@@ -596,6 +598,54 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /api/v1/complaints:
+    post:
+      tags: [Support]
+      summary: Создать жалобу
+      operationId: createComplaint
+      description: |
+        Требует сеанс и подтверждённую почту. Автор определяется из сеанса.
+        Нужно указать ровно один target_user_id или target_project_id.
+        Цели проверяются по формату UUID, существование пока не проверяется.
+        Файлы предварительно загружаются и подтверждаются через Media;
+        вложения должны принадлежать автору и иметь статус ready.
+        Повтор запроса создаёт новую жалобу.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComplaint'
+            example:
+              subject: Жалоба на пользователя
+              description: Описание нарушения
+              target_user_id: '00000000-0000-4000-8000-000000000002'
+              file_ids: []
+      responses:
+        '201':
+          description: Жалоба создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedComplaint'
+        '400':
+          description: Некорректный запрос, отсутствующая или двойная цель, дубли файлов
+        '401':
+          description: Отсутствующий или недействительный сеанс
+        '403':
+          description: Почта не подтверждена
+        '404':
+          description: Вложение не найдено или не принадлежит автору
+        '409':
+          description: Вложение ещё не готово
+        '500':
+          description: Не удалось сохранить жалобу
+        '502':
+          description: Некорректный ответ Support
+        '503':
+          description: Зависимость недоступна или срок запроса истёк
 components:
   parameters:
     MediaFileID:
@@ -609,6 +659,54 @@ components:
       scheme: bearer
       description: Токен access_token из ответа POST /api/v1/auth/login.
   schemas:
+    CreateComplaint:
+      type: object
+      additionalProperties: false
+      required: [subject, description]
+      oneOf:
+        - required: [target_user_id]
+        - required: [target_project_id]
+      properties:
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: После удаления пробелов по краям не должна быть пустой
+        description:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: После удаления пробелов по краям не должно быть пустым
+        target_user_id:
+          type: string
+          format: uuid
+          description: UUID пользователя, отличный от нулевого
+        target_project_id:
+          type: string
+          format: uuid
+          description: UUID проекта, отличный от нулевого
+        file_ids:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          default: []
+          items:
+            type: string
+            format: uuid
+          description: ID предварительно загруженных файлов автора в состоянии ready
+    CreatedComplaint:
+      type: object
+      required: [id, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [open]
+        created_at:
+          type: string
+          format: date-time
     MediaMultipartState:
       type: object
       required: [file, status, expected_size_bytes, part_size_bytes, part_count, expires_at_unix, uploaded_bytes, parts]

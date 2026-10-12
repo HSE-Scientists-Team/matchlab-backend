@@ -61,8 +61,8 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 
 func applyMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
 	t.Helper()
-	if version, err := Up(ctx, db); err != nil || version != 3 {
-		t.Fatalf("apply migrations: version=%d, want=3, error=%v", version, err)
+	if version, err := Up(ctx, db); err != nil || version != 4 {
+		t.Fatalf("apply migrations: version=%d, want=4, error=%v", version, err)
 	}
 }
 
@@ -215,9 +215,22 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve' AND is_public`, 1)
-		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3) AND is_applied`, 3)
+		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4) AND is_applied`, 4)
+	})
+	t.Run("support rollback preserves users and media", func(t *testing.T) {
+		if _, err := db.ExecContext(ctx, `INSERT INTO support.support_ticket (author_user_id,subject,description,target_user_id) VALUES ('00000000-0000-4000-8000-000000000001','complaint','description','00000000-0000-4000-8000-000000000002')`); err != nil {
+			t.Fatal(err)
+		}
+		down(t)
+		requireVersion(t, 3)
+		requireCount(t, `SELECT count(*) FROM pg_namespace WHERE nspname='support'`, 0)
+		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
+		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve'`, 1)
+		applyMigrations(t, ctx, db)
+		requireCount(t, `SELECT count(*) FROM support.support_ticket`, 0)
 	})
 	t.Run("multipart rollback preserves files", func(t *testing.T) {
+		down(t)
 		down(t)
 		requireVersion(t, 2)
 		requireCount(t, `SELECT count(*) FROM pg_tables WHERE schemaname='media' AND tablename='multipart_upload'`, 0)
@@ -229,6 +242,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 	t.Run("media rollback preserves users", func(t *testing.T) {
 		down(t)
 		down(t)
+		down(t)
 		requireVersion(t, 1)
 		requireCount(t, `SELECT count(*) FROM pg_tables WHERE schemaname='media' AND tablename='file'`, 0)
 		requireCount(t, `SELECT count(*) FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='media' AND t.typname='file_status'`, 0)
@@ -238,6 +252,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 	})
 	t.Run("full rollback and reapply", func(t *testing.T) {
+		down(t)
 		down(t)
 		down(t)
 		down(t)
@@ -366,7 +381,7 @@ func TestUpgradeAccountsSchemaToMediaPreservesUsers(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email,password_hash) VALUES ('upgrade@example.org','hash')`); err != nil {
 		t.Fatal(err)
 	}
-	if version, err := Up(ctx, db); err != nil || version != 3 {
+	if version, err := Up(ctx, db); err != nil || version != 4 {
 		t.Fatalf("upgrade: %d %v", version, err)
 	}
 	var count int
