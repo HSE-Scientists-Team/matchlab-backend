@@ -213,3 +213,5 @@ curl -X POST http://localhost:8080/api/v1/complaints \
 `502` — некорректный ответ Support, `503` — недоступность зависимости/тайм-аут.
 Повтор запроса создаёт новую жалобу. Для обновления локальных образов:
 `docker compose up -d --build gateway support api-docs`.
+
+Профили KAN-38: `/api/v1/users/me/profile`, настройки, достижения, блокировки и отзывы. Чтение `/api/v1/users/{user_id}/profile`, achievements и reviews допускает гостя; внутренние методы модерации не представлены HTTP-маршрутами. Контракты и примеры — в [документации User](../../cmd/user/PROFILE.md).

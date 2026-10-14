@@ -14,3 +14,6 @@ postgres:
 mail:
   host: mail
   port: 8083
+media:
+  host: media
+  port: 8085

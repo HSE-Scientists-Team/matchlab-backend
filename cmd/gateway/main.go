@@ -90,6 +90,7 @@ func run(logger *slog.Logger) error {
 	router := mux.NewRouter()
 	healthcheck.RegisterHTTP(router)
 	delivery.Register(router, authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
+	delivery.RegisterProfiles(router, userv1.NewProfileServiceClient(userConn), logger)
 	delivery.RegisterMedia(router, mediav1.NewMediaServiceClient(mediaConn), authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
 	delivery.RegisterSupport(router, supportv1.NewSupportServiceClient(supportConn), authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
 	server := &http.Server{

@@ -25,6 +25,461 @@ tags:
   - name: Support
     description: Создание жалоб
 paths:
+  /api/v1/users/me/profile:
+    get:
+      tags: [Профили]
+      summary: Получить свой профиль
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+    put:
+      tags: [Профили]
+      summary: Заменить данные своего профиля
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileInput'
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/{user_id}/profile:
+    get:
+      tags: [Профили]
+      summary: Получить публичный профиль
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/me/settings:
+    get:
+      tags: [Профили]
+      summary: Получить настройки приватности
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPrivacySettings'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+    put:
+      tags: [Профили]
+      summary: Заменить настройки приватности
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPrivacySettings'
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPrivacySettings'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/me/achievements:
+    get:
+      tags: [Профили]
+      summary: Получить свои достижения
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: offset
+          in: query
+          schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
+        - name: kind
+          in: query
+          schema: {type: string, enum: [education, certificate, scientific, project]}
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAchievementList'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+    post:
+      tags: [Профили]
+      summary: Добавить неподтверждённое достижение
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAchievementInput'
+      responses:
+        '201':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAchievement'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/{user_id}/achievements:
+    get:
+      tags: [Профили]
+      summary: Получить достижения пользователя
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: offset
+          in: query
+          schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
+        - name: kind
+          in: query
+          schema: {type: string, enum: [education, certificate, scientific, project]}
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAchievementList'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/me/achievements/{id}:
+    get:
+      tags: [Профили]
+      summary: Получить достижение
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAchievement'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+    put:
+      tags: [Профили]
+      summary: Изменить достижение и сбросить подтверждение
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAchievementInput'
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAchievement'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+    delete:
+      tags: [Профили]
+      summary: Удалить достижение с сохранением истории
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '204':
+          description: Успешно
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/me/achievements/{id}/submit:
+    post:
+      tags: [Профили]
+      summary: Отправить достижение на проверку
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAchievement'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/me/blocks:
+    get:
+      tags: [Профили]
+      summary: Получить заблокированных пользователей
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: offset
+          in: query
+          schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserBlockList'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/me/blocks/{id}:
+    put:
+      tags: [Профили]
+      summary: Заблокировать пользователя
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '204':
+          description: Успешно
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+    delete:
+      tags: [Профили]
+      summary: Разблокировать пользователя
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '204':
+          description: Успешно
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/me/reviews:
+    get:
+      tags: [Профили]
+      summary: Получить отзывы о себе
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: offset
+          in: query
+          schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserReviewList'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+    post:
+      tags: [Профили]
+      summary: Оставить отзыв соучастнику завершённого проекта
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserReviewInput'
+      responses:
+        '201':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserReview'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
+  /api/v1/users/{user_id}/reviews:
+    get:
+      tags: [Профили]
+      summary: Получить отзывы о пользователе
+      security: [{}, {bearerAuth: []}]
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+        - name: offset
+          in: query
+          schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserReviewList'
+        '400': {description: Некорректные поля}
+        '401': {description: Недействительный сеанс}
+        '403': {description: Недостаточно прав}
+        '404': {description: Объект не найден}
+        '409': {description: Конфликт состояния или версии}
+        '500': {description: Внутренняя ошибка}
+        '503': {description: Зависимость недоступна}
+        '504': {description: Истёк срок выполнения}
   /api/v1/media/files:
     post:
       tags: [Файлы]
@@ -659,6 +1114,294 @@ components:
       scheme: bearer
       description: Токен access_token из ответа POST /api/v1/auth/login.
   schemas:
+    UserEmpty:
+      type: object
+      additionalProperties: false
+      properties: {}
+    UserPage:
+      type: object
+      additionalProperties: false
+      properties:
+        limit:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int32
+    UserUserID:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+    UserProfileQuery:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+    UserProfileInput:
+      type: object
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+        avatar_file_id:
+          type: string
+        university:
+          type: string
+        study_level:
+          type: string
+        study_year:
+          type: integer
+          format: int32
+        specialization:
+          type: string
+        about:
+          type: string
+        open_to_collaboration:
+          type: boolean
+        project_types:
+          type: array
+          items:
+            type: string
+        interests:
+          type: array
+          items:
+            type: string
+        skills:
+          type: array
+          items:
+            type: string
+        contact_email:
+          type: string
+        telegram:
+          type: string
+    UserProfile:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+        details:
+          $ref: '#/components/schemas/UserProfileInput'
+        verified:
+          type: boolean
+        rating:
+          type: number
+        review_count:
+          type: integer
+          format: int32
+    UserPrivacySettings:
+      type: object
+      additionalProperties: false
+      properties:
+        show_contacts:
+          type: boolean
+        show_participating_projects:
+          type: boolean
+    UserAchievementQuery:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+        kind:
+          type: string
+        page:
+          $ref: '#/components/schemas/UserPage'
+    UserAchievementID:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+    UserAchievementInput:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        institution:
+          type: string
+        graduation_year:
+          type: integer
+          format: int32
+        url:
+          type: string
+        evidence_file_id:
+          type: string
+        expected_revision:
+          type: integer
+          format: int32
+    UserAchievement:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        details:
+          $ref: '#/components/schemas/UserAchievementInput'
+        status:
+          type: string
+        revision:
+          type: integer
+          format: int32
+        moderation_comment:
+          type: string
+        created_at_unix:
+          type: string
+          pattern: '^-?[0-9]+$'
+    UserAchievementList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAchievement'
+    UserBlock:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+        display_name:
+          type: string
+        created_at_unix:
+          type: string
+          pattern: '^-?[0-9]+$'
+    UserBlockList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserBlock'
+    UserInteractionQuery:
+      type: object
+      additionalProperties: false
+      properties:
+        from_user_id:
+          type: string
+        to_user_id:
+          type: string
+    UserInteractionResult:
+      type: object
+      additionalProperties: false
+      properties:
+        blocked:
+          type: boolean
+    UserVerificationDecision:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        expected_revision:
+          type: integer
+          format: int32
+        approve:
+          type: boolean
+        comment:
+          type: string
+    UserEvidence:
+      type: object
+      additionalProperties: false
+      properties:
+        download_url:
+          type: string
+        expires_at_unix:
+          type: string
+          pattern: '^-?[0-9]+$'
+    UserProjectContext:
+      type: object
+      additionalProperties: false
+      properties:
+        project_id:
+          type: string
+        title:
+          type: string
+        initiator_user_id:
+          type: string
+        participant_user_ids:
+          type: array
+          items:
+            type: string
+        completed_at_unix:
+          type: string
+          pattern: '^-?[0-9]+$'
+    UserReviewQuery:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+        page:
+          $ref: '#/components/schemas/UserPage'
+    UserReviewInput:
+      type: object
+      additionalProperties: false
+      properties:
+        project_id:
+          type: string
+        target_user_id:
+          type: string
+        title:
+          type: string
+        text:
+          type: string
+        rating:
+          type: integer
+          format: int32
+    UserReview:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        author_user_id:
+          type: string
+        author_display_name:
+          type: string
+        author_role:
+          type: string
+        project_id:
+          type: string
+        project_title:
+          type: string
+        target_user_id:
+          type: string
+        title:
+          type: string
+        text:
+          type: string
+        rating:
+          type: integer
+          format: int32
+        created_at_unix:
+          type: string
+          pattern: '^-?[0-9]+$'
+        project_completed_at_unix:
+          type: string
+          pattern: '^-?[0-9]+$'
+    UserReviewList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserReview'
     CreateComplaint:
       type: object
       additionalProperties: false
