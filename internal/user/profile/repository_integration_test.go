@@ -228,7 +228,7 @@ func TestProfileLifecycle(t *testing.T) {
 		t.Fatalf("reviews: %v %v", reviews, err)
 	}
 	p, err = s.GetProfile(ctx, &pb.ProfileQuery{UserId: owner})
-	if err != nil || p.Rating != 5 || p.ReviewCount != 1 {
+	if err != nil || p.Rating != 5 || p.ReviewCount != 1 || p.PositiveReviewCount != 1 {
 		t.Fatalf("rating: %v %v", p, err)
 	}
 	if _, err = s.BlockUser(own, &pb.UserID{UserId: other}); err != nil {

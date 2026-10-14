@@ -51,6 +51,7 @@ message Profile {
   bool verified = 3; // confirmed exact hse.ru or edu.hse.ru email
   double rating = 4;
   int32 review_count = 5;
+  int32 positive_review_count = 6; // rating >= 4
 }
 message PrivacySettings { bool show_contacts = 1; bool show_participating_projects = 2; }
 message AchievementQuery { string user_id = 1; string kind = 2; Page page = 3; }

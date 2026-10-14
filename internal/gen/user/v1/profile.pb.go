@@ -338,14 +338,15 @@ func (x *ProfileInput) GetTelegram() string {
 }
 
 type Profile struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Details       *ProfileInput          `protobuf:"bytes,2,opt,name=details,proto3" json:"details,omitempty"`
-	Verified      bool                   `protobuf:"varint,3,opt,name=verified,proto3" json:"verified,omitempty"` // confirmed exact hse.ru or edu.hse.ru email
-	Rating        float64                `protobuf:"fixed64,4,opt,name=rating,proto3" json:"rating,omitempty"`
-	ReviewCount   int32                  `protobuf:"varint,5,opt,name=review_count,json=reviewCount,proto3" json:"review_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	UserId              string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Details             *ProfileInput          `protobuf:"bytes,2,opt,name=details,proto3" json:"details,omitempty"`
+	Verified            bool                   `protobuf:"varint,3,opt,name=verified,proto3" json:"verified,omitempty"` // confirmed exact hse.ru or edu.hse.ru email
+	Rating              float64                `protobuf:"fixed64,4,opt,name=rating,proto3" json:"rating,omitempty"`
+	ReviewCount         int32                  `protobuf:"varint,5,opt,name=review_count,json=reviewCount,proto3" json:"review_count,omitempty"`
+	PositiveReviewCount int32                  `protobuf:"varint,6,opt,name=positive_review_count,json=positiveReviewCount,proto3" json:"positive_review_count,omitempty"` // rating >= 4
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Profile) Reset() {
@@ -409,6 +410,13 @@ func (x *Profile) GetRating() float64 {
 func (x *Profile) GetReviewCount() int32 {
 	if x != nil {
 		return x.ReviewCount
+	}
+	return 0
+}
+
+func (x *Profile) GetPositiveReviewCount() int32 {
+	if x != nil {
+		return x.PositiveReviewCount
 	}
 	return 0
 }
@@ -1546,13 +1554,14 @@ const file_api_proto_user_v1_profile_proto_rawDesc = "" +
 	" \x03(\tR\tinterests\x12\x16\n" +
 	"\x06skills\x18\v \x03(\tR\x06skills\x12#\n" +
 	"\rcontact_email\x18\f \x01(\tR\fcontactEmail\x12\x1a\n" +
-	"\btelegram\x18\r \x01(\tR\btelegram\"\xb3\x01\n" +
+	"\btelegram\x18\r \x01(\tR\btelegram\"\xe7\x01\n" +
 	"\aProfile\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x128\n" +
 	"\adetails\x18\x02 \x01(\v2\x1e.matchlab.user.v1.ProfileInputR\adetails\x12\x1a\n" +
 	"\bverified\x18\x03 \x01(\bR\bverified\x12\x16\n" +
 	"\x06rating\x18\x04 \x01(\x01R\x06rating\x12!\n" +
-	"\freview_count\x18\x05 \x01(\x05R\vreviewCount\"v\n" +
+	"\freview_count\x18\x05 \x01(\x05R\vreviewCount\x122\n" +
+	"\x15positive_review_count\x18\x06 \x01(\x05R\x13positiveReviewCount\"v\n" +
 	"\x0fPrivacySettings\x12#\n" +
 	"\rshow_contacts\x18\x01 \x01(\bR\fshowContacts\x12>\n" +
 	"\x1bshow_participating_projects\x18\x02 \x01(\bR\x19showParticipatingProjects\"k\n" +

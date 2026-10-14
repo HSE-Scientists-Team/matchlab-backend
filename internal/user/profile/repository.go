@@ -41,7 +41,7 @@ func (r *Repository) Profile(ctx context.Context, id string) (*pb.Profile, *pb.P
 	p := &pb.Profile{Details: &pb.ProfileInput{}}
 	privacy := &pb.PrivacySettings{}
 	var raw []byte
-	err := r.DB.QueryRowContext(ctx, `SELECT p.user_id::text,p.data,p.show_contacts,p.show_participating_projects,EXISTS(SELECT 1 FROM users.user_email e WHERE e.user_id=p.user_id AND split_part(e.email,'@',2) IN ('hse.ru','edu.hse.ru')),(SELECT coalesce(avg(rating),0) FROM users.profile_review WHERE target_user_id=p.user_id),(SELECT count(*) FROM users.profile_review WHERE target_user_id=p.user_id) FROM users.user_profile p JOIN users.user_account a ON a.id=p.user_id WHERE p.user_id=$1 AND a.status='active'`, id).Scan(&p.UserId, &raw, &privacy.ShowContacts, &privacy.ShowParticipatingProjects, &p.Verified, &p.Rating, &p.ReviewCount)
+	err := r.DB.QueryRowContext(ctx, `SELECT p.user_id::text,p.data,p.show_contacts,p.show_participating_projects,EXISTS(SELECT 1 FROM users.user_email e WHERE e.user_id=p.user_id AND split_part(e.email,'@',2) IN ('hse.ru','edu.hse.ru')),(SELECT coalesce(avg(rating),0) FROM users.profile_review WHERE target_user_id=p.user_id),(SELECT count(*) FROM users.profile_review WHERE target_user_id=p.user_id),(SELECT count(*) FROM users.profile_review WHERE target_user_id=p.user_id AND rating>=4) FROM users.user_profile p JOIN users.user_account a ON a.id=p.user_id WHERE p.user_id=$1 AND a.status='active'`, id).Scan(&p.UserId, &raw, &privacy.ShowContacts, &privacy.ShowParticipatingProjects, &p.Verified, &p.Rating, &p.ReviewCount, &p.PositiveReviewCount)
 	if err != nil {
 		return nil, nil, dbError(err)
 	}

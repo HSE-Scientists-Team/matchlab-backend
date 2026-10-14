@@ -1171,6 +1171,10 @@ components:
         review_count:
           type: integer
           format: int32
+        positive_review_count:
+          type: integer
+          format: int32
+          description: Number of reviews with rating >= 4
     UserPrivacySettings:
       type: object
       additionalProperties: false

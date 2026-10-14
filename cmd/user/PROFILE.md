@@ -49,3 +49,5 @@ curl -X PUT https://api.matchlab.space/api/v1/users/me/profile \
   -H "Authorization: Bearer $ACCESS_TOKEN" -H 'Content-Type: application/json' \
   -d '{"display_name":"Анна","about":"Исследую компьютерное зрение","skills":["Python"],"project_types":["scientific"],"open_to_collaboration":true}'
 ```
+
+Для счётчика положительных отзывов на экране Profile возвращает positive_review_count: оценки 4–5 считаются положительными.
