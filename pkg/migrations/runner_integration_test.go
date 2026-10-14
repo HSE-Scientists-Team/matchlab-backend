@@ -61,8 +61,8 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 
 func applyMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
 	t.Helper()
-	if version, err := Up(ctx, db); err != nil || version != 4 {
-		t.Fatalf("apply migrations: version=%d, want=4, error=%v", version, err)
+	if version, err := Up(ctx, db); err != nil || version != 5 {
+		t.Fatalf("apply migrations: version=%d, want=5, error=%v", version, err)
 	}
 }
 
@@ -112,9 +112,9 @@ func TestUsersSchema(t *testing.T) {
 		_, err = db.ExecContext(ctx, `INSERT INTO users.user_email (user_id, email) VALUES ($1, 'unrelated@example.org')`, userB)
 		requireSQLState(t, err, "23503")
 	})
-	t.Run("no automatic domain seed", func(t *testing.T) {
+	t.Run("default HSE domain rules", func(t *testing.T) {
 		var count int
-		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.trusted_email_domain`).Scan(&count); err != nil || count != 0 {
+		if err := db.QueryRowContext(ctx, `SELECT count(*) FROM users.trusted_email_domain WHERE domain IN ('hse.ru','edu.hse.ru') AND is_active`).Scan(&count); err != nil || count != 2 {
 			t.Fatalf("domain seed: count=%d, error=%v", count, err)
 		}
 	})
@@ -215,9 +215,10 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve' AND is_public`, 1)
-		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4) AND is_applied`, 4)
+		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4,5) AND is_applied`, 5)
 	})
 	t.Run("support rollback preserves users and media", func(t *testing.T) {
+		down(t) // profiles
 		if _, err := db.ExecContext(ctx, `INSERT INTO support.support_ticket (author_user_id,subject,description,target_user_id) VALUES ('00000000-0000-4000-8000-000000000001','complaint','description','00000000-0000-4000-8000-000000000002')`); err != nil {
 			t.Fatal(err)
 		}
@@ -230,6 +231,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM support.support_ticket`, 0)
 	})
 	t.Run("multipart rollback preserves files", func(t *testing.T) {
+		down(t) // profiles
 		down(t)
 		down(t)
 		requireVersion(t, 2)
@@ -240,6 +242,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 	})
 	t.Run("media rollback preserves users", func(t *testing.T) {
+		down(t) // profiles
 		down(t)
 		down(t)
 		down(t)
@@ -252,6 +255,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 	})
 	t.Run("full rollback and reapply", func(t *testing.T) {
+		down(t) // profiles
 		down(t)
 		down(t)
 		down(t)
@@ -381,7 +385,7 @@ func TestUpgradeAccountsSchemaToMediaPreservesUsers(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email,password_hash) VALUES ('upgrade@example.org','hash')`); err != nil {
 		t.Fatal(err)
 	}
-	if version, err := Up(ctx, db); err != nil || version != 4 {
+	if version, err := Up(ctx, db); err != nil || version != 5 {
 		t.Fatalf("upgrade: %d %v", version, err)
 	}
 	var count int

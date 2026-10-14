@@ -51,7 +51,7 @@ jobs:
           cache: true
       - run: go test ./...
       - run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
-      - run: go test -tags=integration ./internal/auth/repository/redis ./pkg/migrations ./internal/user/repository ./internal/mail/smtp ./internal/media/repository ./internal/media/storage/s3 ./cmd/media ./internal/support/repository
+      - run: go test -tags=integration ./internal/auth/repository/redis ./pkg/migrations ./internal/user/repository ./internal/mail/smtp ./internal/media/repository ./internal/media/storage/s3 ./cmd/media ./internal/support/repository ./internal/user/profile
   build:
     needs: [prepare, test]
     runs-on: ubuntu-latest

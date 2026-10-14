@@ -9,7 +9,7 @@ import (
 
 func TestLoadAndBuildsPostgresURL(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	body := "grpc:\n  host: 0.0.0.0\n  port: 8082\nauth:\n  host: auth\n  port: 8081\nmail:\n  host: mail\n  port: 8083\npostgres:\n  host: postgres\n  port: 5432\n  database: matchlab\n  user: matchlab\n  ssl_mode: disable\n"
+	body := "grpc:\n  host: 0.0.0.0\n  port: 8082\nauth:\n  host: auth\n  port: 8081\nmedia:\n  host: media\n  port: 8085\nmail:\n  host: mail\n  port: 8083\npostgres:\n  host: postgres\n  port: 5432\n  database: matchlab\n  user: matchlab\n  ssl_mode: disable\n"
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestLoadAndBuildsPostgresURL(t *testing.T) {
 
 func TestLoadRejectsPasswordInYAML(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	body := "grpc:\n  host: 0.0.0.0\n  port: 8082\nauth:\n  host: auth\n  port: 8081\nmail:\n  host: mail\n  port: 8083\npostgres:\n  host: postgres\n  port: 5432\n  database: matchlab\n  user: matchlab\n  password: secret\n"
+	body := "grpc:\n  host: 0.0.0.0\n  port: 8082\nauth:\n  host: auth\n  port: 8081\nmedia:\n  host: media\n  port: 8085\nmail:\n  host: mail\n  port: 8083\npostgres:\n  host: postgres\n  port: 5432\n  database: matchlab\n  user: matchlab\n  password: secret\n"
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}

@@ -18,10 +18,11 @@ type Endpoint struct {
 func (e Endpoint) Address() string { return net.JoinHostPort(e.Host, strconv.Itoa(e.Port)) }
 
 type Config struct {
-	GRPC Endpoint        `mapstructure:"grpc"`
-	Auth Endpoint        `mapstructure:"auth"`
-	Mail Endpoint        `mapstructure:"mail"`
-	DB   postgres.Config `mapstructure:"postgres"`
+	GRPC  Endpoint        `mapstructure:"grpc"`
+	Auth  Endpoint        `mapstructure:"auth"`
+	Media Endpoint        `mapstructure:"media"`
+	Mail  Endpoint        `mapstructure:"mail"`
+	DB    postgres.Config `mapstructure:"postgres"`
 }
 
 func Load(path string) (Config, error) {
@@ -47,6 +48,9 @@ func Load(path string) (Config, error) {
 	}
 	if strings.TrimSpace(cfg.Mail.Host) == "" || cfg.Mail.Port < 1 || cfg.Mail.Port > 65535 {
 		return Config{}, fmt.Errorf("требуются mail.host и mail.port (1–65535)")
+	}
+	if strings.TrimSpace(cfg.Media.Host) == "" || cfg.Media.Port < 1 || cfg.Media.Port > 65535 {
+		return Config{}, fmt.Errorf("требуются media.host и media.port (1–65535)")
 	}
 	return cfg, nil
 }

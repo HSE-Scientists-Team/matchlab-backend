@@ -74,10 +74,10 @@ func TestRegistrationRepository(t *testing.T) {
 			t.Fatalf("account must not exist for %s: %v", email, err)
 		}
 	}
-	if err := repo.SaveRegistration(ctx, "student@hse.ru", "hash", token(1), expiresAt); !errors.Is(err, ErrOrganizationUnavailable) {
+	if err := repo.SaveRegistration(ctx, "student@not-allowed.example", "hash", token(1), expiresAt); !errors.Is(err, ErrOrganizationUnavailable) {
 		t.Fatalf("empty domain rules: %v", err)
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO users.trusted_email_domain (domain, organization_name) VALUES ('hse.ru', 'НИУ ВШЭ'), ('*.hse.ru', 'НИУ ВШЭ')`); err != nil {
+	if _, err := db.ExecContext(ctx, `INSERT INTO users.trusted_email_domain (domain, organization_name) VALUES ('hse.ru', 'НИУ ВШЭ'), ('*.hse.ru', 'НИУ ВШЭ') ON CONFLICT(domain) DO NOTHING`); err != nil {
 		t.Fatal(err)
 	}
 	for i, tc := range []struct {

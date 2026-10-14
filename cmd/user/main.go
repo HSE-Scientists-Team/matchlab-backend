@@ -15,9 +15,11 @@ import (
 
 	authv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
 	mailv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/mail/v1"
+	mediav1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
 	userv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	userconfig "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/config"
 	usergrpc "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/delivery/grpc"
+	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/profile"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/repository"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
@@ -25,6 +27,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"strings"
 )
 
 func main() {
@@ -98,9 +101,22 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
-	server := grpc.NewServer()
+	mediaConn, err := grpc.NewClient(cfg.Media.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer mediaConn.Close()
+	server := grpc.NewServer(grpc.UnaryInterceptor(func(callCtx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if strings.HasPrefix(info.FullMethod, "/matchlab.user.v1.ProfileService/") {
+			limited, cancel := context.WithTimeout(callCtx, 10*time.Second)
+			defer cancel()
+			return handler(limited, req)
+		}
+		return handler(callCtx, req)
+	}))
 	health := healthcheck.RegisterGRPC(server)
 	userv1.RegisterUserServiceServer(server, usergrpc.NewServer(users))
+	userv1.RegisterProfileServiceServer(server, &profile.Service{Repo: &profile.Repository{DB: db}, Auth: authClient, Media: mediav1.NewMediaServiceClient(mediaConn)})
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
