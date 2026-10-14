@@ -1118,19 +1118,6 @@ components:
       type: object
       additionalProperties: false
       properties: {}
-    properties:
-        limit:
-          type: integer
-          format: int32
-        offset:
-          type: integer
-          format: int32
-    properties:
-        user_id:
-          type: string
-    properties:
-        user_id:
-          type: string
     UserProfileInput:
       required: [display_name]
       type: object
@@ -1192,16 +1179,6 @@ components:
           type: boolean
         show_participating_projects:
           type: boolean
-    UserAchievementQuery:
-      type: object
-      additionalProperties: false
-      properties:
-        user_id:
-          type: string
-        kind:
-          type: string
-        page:
-          $ref: '#/components/schemas/UserPage'
     UserAchievementID:
       type: object
       additionalProperties: false
@@ -1280,52 +1257,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserBlock'
-    properties:
-        from_user_id:
-          type: string
-        to_user_id:
-          type: string
-    properties:
-        blocked:
-          type: boolean
-    properties:
-        id:
-          type: string
-        expected_revision:
-          type: integer
-          format: int32
-        approve:
-          type: boolean
-        comment:
-          type: string
-    properties:
-        download_url:
-          type: string
-        expires_at_unix:
-          type: string
-          pattern: '^-?[0-9]+$'
-    properties:
-        project_id:
-          type: string
-        title:
-          type: string
-        initiator_user_id:
-          type: string
-        participant_user_ids:
-          type: array
-          items:
-            type: string
-        completed_at_unix:
-          type: string
-          pattern: '^-?[0-9]+$'
-    UserReviewQuery:
-      type: object
-      additionalProperties: false
-      properties:
-        user_id:
-          type: string
-        page:
-          $ref: '#/components/schemas/UserPage'
     UserReviewInput:
       required: [project_id, target_user_id, title, text, rating]
       type: object
