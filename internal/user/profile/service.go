@@ -32,7 +32,10 @@ type Service struct {
 	Media Media
 }
 
-func validID(id string) bool { v, err := uuid.Parse(id); return err == nil && v != uuid.Nil }
+func validID(id string) bool {
+	v, err := uuid.Parse(id)
+	return err == nil && v != uuid.Nil && id == v.String()
+}
 func invalid() error {
 	return status.Error(codes.InvalidArgument, "некорректные поля запроса")
 }

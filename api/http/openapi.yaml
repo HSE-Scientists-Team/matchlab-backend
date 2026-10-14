@@ -1118,29 +1118,21 @@ components:
       type: object
       additionalProperties: false
       properties: {}
-    UserPage:
-      type: object
-      additionalProperties: false
-      properties:
+    properties:
         limit:
           type: integer
           format: int32
         offset:
           type: integer
           format: int32
-    UserUserID:
-      type: object
-      additionalProperties: false
-      properties:
+    properties:
         user_id:
           type: string
-    UserProfileQuery:
-      type: object
-      additionalProperties: false
-      properties:
+    properties:
         user_id:
           type: string
     UserProfileInput:
+      required: [display_name]
       type: object
       additionalProperties: false
       properties:
@@ -1217,6 +1209,7 @@ components:
         id:
           type: string
     UserAchievementInput:
+      required: [kind, title]
       type: object
       additionalProperties: false
       properties:
@@ -1287,24 +1280,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserBlock'
-    UserInteractionQuery:
-      type: object
-      additionalProperties: false
-      properties:
+    properties:
         from_user_id:
           type: string
         to_user_id:
           type: string
-    UserInteractionResult:
-      type: object
-      additionalProperties: false
-      properties:
+    properties:
         blocked:
           type: boolean
-    UserVerificationDecision:
-      type: object
-      additionalProperties: false
-      properties:
+    properties:
         id:
           type: string
         expected_revision:
@@ -1314,19 +1298,13 @@ components:
           type: boolean
         comment:
           type: string
-    UserEvidence:
-      type: object
-      additionalProperties: false
-      properties:
+    properties:
         download_url:
           type: string
         expires_at_unix:
           type: string
           pattern: '^-?[0-9]+$'
-    UserProjectContext:
-      type: object
-      additionalProperties: false
-      properties:
+    properties:
         project_id:
           type: string
         title:
@@ -1349,6 +1327,7 @@ components:
         page:
           $ref: '#/components/schemas/UserPage'
     UserReviewInput:
+      required: [project_id, target_user_id, title, text, rating]
       type: object
       additionalProperties: false
       properties:
