@@ -51,3 +51,19 @@ func TestPublicProfileAllowlistAndIdentity(t *testing.T) {
 		t.Fatal("client controlled verification")
 	}
 }
+
+func (f *fakeProfiles) SaveAchievement(_ context.Context, p *pb.AchievementInput, _ ...grpc.CallOption) (*pb.Achievement, error) {
+	return &pb.Achievement{Details: p, Status: "unverified"}, nil
+}
+func TestAchievementBodySupportsUnicodeLimit(t *testing.T) {
+	r := mux.NewRouter()
+	RegisterProfiles(r, &fakeProfiles{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	body := `{"kind":"scientific","title":"Paper","description":"` + strings.Repeat("😀", 10000) + `"}`
+	req := httptest.NewRequest("POST", "/api/v1/users/me/achievements", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer session")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 201 {
+		t.Fatalf("valid Unicode text rejected: %d", w.Code)
+	}
+}

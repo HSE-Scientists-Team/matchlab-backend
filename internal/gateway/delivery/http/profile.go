@@ -148,7 +148,7 @@ func (h *profileHandler) achievements(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	if r.Method == "POST" {
 		p := &pb.AchievementInput{}
-		if !decodeJSONLimit(w, r, p, 32768) {
+		if !decodeJSONLimit(w, r, p, 65536) {
 			return
 		}
 		if p.Id != "" || p.ExpectedRevision != 0 {
@@ -173,7 +173,7 @@ func (h *profileHandler) achievement(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "PUT":
 		p := &pb.AchievementInput{}
-		if !decodeJSONLimit(w, r, p, 32768) {
+		if !decodeJSONLimit(w, r, p, 65536) {
 			return
 		}
 		if p.Id != "" && p.Id != id {
@@ -233,7 +233,7 @@ func (h *profileHandler) createReview(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := profileContext(r)
 	defer cancel()
 	p := &pb.ReviewInput{}
-	if !decodeJSONLimit(w, r, p, 32768) {
+	if !decodeJSONLimit(w, r, p, 65536) {
 		return
 	}
 	res, err := h.client.CreateReview(ctx, p)
