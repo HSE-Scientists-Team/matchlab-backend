@@ -2088,6 +2088,24 @@ components:
       scheme: bearer
       description: Токен access_token из ответа POST /api/v1/auth/login.
   schemas:
+    ProjectInitialRole:
+      type: object
+      additionalProperties: false
+      required:
+      - title
+      - slots
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        slots:
+          type: integer
+          format: int32
     ProjectInput:
       type: object
       additionalProperties: false
@@ -2115,7 +2133,7 @@ components:
         roles:
           type: array
           items:
-            $ref: '#/components/schemas/ProjectRoleInput'
+            $ref: '#/components/schemas/ProjectInitialRole'
         expected_revision:
           type: integer
           format: int32
