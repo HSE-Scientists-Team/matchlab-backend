@@ -139,6 +139,7 @@ services:
       - source: user-compose-config
         target: /etc/app/config.yaml
     environment:
+      PROJECT_SYNC_TOKEN: ${PROJECT_SYNC_TOKEN:-matchlab_local_project_sync_only_32bytes}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
     ports:
       - "127.0.0.1:${USER_GRPC_PORT:-8082}:8082"
@@ -214,6 +215,52 @@ services:
       support:
         condition: service_started
 
+  project:
+    build:
+      context: .
+      dockerfile: cmd/project/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: project-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+      PROJECT_SYNC_TOKEN: ${PROJECT_SYNC_TOKEN:-matchlab_local_project_sync_only_32bytes}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  search:
+    build:
+      context: .
+      dockerfile: cmd/search/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: search-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  recommendation:
+    build:
+      context: .
+      dockerfile: cmd/recommendation/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: recommendation-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api-docs:
     build:
       context: .
@@ -225,6 +272,12 @@ services:
         condition: service_started
 
 configs:
+  project-compose-config:
+    file: ./cmd/project/config.compose.yaml
+  search-compose-config:
+    file: ./cmd/search/config.compose.yaml
+  recommendation-compose-config:
+    file: ./cmd/recommendation/config.compose.yaml
   support-compose-config:
     file: ./cmd/support/config.compose.yaml
   media-compose-config:

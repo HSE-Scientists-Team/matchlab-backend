@@ -41,7 +41,7 @@ func (r *Repository) Profile(ctx context.Context, id string) (*pb.Profile, *pb.P
 	p := &pb.Profile{Details: &pb.ProfileInput{}}
 	privacy := &pb.PrivacySettings{}
 	var raw []byte
-	err := r.DB.QueryRowContext(ctx, `SELECT p.user_id::text,p.data,p.show_contacts,p.show_participating_projects,EXISTS(SELECT 1 FROM users.user_email e WHERE e.user_id=p.user_id AND split_part(e.email,'@',2) IN ('hse.ru','edu.hse.ru')),(SELECT coalesce(avg(rating),0) FROM users.profile_review WHERE target_user_id=p.user_id),(SELECT count(*) FROM users.profile_review WHERE target_user_id=p.user_id),(SELECT count(*) FROM users.profile_review WHERE target_user_id=p.user_id AND rating>=4) FROM users.user_profile p JOIN users.user_account a ON a.id=p.user_id WHERE p.user_id=$1 AND a.status='active'`, id).Scan(&p.UserId, &raw, &privacy.ShowContacts, &privacy.ShowParticipatingProjects, &p.Verified, &p.Rating, &p.ReviewCount, &p.PositiveReviewCount)
+	err := r.DB.QueryRowContext(ctx, `SELECT p.user_id::text,p.data,p.show_contacts,p.show_participating_projects,EXISTS(SELECT 1 FROM users.user_email e WHERE e.user_id=p.user_id AND split_part(e.email,'@',2) IN ('hse.ru','edu.hse.ru')),(SELECT coalesce(avg(rating),0) FROM users.profile_review WHERE target_user_id=p.user_id),(SELECT count(*) FROM users.profile_review WHERE target_user_id=p.user_id),(SELECT count(*) FROM users.profile_review WHERE target_user_id=p.user_id AND rating>=4),(SELECT count(*) FROM users.project_context_member m JOIN users.project_context x ON x.project_id=m.project_id WHERE m.user_id=p.user_id AND x.state='completed') FROM users.user_profile p JOIN users.user_account a ON a.id=p.user_id WHERE p.user_id=$1 AND a.status='active'`, id).Scan(&p.UserId, &raw, &privacy.ShowContacts, &privacy.ShowParticipatingProjects, &p.Verified, &p.Rating, &p.ReviewCount, &p.PositiveReviewCount, &p.CompletedProjectCount)
 	if err != nil {
 		return nil, nil, dbError(err)
 	}
@@ -232,9 +232,17 @@ func (r *Repository) RecordProject(ctx context.Context, p *pb.ProjectContext) er
 	}
 	var completed sql.NullTime
 	var title, initiator string
-	err = tx.QueryRowContext(ctx, `SELECT completed_at,title,initiator_user_id::text FROM users.project_context WHERE project_id=$1 FOR UPDATE`, p.ProjectId).Scan(&completed, &title, &initiator)
+	var source int64
+	var previousState string
+	err = tx.QueryRowContext(ctx, `SELECT completed_at,title,initiator_user_id::text,source_revision,state FROM users.project_context WHERE project_id=$1 FOR UPDATE`, p.ProjectId).Scan(&completed, &title, &initiator, &source, &previousState)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
+	}
+	if err == nil && source >= p.SourceRevision {
+		return tx.Commit()
+	}
+	if err == nil && previousState == "cancelled" && p.State != "cancelled" {
+		return ErrConflict
 	}
 	if completed.Valid {
 		if title != p.Title || initiator != p.InitiatorUserId || completed.Time.Unix() != p.CompletedAtUnix {
@@ -266,13 +274,16 @@ func (r *Repository) RecordProject(ctx context.Context, p *pb.ProjectContext) er
 				return ErrConflict
 			}
 		}
+		if _, err = tx.ExecContext(ctx, `UPDATE users.project_context SET source_revision=$2 WHERE project_id=$1`, p.ProjectId, p.SourceRevision); err != nil {
+			return err
+		}
 		return tx.Commit()
 	}
 	var when any
 	if p.CompletedAtUnix > 0 {
 		when = time.Unix(p.CompletedAtUnix, 0).UTC()
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO users.project_context(project_id,title,initiator_user_id,completed_at) VALUES($1,$2,$3,$4) ON CONFLICT(project_id) DO UPDATE SET title=EXCLUDED.title,initiator_user_id=EXCLUDED.initiator_user_id,completed_at=EXCLUDED.completed_at`, p.ProjectId, p.Title, p.InitiatorUserId, when)
+	_, err = tx.ExecContext(ctx, `INSERT INTO users.project_context(project_id,title,initiator_user_id,completed_at,source_revision,state) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(project_id) DO UPDATE SET title=EXCLUDED.title,initiator_user_id=EXCLUDED.initiator_user_id,completed_at=EXCLUDED.completed_at,source_revision=EXCLUDED.source_revision,state=EXCLUDED.state`, p.ProjectId, p.Title, p.InitiatorUserId, when, p.SourceRevision, p.State)
 	if err != nil {
 		return dbError(err)
 	}
@@ -340,6 +351,6 @@ func (r *Repository) CanSeeContacts(ctx context.Context, owner, viewer string, p
 		return false, nil
 	}
 	var shared bool
-	err := r.DB.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM users.project_context_member a JOIN users.project_context_member b ON b.project_id=a.project_id JOIN users.project_context p ON p.project_id=a.project_id WHERE a.user_id=$1 AND b.user_id=$2 AND p.completed_at IS NULL)`, owner, viewer).Scan(&shared)
+	err := r.DB.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM users.project_context_member a JOIN users.project_context_member b ON b.project_id=a.project_id JOIN users.project_context p ON p.project_id=a.project_id WHERE a.user_id=$1 AND b.user_id=$2 AND p.state='active')`, owner, viewer).Scan(&shared)
 	return shared, err
 }

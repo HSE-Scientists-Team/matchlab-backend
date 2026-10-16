@@ -1,0 +1,63 @@
+syntax = "proto3";
+package matchlab.project.v1;
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/project/v1;projectv1";
+service ProjectService {
+ rpc Create(ProjectInput) returns (Project);
+ rpc Update(ProjectInput) returns (Project);
+ rpc Get(ProjectID) returns (Project);
+ rpc List(ProjectQuery) returns (ProjectList);
+ rpc SaveRole(RoleInput) returns (Project);
+ rpc DeleteRole(RoleID) returns (Project);
+ rpc Transition(TransitionRequest) returns (Project);
+ rpc Apply(JoinInput) returns (JoinRequest);
+ rpc Invite(JoinInput) returns (JoinRequest);
+ rpc DecideJoin(JoinDecision) returns (JoinRequest);
+ rpc CancelJoin(JoinID) returns (JoinRequest);
+ rpc ListJoins(JoinQuery) returns (JoinList);
+ rpc RemoveMember(MemberID) returns (Project);
+ rpc Leave(ProjectID) returns (Project);
+ // Internal administrator RPCs, never mapped in Gateway.
+ rpc Moderate(ModerationInput) returns (Project);
+ rpc ListModeration(ModerationQuery) returns (ProjectList);
+ rpc ModerationHistory(ProjectID) returns (ModerationList);
+}
+message ProjectID { string id=1; }
+message Page { int32 limit=1; int32 offset=2; }
+message ProjectInput {
+ string id=1; string title=2; string type=3; string field=4;
+ string problem=5; string goal=6; repeated string tags=7;
+ string planned_start=8; string planned_end=9;
+ repeated RoleInput roles=10; int32 expected_revision=11;
+}
+message RoleInput { string id=1; string project_id=2; string title=3; string description=4; repeated string skills=5; int32 slots=6; int32 expected_revision=7; }
+message Role { string id=1; string title=2; string description=3; repeated string skills=4; int32 slots=5; int32 occupied=6; }
+message Member { string user_id=1; string role_id=2; string role_title=3; string status=4; }
+message Project {
+ string id=1; string owner_user_id=2; ProjectInput details=3;
+ string status=4; int32 revision=5; repeated Role roles=6;
+ repeated Member members=7; int64 created_at_unix=8; int64 completed_at_unix=9;
+ int32 pending_join_count=10; // Only owner sees application counts.
+ bool moderation_hidden=11; // Independent from lifecycle state.
+}
+message ProjectQuery {
+ string text=1; string type=2; string field=3; repeated string tags=4;
+ string duration=5; // up_to_3m / 3_to_6m / over_6m
+ string status=6; Page page=7;
+ string mine=8; // owner / participant; authenticated caller
+ string profile_user_id=9; // Participating projects, respecting profile privacy.
+ bool random_order=10; // Candidate sampling for recommendations, not a relevance score.
+}
+message ProjectList { repeated Project items=1; int64 total=2; }
+message RoleID { string id=1; string project_id=2; int32 expected_revision=3; }
+message TransitionRequest { string id=1; string action=2; int32 expected_revision=3; } // publish/unpublish/start/complete/cancel
+message JoinInput { string project_id=1; string role_id=2; string candidate_user_id=3; string message=4; }
+message JoinRequest { string id=1; string project_id=2; string role_id=3; string candidate_user_id=4; string type=5; string status=6; string message=7; int64 created_at_unix=8; }
+message JoinID { string id=1; }
+message JoinDecision { string id=1; bool accept=2; }
+message JoinQuery { string project_id=1; string role_id=2; string status=3; Page page=4; } // Empty project = my applications/invitations.
+message JoinList { repeated JoinRequest items=1; int64 total=2; }
+message MemberID { string project_id=1; string user_id=2; }
+message ModerationInput { string project_id=1; bool hide=2; string reason=3; int32 expected_revision=4; }
+message ModerationQuery { bool hidden_only=1; Page page=2; }
+message ModerationRecord { string actor_user_id=1; bool hidden=2; string reason=3; int64 created_at_unix=4; }
+message ModerationList { repeated ModerationRecord items=1; }

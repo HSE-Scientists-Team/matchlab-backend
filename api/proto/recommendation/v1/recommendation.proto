@@ -1,0 +1,10 @@
+syntax = "proto3";
+package matchlab.recommendation.v1;
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/recommendation/v1;recommendationv1";
+import "api/proto/user/v1/profile.proto";
+import "api/proto/project/v1/project.proto";
+service RecommendationService {
+ rpc People(RecommendationQuery) returns (matchlab.user.v1.PeopleList);
+ rpc Projects(RecommendationQuery) returns (matchlab.project.v1.ProjectList);
+}
+message RecommendationQuery { int32 limit=1; }

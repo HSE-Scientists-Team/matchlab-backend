@@ -22,7 +22,7 @@ User хранит профиль, достижения, приватность, 
 
 ## Внутренние RPC
 
-Gateway не публикует ListVerificationQueue, ReviewAchievement, GetAchievementEvidence, RecordProjectContext и CheckInteraction. Первые четыре требуют Bearer-сеанса активного moderator/administrator. User проверяет роль в PostgreSQL; передача reviewer_user_id или actor_user_id от клиента не используется. Проверять своё достижение нельзя даже модератору. GetAchievementEvidence выдаёт временную ссылку Media, используя владельца из сохранённого достижения. API будущего администратора делегирует его сеанс в gRPC metadata authorization.
+Gateway не публикует ListVerificationQueue, ReviewAchievement, GetAchievementEvidence, RecordProjectContext и CheckInteraction. Первые три требуют Bearer-сеанса активного moderator/administrator. RecordProjectContext с KAN-39 принимает только сервисный credential PROJECT_SYNC_TOKEN от Project. User проверяет роль в PostgreSQL; передача reviewer_user_id или actor_user_id от клиента не используется. Проверять своё достижение нельзя даже модератору. GetAchievementEvidence выдаёт временную ссылку Media, используя владельца из сохранённого достижения. API будущего администратора делегирует его сеанс в gRPC metadata authorization.
 
 Это модель авторизации администраторского пользователя, не идентификация сервисов. Перед автоматической отправкой проектных контекстов из будущего Projects потребуется добавить аутентификацию и отдельные права этого сервиса; принимать такие контексты от обычного пользовательского сеанса нельзя. Auth и другие внутренние RPC должны оставаться в закрытой сети.
 
@@ -51,3 +51,5 @@ curl -X PUT https://api.matchlab.space/api/v1/users/me/profile \
 ```
 
 Для счётчика положительных отзывов на экране Profile возвращает positive_review_count: оценки 4–5 считаются положительными.
+
+KAN-39 добавляет поиск публичных Person-карточек, GetIdentity и ParticipationVisibility для межсервисных вызовов. Проектные контексты имеют state active/completed/cancelled и source_revision: старые/повторные события подтверждаются без изменения данных. Отмена проекта прекращает доступ команды к контактам и не разрешает отзывы. В production PROJECT_SYNC_TOKEN должен совпадать в User и Project и иметь не менее 32 байт; при отсутствии User продолжает обслуживать профиль, но запрещает синхронизацию.
