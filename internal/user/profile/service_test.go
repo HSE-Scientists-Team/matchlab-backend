@@ -64,7 +64,7 @@ func TestModeratorRPCRequiresCredential(t *testing.T) {
 		t.Fatalf("unprotected queue: %v", err)
 	}
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer x", "authorization", "Bearer y"))
-	if _, err := s.RecordProjectContext(ctx, &pb.ProjectContext{}); status.Code(err) != codes.Unauthenticated {
+	if _, err := s.RecordProjectContext(ctx, &pb.ProjectContext{}); status.Code(err) != codes.PermissionDenied {
 		t.Fatalf("ambiguous identity: %v", err)
 	}
 }

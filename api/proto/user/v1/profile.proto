@@ -5,6 +5,9 @@ option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/ge
 // Mutations authenticate the Bearer session in gRPC metadata. Internal moderation
 // additionally requires an active moderator/administrator; never exposed by Gateway.
 service ProfileService {
+  rpc GetIdentity(Empty) returns (Identity);
+  rpc SearchPeople(PeopleQuery) returns (PeopleList);
+  rpc ParticipationVisibility(UserID) returns (ParticipationFlags);
   rpc GetProfile(ProfileQuery) returns (Profile);
   rpc UpdateProfile(ProfileInput) returns (Profile);
   rpc GetSettings(Empty) returns (PrivacySettings);
@@ -52,6 +55,7 @@ message Profile {
   double rating = 4;
   int32 review_count = 5;
   int32 positive_review_count = 6; // rating >= 4
+  int32 completed_project_count = 7;
 }
 message PrivacySettings { bool show_contacts = 1; bool show_participating_projects = 2; }
 message AchievementQuery { string user_id = 1; string kind = 2; Page page = 3; }
@@ -90,7 +94,9 @@ message ProjectContext {
   string title = 2;
   string initiator_user_id = 3;
   repeated string participant_user_ids = 4;
-  int64 completed_at_unix = 5; // 0 means current team; positive means completed.
+  int64 completed_at_unix = 5; // 0 means not completed.
+  string state = 6; // active/completed/cancelled
+  int64 source_revision = 7;
 }
 message ReviewQuery { string user_id = 1; Page page = 2; }
 message ReviewInput { string project_id = 1; string target_user_id = 2; string title = 3; string text = 4; int32 rating = 5; }
@@ -109,3 +115,21 @@ message Review {
   int64 project_completed_at_unix = 12;
 }
 message ReviewList { repeated Review items = 1; }
+
+message Identity { string user_id=1; string role=2; }
+message ParticipationFlags { bool show_participating_projects=1; }
+message PeopleQuery {
+ string text=1; repeated string skills=2; repeated string interests=3;
+ string university=4; bool my_university=5; bool open_only=6; bool verified_only=7;
+ bool verified_projects=8; bool publications=9; string project_type=10;
+ Page page=11; bool random_order=12;
+}
+// A separate public card prevents contacts and proof IDs leaking through search.
+message Person {
+ string user_id=1; string display_name=2; string avatar_file_id=3; string university=4;
+ string study_level=5; int32 study_year=6; string specialization=7;
+ repeated string skills=8; repeated string interests=9;
+ bool open_to_collaboration=10; bool verified=11; double rating=12;
+ int32 completed_project_count=13;
+}
+message PeopleList { repeated Person items=1; int64 total=2; }

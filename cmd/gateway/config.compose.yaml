@@ -24,3 +24,12 @@ postgres:
   user: matchlab
   ssl_mode: disable
   migration_timeout: 5m
+project:
+  host: project
+  port: 8087
+search:
+  host: search
+  port: 8088
+recommendation:
+  host: recommendation
+  port: 8089

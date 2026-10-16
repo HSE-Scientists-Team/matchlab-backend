@@ -25,6 +25,980 @@ tags:
   - name: Support
     description: Создание жалоб
 paths:
+  /api/v1/projects:
+    post:
+      tags:
+      - Проекты
+      summary: Создать и сразу опубликовать проект
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+    get:
+      tags:
+      - Проекты
+      summary: Каталог и мои проекты
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectList'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          default: 0
+      - name: q
+        in: query
+        schema:
+          type: string
+      - name: type
+        in: query
+        schema:
+          type: string
+      - name: field
+        in: query
+        schema:
+          type: string
+      - name: tag
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+      - name: duration
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+      - name: mine
+        in: query
+        schema:
+          type: string
+      - name: profile_user_id
+        in: query
+        schema:
+          type: string
+  /api/v1/projects/{id}:
+    get:
+      tags:
+      - Проекты
+      summary: Просмотреть проект
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags:
+      - Проекты
+      summary: Заменить описание проекта
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+  /api/v1/projects/{id}/transitions:
+    post:
+      tags:
+      - Проекты
+      summary: Опубликовать, приостановить набор, начать, завершить или отменить
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectTransitionRequest'
+  /api/v1/projects/{id}/roles:
+    post:
+      tags:
+      - Проекты
+      summary: Добавить роль
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRoleInput'
+  /api/v1/projects/{id}/roles/{role_id}:
+    put:
+      tags:
+      - Проекты
+      summary: Изменить роль
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRoleInput'
+    delete:
+      tags:
+      - Проекты
+      summary: Удалить свободную роль и отменить её отклики
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: role_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: expected_revision
+        in: query
+        schema:
+          type: integer
+  /api/v1/projects/{id}/applications:
+    post:
+      tags:
+      - Проекты
+      summary: Откликнуться на роль
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectJoinRequest'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectJoinInput'
+  /api/v1/projects/{id}/invitations:
+    post:
+      tags:
+      - Проекты
+      summary: Пригласить человека на роль
+      security:
+      - bearerAuth: []
+      responses:
+        '201':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectJoinRequest'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectJoinInput'
+  /api/v1/projects/{id}/joins:
+    get:
+      tags:
+      - Проекты
+      summary: Получить отклики и приглашения проекта (инициатор)
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectJoinList'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          default: 0
+      - name: role_id
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+  /api/v1/projects/{id}/members/{user_id}:
+    delete:
+      tags:
+      - Проекты
+      summary: Исключить участника
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/projects/{id}/membership:
+    delete:
+      tags:
+      - Проекты
+      summary: Покинуть проект
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/project-joins:
+    get:
+      tags:
+      - Проекты
+      summary: Мои отклики и приглашения
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectJoinList'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          default: 0
+      - name: role_id
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+  /api/v1/project-joins/{id}/decision:
+    post:
+      tags:
+      - Проекты
+      summary: Принять или отклонить отклик/приглашение
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectJoinRequest'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectJoinDecisionBody'
+  /api/v1/project-joins/{id}:
+    delete:
+      tags:
+      - Проекты
+      summary: Отозвать свой отклик или приглашение
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectJoinRequest'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+  /api/v1/search/projects:
+    get:
+      tags:
+      - Проекты
+      summary: Поиск проектов с фильтрами
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectList'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          default: 0
+      - name: q
+        in: query
+        schema:
+          type: string
+      - name: type
+        in: query
+        schema:
+          type: string
+      - name: field
+        in: query
+        schema:
+          type: string
+      - name: tag
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+      - name: duration
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+      - name: mine
+        in: query
+        schema:
+          type: string
+      - name: profile_user_id
+        in: query
+        schema:
+          type: string
+  /api/v1/search/people:
+    get:
+      tags:
+      - Поиск и рекомендации
+      summary: Поиск людей с фильтрами без раскрытия контактов
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeopleList'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 10000
+          default: 0
+      - name: q
+        in: query
+        schema:
+          type: string
+      - name: university
+        in: query
+        schema:
+          type: string
+      - name: project_type
+        in: query
+        schema:
+          type: string
+      - name: skill
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+      - name: interest
+        in: query
+        schema:
+          type: array
+          items:
+            type: string
+      - name: my_university
+        in: query
+        schema:
+          type: boolean
+      - name: open_only
+        in: query
+        schema:
+          type: boolean
+      - name: verified_only
+        in: query
+        schema:
+          type: boolean
+      - name: verified_projects
+        in: query
+        schema:
+          type: boolean
+      - name: publications
+        in: query
+        schema:
+          type: boolean
+  /api/v1/recommendations/people:
+    get:
+      tags:
+      - Поиск и рекомендации
+      summary: Случайные рекомендации открытых к сотрудничеству людей
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeopleList'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+  /api/v1/recommendations/projects:
+    get:
+      tags:
+      - Проекты
+      summary: Случайные рекомендации доступных проектов с набором
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectList'
+        '400':
+          description: Некорректные поля
+        '401':
+          description: Требуется действительный сеанс
+        '403':
+          description: Недостаточно прав или блокировка
+        '404':
+          description: Объект не найден
+        '409':
+          description: Конфликт версии, состояния или занятое место
+        '500':
+          description: Внутренняя ошибка
+        '503':
+          description: Зависимость недоступна
+        '504':
+          description: Истёк срок запроса
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
   /api/v1/users/me/profile:
     get:
       tags: [Профили]
@@ -1114,6 +2088,301 @@ components:
       scheme: bearer
       description: Токен access_token из ответа POST /api/v1/auth/login.
   schemas:
+    ProjectInitialRole:
+      type: object
+      additionalProperties: false
+      required:
+      - title
+      - slots
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        slots:
+          type: integer
+          format: int32
+    ProjectInput:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        field:
+          type: string
+        problem:
+          type: string
+        goal:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        planned_start:
+          type: string
+        planned_end:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectInitialRole'
+        expected_revision:
+          type: integer
+          format: int32
+    ProjectRoleInput:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        project_id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        slots:
+          type: integer
+          format: int32
+        expected_revision:
+          type: integer
+          format: int32
+      required:
+      - title
+      - slots
+      - expected_revision
+    ProjectRole:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        slots:
+          type: integer
+          format: int32
+        occupied:
+          type: integer
+          format: int32
+    ProjectMember:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+        role_id:
+          type: string
+        role_title:
+          type: string
+        status:
+          type: string
+    Project:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        owner_user_id:
+          type: string
+        details:
+          $ref: '#/components/schemas/ProjectInput'
+        status:
+          type: string
+        revision:
+          type: integer
+          format: int32
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectRole'
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectMember'
+        created_at_unix:
+          type: string
+          pattern: ^-?[0-9]+$
+        completed_at_unix:
+          type: string
+          pattern: ^-?[0-9]+$
+        pending_join_count:
+          type: integer
+          format: int32
+        moderation_hidden:
+          type: boolean
+    ProjectList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        total:
+          type: string
+          pattern: ^-?[0-9]+$
+    ProjectTransitionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+        expected_revision:
+          type: integer
+          format: int32
+      required:
+      - action
+      - expected_revision
+    ProjectJoinInput:
+      type: object
+      additionalProperties: false
+      properties:
+        project_id:
+          type: string
+        role_id:
+          type: string
+        candidate_user_id:
+          type: string
+        message:
+          type: string
+    ProjectJoinRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        project_id:
+          type: string
+        role_id:
+          type: string
+        candidate_user_id:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        created_at_unix:
+          type: string
+          pattern: ^-?[0-9]+$
+    ProjectJoinDecision:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        accept:
+          type: boolean
+    ProjectJoinList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectJoinRequest'
+        total:
+          type: string
+          pattern: ^-?[0-9]+$
+    Person:
+      type: object
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+        display_name:
+          type: string
+        avatar_file_id:
+          type: string
+        university:
+          type: string
+        study_level:
+          type: string
+        study_year:
+          type: integer
+          format: int32
+        specialization:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        interests:
+          type: array
+          items:
+            type: string
+        open_to_collaboration:
+          type: boolean
+        verified:
+          type: boolean
+        rating:
+          type: number
+        completed_project_count:
+          type: integer
+          format: int32
+    PeopleList:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Person'
+        total:
+          type: string
+          pattern: ^-?[0-9]+$
+    ProjectCreate:
+      allOf:
+      - $ref: '#/components/schemas/ProjectInput'
+      - required:
+        - title
+        - type
+        - field
+        - problem
+        - goal
+        - planned_start
+        - planned_end
+        - roles
+    ProjectUpdate:
+      allOf:
+      - $ref: '#/components/schemas/ProjectInput'
+      - required:
+        - title
+        - type
+        - field
+        - problem
+        - goal
+        - planned_start
+        - planned_end
+        - expected_revision
+    ProjectJoinDecisionBody:
+      type: object
+      additionalProperties: false
+      required:
+      - accept
+      properties:
+        accept:
+          type: boolean
     UserEmpty:
       type: object
       additionalProperties: false
@@ -1169,6 +2438,9 @@ components:
         rating:
           type: number
         review_count:
+          type: integer
+          format: int32
+        completed_project_count:
           type: integer
           format: int32
         positive_review_count:

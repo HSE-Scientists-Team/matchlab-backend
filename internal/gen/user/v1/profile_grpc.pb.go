@@ -19,25 +19,28 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ProfileService_GetProfile_FullMethodName             = "/matchlab.user.v1.ProfileService/GetProfile"
-	ProfileService_UpdateProfile_FullMethodName          = "/matchlab.user.v1.ProfileService/UpdateProfile"
-	ProfileService_GetSettings_FullMethodName            = "/matchlab.user.v1.ProfileService/GetSettings"
-	ProfileService_UpdateSettings_FullMethodName         = "/matchlab.user.v1.ProfileService/UpdateSettings"
-	ProfileService_ListAchievements_FullMethodName       = "/matchlab.user.v1.ProfileService/ListAchievements"
-	ProfileService_GetAchievement_FullMethodName         = "/matchlab.user.v1.ProfileService/GetAchievement"
-	ProfileService_SaveAchievement_FullMethodName        = "/matchlab.user.v1.ProfileService/SaveAchievement"
-	ProfileService_DeleteAchievement_FullMethodName      = "/matchlab.user.v1.ProfileService/DeleteAchievement"
-	ProfileService_SubmitAchievement_FullMethodName      = "/matchlab.user.v1.ProfileService/SubmitAchievement"
-	ProfileService_ListBlocks_FullMethodName             = "/matchlab.user.v1.ProfileService/ListBlocks"
-	ProfileService_BlockUser_FullMethodName              = "/matchlab.user.v1.ProfileService/BlockUser"
-	ProfileService_UnblockUser_FullMethodName            = "/matchlab.user.v1.ProfileService/UnblockUser"
-	ProfileService_CheckInteraction_FullMethodName       = "/matchlab.user.v1.ProfileService/CheckInteraction"
-	ProfileService_ListReviews_FullMethodName            = "/matchlab.user.v1.ProfileService/ListReviews"
-	ProfileService_CreateReview_FullMethodName           = "/matchlab.user.v1.ProfileService/CreateReview"
-	ProfileService_ListVerificationQueue_FullMethodName  = "/matchlab.user.v1.ProfileService/ListVerificationQueue"
-	ProfileService_ReviewAchievement_FullMethodName      = "/matchlab.user.v1.ProfileService/ReviewAchievement"
-	ProfileService_GetAchievementEvidence_FullMethodName = "/matchlab.user.v1.ProfileService/GetAchievementEvidence"
-	ProfileService_RecordProjectContext_FullMethodName   = "/matchlab.user.v1.ProfileService/RecordProjectContext"
+	ProfileService_GetIdentity_FullMethodName             = "/matchlab.user.v1.ProfileService/GetIdentity"
+	ProfileService_SearchPeople_FullMethodName            = "/matchlab.user.v1.ProfileService/SearchPeople"
+	ProfileService_ParticipationVisibility_FullMethodName = "/matchlab.user.v1.ProfileService/ParticipationVisibility"
+	ProfileService_GetProfile_FullMethodName              = "/matchlab.user.v1.ProfileService/GetProfile"
+	ProfileService_UpdateProfile_FullMethodName           = "/matchlab.user.v1.ProfileService/UpdateProfile"
+	ProfileService_GetSettings_FullMethodName             = "/matchlab.user.v1.ProfileService/GetSettings"
+	ProfileService_UpdateSettings_FullMethodName          = "/matchlab.user.v1.ProfileService/UpdateSettings"
+	ProfileService_ListAchievements_FullMethodName        = "/matchlab.user.v1.ProfileService/ListAchievements"
+	ProfileService_GetAchievement_FullMethodName          = "/matchlab.user.v1.ProfileService/GetAchievement"
+	ProfileService_SaveAchievement_FullMethodName         = "/matchlab.user.v1.ProfileService/SaveAchievement"
+	ProfileService_DeleteAchievement_FullMethodName       = "/matchlab.user.v1.ProfileService/DeleteAchievement"
+	ProfileService_SubmitAchievement_FullMethodName       = "/matchlab.user.v1.ProfileService/SubmitAchievement"
+	ProfileService_ListBlocks_FullMethodName              = "/matchlab.user.v1.ProfileService/ListBlocks"
+	ProfileService_BlockUser_FullMethodName               = "/matchlab.user.v1.ProfileService/BlockUser"
+	ProfileService_UnblockUser_FullMethodName             = "/matchlab.user.v1.ProfileService/UnblockUser"
+	ProfileService_CheckInteraction_FullMethodName        = "/matchlab.user.v1.ProfileService/CheckInteraction"
+	ProfileService_ListReviews_FullMethodName             = "/matchlab.user.v1.ProfileService/ListReviews"
+	ProfileService_CreateReview_FullMethodName            = "/matchlab.user.v1.ProfileService/CreateReview"
+	ProfileService_ListVerificationQueue_FullMethodName   = "/matchlab.user.v1.ProfileService/ListVerificationQueue"
+	ProfileService_ReviewAchievement_FullMethodName       = "/matchlab.user.v1.ProfileService/ReviewAchievement"
+	ProfileService_GetAchievementEvidence_FullMethodName  = "/matchlab.user.v1.ProfileService/GetAchievementEvidence"
+	ProfileService_RecordProjectContext_FullMethodName    = "/matchlab.user.v1.ProfileService/RecordProjectContext"
 )
 
 // ProfileServiceClient is the client API for ProfileService service.
@@ -47,6 +50,9 @@ const (
 // Mutations authenticate the Bearer session in gRPC metadata. Internal moderation
 // additionally requires an active moderator/administrator; never exposed by Gateway.
 type ProfileServiceClient interface {
+	GetIdentity(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Identity, error)
+	SearchPeople(ctx context.Context, in *PeopleQuery, opts ...grpc.CallOption) (*PeopleList, error)
+	ParticipationVisibility(ctx context.Context, in *UserID, opts ...grpc.CallOption) (*ParticipationFlags, error)
 	GetProfile(ctx context.Context, in *ProfileQuery, opts ...grpc.CallOption) (*Profile, error)
 	UpdateProfile(ctx context.Context, in *ProfileInput, opts ...grpc.CallOption) (*Profile, error)
 	GetSettings(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PrivacySettings, error)
@@ -75,6 +81,36 @@ type profileServiceClient struct {
 
 func NewProfileServiceClient(cc grpc.ClientConnInterface) ProfileServiceClient {
 	return &profileServiceClient{cc}
+}
+
+func (c *profileServiceClient) GetIdentity(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Identity, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Identity)
+	err := c.cc.Invoke(ctx, ProfileService_GetIdentity_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *profileServiceClient) SearchPeople(ctx context.Context, in *PeopleQuery, opts ...grpc.CallOption) (*PeopleList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PeopleList)
+	err := c.cc.Invoke(ctx, ProfileService_SearchPeople_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *profileServiceClient) ParticipationVisibility(ctx context.Context, in *UserID, opts ...grpc.CallOption) (*ParticipationFlags, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ParticipationFlags)
+	err := c.cc.Invoke(ctx, ProfileService_ParticipationVisibility_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *profileServiceClient) GetProfile(ctx context.Context, in *ProfileQuery, opts ...grpc.CallOption) (*Profile, error) {
@@ -274,6 +310,9 @@ func (c *profileServiceClient) RecordProjectContext(ctx context.Context, in *Pro
 // Mutations authenticate the Bearer session in gRPC metadata. Internal moderation
 // additionally requires an active moderator/administrator; never exposed by Gateway.
 type ProfileServiceServer interface {
+	GetIdentity(context.Context, *Empty) (*Identity, error)
+	SearchPeople(context.Context, *PeopleQuery) (*PeopleList, error)
+	ParticipationVisibility(context.Context, *UserID) (*ParticipationFlags, error)
 	GetProfile(context.Context, *ProfileQuery) (*Profile, error)
 	UpdateProfile(context.Context, *ProfileInput) (*Profile, error)
 	GetSettings(context.Context, *Empty) (*PrivacySettings, error)
@@ -304,6 +343,15 @@ type ProfileServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedProfileServiceServer struct{}
 
+func (UnimplementedProfileServiceServer) GetIdentity(context.Context, *Empty) (*Identity, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetIdentity not implemented")
+}
+func (UnimplementedProfileServiceServer) SearchPeople(context.Context, *PeopleQuery) (*PeopleList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchPeople not implemented")
+}
+func (UnimplementedProfileServiceServer) ParticipationVisibility(context.Context, *UserID) (*ParticipationFlags, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ParticipationVisibility not implemented")
+}
 func (UnimplementedProfileServiceServer) GetProfile(context.Context, *ProfileQuery) (*Profile, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProfile not implemented")
 }
@@ -380,6 +428,60 @@ func RegisterProfileServiceServer(s grpc.ServiceRegistrar, srv ProfileServiceSer
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&ProfileService_ServiceDesc, srv)
+}
+
+func _ProfileService_GetIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProfileServiceServer).GetIdentity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProfileService_GetIdentity_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProfileServiceServer).GetIdentity(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProfileService_SearchPeople_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PeopleQuery)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProfileServiceServer).SearchPeople(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProfileService_SearchPeople_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProfileServiceServer).SearchPeople(ctx, req.(*PeopleQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProfileService_ParticipationVisibility_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserID)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProfileServiceServer).ParticipationVisibility(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProfileService_ParticipationVisibility_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProfileServiceServer).ParticipationVisibility(ctx, req.(*UserID))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ProfileService_GetProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -731,6 +833,18 @@ var ProfileService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "matchlab.user.v1.ProfileService",
 	HandlerType: (*ProfileServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetIdentity",
+			Handler:    _ProfileService_GetIdentity_Handler,
+		},
+		{
+			MethodName: "SearchPeople",
+			Handler:    _ProfileService_SearchPeople_Handler,
+		},
+		{
+			MethodName: "ParticipationVisibility",
+			Handler:    _ProfileService_ParticipationVisibility_Handler,
+		},
 		{
 			MethodName: "GetProfile",
 			Handler:    _ProfileService_GetProfile_Handler,

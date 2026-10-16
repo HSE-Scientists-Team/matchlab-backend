@@ -45,6 +45,9 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	if token := os.Getenv("PROJECT_SYNC_TOKEN"); token != "" && len(token) < 32 {
+		return fmt.Errorf("PROJECT_SYNC_TOKEN must contain at least 32 bytes")
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	version, err := migrations.Apply(ctx, cfg.DB)
@@ -116,7 +119,7 @@ func run(logger *slog.Logger) error {
 	}))
 	health := healthcheck.RegisterGRPC(server)
 	userv1.RegisterUserServiceServer(server, usergrpc.NewServer(users))
-	userv1.RegisterProfileServiceServer(server, &profile.Service{Repo: &profile.Repository{DB: db}, Auth: authClient, Media: mediav1.NewMediaServiceClient(mediaConn)})
+	userv1.RegisterProfileServiceServer(server, &profile.Service{Repo: &profile.Repository{DB: db}, ProjectToken: os.Getenv("PROJECT_SYNC_TOKEN"), Auth: authClient, Media: mediav1.NewMediaServiceClient(mediaConn)})
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()

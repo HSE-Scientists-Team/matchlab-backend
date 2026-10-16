@@ -61,8 +61,8 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 
 func applyMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
 	t.Helper()
-	if version, err := Up(ctx, db); err != nil || version != 5 {
-		t.Fatalf("apply migrations: version=%d, want=5, error=%v", version, err)
+	if version, err := Up(ctx, db); err != nil || version != 6 {
+		t.Fatalf("apply migrations: version=%d, want=6, error=%v", version, err)
 	}
 }
 
@@ -215,9 +215,10 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve' AND is_public`, 1)
-		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4,5) AND is_applied`, 5)
+		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4,5,6) AND is_applied`, 6)
 	})
 	t.Run("support rollback preserves users and media", func(t *testing.T) {
+		down(t) // projects
 		down(t) // profiles
 		if _, err := db.ExecContext(ctx, `INSERT INTO support.support_ticket (author_user_id,subject,description,target_user_id) VALUES ('00000000-0000-4000-8000-000000000001','complaint','description','00000000-0000-4000-8000-000000000002')`); err != nil {
 			t.Fatal(err)
@@ -231,6 +232,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM support.support_ticket`, 0)
 	})
 	t.Run("multipart rollback preserves files", func(t *testing.T) {
+		down(t) // projects
 		down(t) // profiles
 		down(t)
 		down(t)
@@ -242,6 +244,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 	})
 	t.Run("media rollback preserves users", func(t *testing.T) {
+		down(t) // projects
 		down(t) // profiles
 		down(t)
 		down(t)
@@ -255,6 +258,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 	})
 	t.Run("full rollback and reapply", func(t *testing.T) {
+		down(t) // projects
 		down(t) // profiles
 		down(t)
 		down(t)
@@ -385,7 +389,7 @@ func TestUpgradeAccountsSchemaToMediaPreservesUsers(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email,password_hash) VALUES ('upgrade@example.org','hash')`); err != nil {
 		t.Fatal(err)
 	}
-	if version, err := Up(ctx, db); err != nil || version != 5 {
+	if version, err := Up(ctx, db); err != nil || version != 6 {
 		t.Fatalf("upgrade: %d %v", version, err)
 	}
 	var count int
@@ -395,5 +399,39 @@ func TestUpgradeAccountsSchemaToMediaPreservesUsers(t *testing.T) {
 	var exists bool
 	if err := db.QueryRowContext(ctx, `SELECT to_regclass('media.file') IS NOT NULL AND to_regclass('media.multipart_upload') IS NOT NULL`).Scan(&exists); err != nil || !exists {
 		t.Fatalf("media tables: %t %v", exists, err)
+	}
+}
+
+func TestProjectRollbackRevokesContactGrantsButKeepsReviewHistory(t *testing.T) {
+	ctx, db := newMigrationDatabase(t)
+	applyMigrations(t, ctx, db)
+	_, err := db.ExecContext(ctx, `
+ INSERT INTO users.user_account(id,email,password_hash) VALUES
+ ('00000000-0000-4000-8000-000000000001','owner@example.org','hash'),
+ ('00000000-0000-4000-8000-000000000002','member@example.org','hash');
+ INSERT INTO users.project_context(project_id,title,initiator_user_id,state,source_revision,completed_at) VALUES
+ ('00000000-0000-4000-8000-000000000101','Active','00000000-0000-4000-8000-000000000001','active',1,NULL),
+ ('00000000-0000-4000-8000-000000000102','Cancelled','00000000-0000-4000-8000-000000000001','cancelled',2,NULL),
+ ('00000000-0000-4000-8000-000000000103','Complete','00000000-0000-4000-8000-000000000001','completed',3,now()),
+ ('00000000-0000-4000-8000-000000000104','Legacy','00000000-0000-4000-8000-000000000001','active',0,NULL);
+ INSERT INTO users.project_context_member(project_id,user_id) SELECT project_id,'00000000-0000-4000-8000-000000000001'::uuid FROM users.project_context;
+ INSERT INTO users.project_context_member(project_id,user_id) VALUES ('00000000-0000-4000-8000-000000000103','00000000-0000-4000-8000-000000000002');
+ INSERT INTO users.profile_review(project_id,author_user_id,target_user_id,title,text,rating) VALUES ('00000000-0000-4000-8000-000000000103','00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000002','Review','Text',5);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, err := goose.NewProvider(goose.DialectPostgres, db, Files, goose.WithTableName(versionTable), goose.WithDisableGlobalRegistry(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = provider.Down(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err = db.QueryRowContext(ctx, `SELECT count(*) FROM users.project_context`).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("unsafe retained team grants: %d %v", count, err)
+	}
+	if err = db.QueryRowContext(ctx, `SELECT count(*) FROM users.profile_review`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("review history lost: %d %v", count, err)
 	}
 }

@@ -19,13 +19,16 @@ type Endpoint struct {
 func (e Endpoint) Address() string { return net.JoinHostPort(e.Host, strconv.Itoa(e.Port)) }
 
 type Config struct {
-	DB      postgres.Config `mapstructure:"postgres"`
-	HTTP    Endpoint        `mapstructure:"http"`
-	Auth    Endpoint        `mapstructure:"auth"`
-	User    Endpoint        `mapstructure:"user"`
-	Media   Endpoint        `mapstructure:"media"`
-	Support Endpoint        `mapstructure:"support"`
-	CORS    struct {
+	DB             postgres.Config `mapstructure:"postgres"`
+	HTTP           Endpoint        `mapstructure:"http"`
+	Auth           Endpoint        `mapstructure:"auth"`
+	User           Endpoint        `mapstructure:"user"`
+	Media          Endpoint        `mapstructure:"media"`
+	Project        Endpoint        `mapstructure:"project"`
+	Search         Endpoint        `mapstructure:"search"`
+	Recommendation Endpoint        `mapstructure:"recommendation"`
+	Support        Endpoint        `mapstructure:"support"`
+	CORS           struct {
 		AllowedOrigins []string `mapstructure:"allowed_origins"`
 	} `mapstructure:"cors"`
 }
@@ -54,6 +57,11 @@ func Load(path string) (Config, error) {
 	}
 	if err := validateEndpoint("support", cfg.Support); err != nil {
 		return Config{}, err
+	}
+	for name, endpoint := range map[string]Endpoint{"project": cfg.Project, "search": cfg.Search, "recommendation": cfg.Recommendation} {
+		if err := validateEndpoint(name, endpoint); err != nil {
+			return Config{}, err
+		}
 	}
 	for _, origin := range cfg.CORS.AllowedOrigins {
 		u, err := url.Parse(origin)

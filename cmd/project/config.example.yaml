@@ -1,0 +1,10 @@
+grpc: 127.0.0.1:8087
+peers:
+  user: localhost:8082
+postgres:
+  host: localhost
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+  migration_timeout: 5m

@@ -46,3 +46,10 @@ class ImageUpdateTest(unittest.TestCase):
         self.assertIn("GATEWAY_IMAGE: old-gateway", result)
         with self.assertRaises(ValueError):
             images.update(self.content, [record], "org/matchlab-services")
+
+    def test_first_project_service_release_appends_digest(self):
+        for service in ("project", "search", "recommendation"):
+            record = {"service": service, "image": "ghcr.io/org/backend/" + service + "@sha256:" + "f" * 64}
+            result = images.update(self.content, [record], "org/backend")
+            self.assertIn(record["image"], result)
+            self.assertIn("GATEWAY_IMAGE: old-gateway", result)

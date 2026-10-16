@@ -83,7 +83,8 @@ func TestProfileLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	repo := &Repository{DB: db}
-	s := &Service{Repo: repo, Auth: authStub{}, Media: mediaStub{owner: owner, file: uuid.NewString()}}
+	syncContext := metadata.NewIncomingContext(ctx, metadata.Pairs("x-matchlab-project-token", "integration-token-32-bytes-or-more"))
+	s := &Service{ProjectToken: "integration-token-32-bytes-or-more", Repo: repo, Auth: authStub{}, Media: mediaStub{owner: owner, file: uuid.NewString()}}
 	own, another, moderator := caller(owner), caller(other), caller(mod)
 	mustCode := func(err error, code codes.Code) {
 		t.Helper()
@@ -94,6 +95,19 @@ func TestProfileLifecycle(t *testing.T) {
 	p, err := s.UpdateProfile(own, &pb.ProfileInput{DisplayName: "Анна", Skills: []string{"Go"}, ContactEmail: "anna@hse.ru", Telegram: "anna"})
 	if err != nil || !p.Verified {
 		t.Fatalf("profile: %v %v", p, err)
+	}
+	people, e := s.SearchPeople(ctx, &pb.PeopleQuery{Text: "Анна", Skills: []string{"go"}})
+	if e != nil || people.Total != 1 || len(people.Items) != 1 {
+		t.Fatalf("people filters: %v %v", people, e)
+	}
+	ownPeople, e := s.SearchPeople(own, &pb.PeopleQuery{})
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, person := range ownPeople.Items {
+		if person.UserId == owner {
+			t.Fatal("recommended self")
+		}
 	}
 	guest, err := s.GetProfile(ctx, &pb.ProfileQuery{UserId: owner})
 	if err != nil || guest.Details.ContactEmail != "" {
@@ -194,8 +208,8 @@ func TestProfileLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Current teams may see contacts, completed teams may only create reviews.
-	project := &pb.ProjectContext{ProjectId: uuid.NewString(), Title: "Project", InitiatorUserId: owner, ParticipantUserIds: []string{owner, other}}
-	if _, err = s.RecordProjectContext(moderator, project); err != nil {
+	project := &pb.ProjectContext{ProjectId: uuid.NewString(), Title: "Project", InitiatorUserId: owner, ParticipantUserIds: []string{owner, other}, State: "active", SourceRevision: 1}
+	if _, err = s.RecordProjectContext(syncContext, project); err != nil {
 		t.Fatal(err)
 	}
 	team, err := s.GetProfile(another, &pb.ProfileQuery{UserId: owner})
@@ -206,11 +220,17 @@ func TestProfileLifecycle(t *testing.T) {
 	_, err = s.CreateReview(another, review)
 	mustCode(err, codes.NotFound)
 	project.CompletedAtUnix = time.Now().Add(-time.Minute).Unix()
-	if _, err = s.RecordProjectContext(moderator, project); err != nil {
+	project.State = "completed"
+	project.SourceRevision = 2
+	if _, err = s.RecordProjectContext(syncContext, project); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.RecordProjectContext(moderator, project); err != nil {
+	if _, err = s.RecordProjectContext(syncContext, project); err != nil {
 		t.Fatalf("snapshot not idempotent: %v", err)
+	}
+	stale := &pb.ProjectContext{ProjectId: project.ProjectId, Title: project.Title, InitiatorUserId: owner, ParticipantUserIds: []string{owner, other}, State: "active", SourceRevision: 1}
+	if _, e = s.RecordProjectContext(syncContext, stale); e != nil {
+		t.Fatalf("stale event should be acknowledged: %v", e)
 	}
 	team, err = s.GetProfile(another, &pb.ProfileQuery{UserId: owner})
 	if err != nil || team.Details.ContactEmail != "" {
@@ -231,6 +251,10 @@ func TestProfileLifecycle(t *testing.T) {
 	if err != nil || p.Rating != 5 || p.ReviewCount != 1 || p.PositiveReviewCount != 1 {
 		t.Fatalf("rating: %v %v", p, err)
 	}
+	people, e = s.SearchPeople(another, &pb.PeopleQuery{Publications: true})
+	if e != nil || len(people.Items) != 1 || people.Items[0].CompletedProjectCount != 1 {
+		t.Fatalf("verified publications and completed projects: %v %v", people, e)
+	}
 	if _, err = s.BlockUser(own, &pb.UserID{UserId: other}); err != nil {
 		t.Fatal(err)
 	}
@@ -240,6 +264,15 @@ func TestProfileLifecycle(t *testing.T) {
 	result, err := s.CheckInteraction(another, &pb.InteractionQuery{FromUserId: other, ToUserId: owner})
 	if err != nil || !result.Blocked {
 		t.Fatal("block ineffective")
+	}
+	people, e = s.SearchPeople(another, &pb.PeopleQuery{})
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, person := range people.Items {
+		if person.UserId == owner {
+			t.Fatal("blocked person in search")
+		}
 	}
 	blocks, err := s.ListBlocks(own, &pb.Page{})
 	if err != nil || len(blocks.Items) != 1 {

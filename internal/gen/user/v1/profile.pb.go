@@ -338,15 +338,16 @@ func (x *ProfileInput) GetTelegram() string {
 }
 
 type Profile struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	UserId              string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Details             *ProfileInput          `protobuf:"bytes,2,opt,name=details,proto3" json:"details,omitempty"`
-	Verified            bool                   `protobuf:"varint,3,opt,name=verified,proto3" json:"verified,omitempty"` // confirmed exact hse.ru or edu.hse.ru email
-	Rating              float64                `protobuf:"fixed64,4,opt,name=rating,proto3" json:"rating,omitempty"`
-	ReviewCount         int32                  `protobuf:"varint,5,opt,name=review_count,json=reviewCount,proto3" json:"review_count,omitempty"`
-	PositiveReviewCount int32                  `protobuf:"varint,6,opt,name=positive_review_count,json=positiveReviewCount,proto3" json:"positive_review_count,omitempty"` // rating >= 4
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	UserId                string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Details               *ProfileInput          `protobuf:"bytes,2,opt,name=details,proto3" json:"details,omitempty"`
+	Verified              bool                   `protobuf:"varint,3,opt,name=verified,proto3" json:"verified,omitempty"` // confirmed exact hse.ru or edu.hse.ru email
+	Rating                float64                `protobuf:"fixed64,4,opt,name=rating,proto3" json:"rating,omitempty"`
+	ReviewCount           int32                  `protobuf:"varint,5,opt,name=review_count,json=reviewCount,proto3" json:"review_count,omitempty"`
+	PositiveReviewCount   int32                  `protobuf:"varint,6,opt,name=positive_review_count,json=positiveReviewCount,proto3" json:"positive_review_count,omitempty"` // rating >= 4
+	CompletedProjectCount int32                  `protobuf:"varint,7,opt,name=completed_project_count,json=completedProjectCount,proto3" json:"completed_project_count,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Profile) Reset() {
@@ -417,6 +418,13 @@ func (x *Profile) GetReviewCount() int32 {
 func (x *Profile) GetPositiveReviewCount() int32 {
 	if x != nil {
 		return x.PositiveReviewCount
+	}
+	return 0
+}
+
+func (x *Profile) GetCompletedProjectCount() int32 {
+	if x != nil {
+		return x.CompletedProjectCount
 	}
 	return 0
 }
@@ -1149,7 +1157,9 @@ type ProjectContext struct {
 	Title              string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	InitiatorUserId    string                 `protobuf:"bytes,3,opt,name=initiator_user_id,json=initiatorUserId,proto3" json:"initiator_user_id,omitempty"`
 	ParticipantUserIds []string               `protobuf:"bytes,4,rep,name=participant_user_ids,json=participantUserIds,proto3" json:"participant_user_ids,omitempty"`
-	CompletedAtUnix    int64                  `protobuf:"varint,5,opt,name=completed_at_unix,json=completedAtUnix,proto3" json:"completed_at_unix,omitempty"` // 0 means current team; positive means completed.
+	CompletedAtUnix    int64                  `protobuf:"varint,5,opt,name=completed_at_unix,json=completedAtUnix,proto3" json:"completed_at_unix,omitempty"` // 0 means not completed.
+	State              string                 `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"`                                               // active/completed/cancelled
+	SourceRevision     int64                  `protobuf:"varint,7,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1215,6 +1225,20 @@ func (x *ProjectContext) GetParticipantUserIds() []string {
 func (x *ProjectContext) GetCompletedAtUnix() int64 {
 	if x != nil {
 		return x.CompletedAtUnix
+	}
+	return 0
+}
+
+func (x *ProjectContext) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ProjectContext) GetSourceRevision() int64 {
+	if x != nil {
+		return x.SourceRevision
 	}
 	return 0
 }
@@ -1523,6 +1547,427 @@ func (x *ReviewList) GetItems() []*Review {
 	return nil
 }
 
+type Identity struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Role          string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Identity) Reset() {
+	*x = Identity{}
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Identity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Identity) ProtoMessage() {}
+
+func (x *Identity) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Identity.ProtoReflect.Descriptor instead.
+func (*Identity) Descriptor() ([]byte, []int) {
+	return file_api_proto_user_v1_profile_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *Identity) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *Identity) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+type ParticipationFlags struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	ShowParticipatingProjects bool                   `protobuf:"varint,1,opt,name=show_participating_projects,json=showParticipatingProjects,proto3" json:"show_participating_projects,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *ParticipationFlags) Reset() {
+	*x = ParticipationFlags{}
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ParticipationFlags) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ParticipationFlags) ProtoMessage() {}
+
+func (x *ParticipationFlags) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ParticipationFlags.ProtoReflect.Descriptor instead.
+func (*ParticipationFlags) Descriptor() ([]byte, []int) {
+	return file_api_proto_user_v1_profile_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *ParticipationFlags) GetShowParticipatingProjects() bool {
+	if x != nil {
+		return x.ShowParticipatingProjects
+	}
+	return false
+}
+
+type PeopleQuery struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Text             string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Skills           []string               `protobuf:"bytes,2,rep,name=skills,proto3" json:"skills,omitempty"`
+	Interests        []string               `protobuf:"bytes,3,rep,name=interests,proto3" json:"interests,omitempty"`
+	University       string                 `protobuf:"bytes,4,opt,name=university,proto3" json:"university,omitempty"`
+	MyUniversity     bool                   `protobuf:"varint,5,opt,name=my_university,json=myUniversity,proto3" json:"my_university,omitempty"`
+	OpenOnly         bool                   `protobuf:"varint,6,opt,name=open_only,json=openOnly,proto3" json:"open_only,omitempty"`
+	VerifiedOnly     bool                   `protobuf:"varint,7,opt,name=verified_only,json=verifiedOnly,proto3" json:"verified_only,omitempty"`
+	VerifiedProjects bool                   `protobuf:"varint,8,opt,name=verified_projects,json=verifiedProjects,proto3" json:"verified_projects,omitempty"`
+	Publications     bool                   `protobuf:"varint,9,opt,name=publications,proto3" json:"publications,omitempty"`
+	ProjectType      string                 `protobuf:"bytes,10,opt,name=project_type,json=projectType,proto3" json:"project_type,omitempty"`
+	Page             *Page                  `protobuf:"bytes,11,opt,name=page,proto3" json:"page,omitempty"`
+	RandomOrder      bool                   `protobuf:"varint,12,opt,name=random_order,json=randomOrder,proto3" json:"random_order,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *PeopleQuery) Reset() {
+	*x = PeopleQuery{}
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PeopleQuery) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PeopleQuery) ProtoMessage() {}
+
+func (x *PeopleQuery) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PeopleQuery.ProtoReflect.Descriptor instead.
+func (*PeopleQuery) Descriptor() ([]byte, []int) {
+	return file_api_proto_user_v1_profile_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *PeopleQuery) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *PeopleQuery) GetSkills() []string {
+	if x != nil {
+		return x.Skills
+	}
+	return nil
+}
+
+func (x *PeopleQuery) GetInterests() []string {
+	if x != nil {
+		return x.Interests
+	}
+	return nil
+}
+
+func (x *PeopleQuery) GetUniversity() string {
+	if x != nil {
+		return x.University
+	}
+	return ""
+}
+
+func (x *PeopleQuery) GetMyUniversity() bool {
+	if x != nil {
+		return x.MyUniversity
+	}
+	return false
+}
+
+func (x *PeopleQuery) GetOpenOnly() bool {
+	if x != nil {
+		return x.OpenOnly
+	}
+	return false
+}
+
+func (x *PeopleQuery) GetVerifiedOnly() bool {
+	if x != nil {
+		return x.VerifiedOnly
+	}
+	return false
+}
+
+func (x *PeopleQuery) GetVerifiedProjects() bool {
+	if x != nil {
+		return x.VerifiedProjects
+	}
+	return false
+}
+
+func (x *PeopleQuery) GetPublications() bool {
+	if x != nil {
+		return x.Publications
+	}
+	return false
+}
+
+func (x *PeopleQuery) GetProjectType() string {
+	if x != nil {
+		return x.ProjectType
+	}
+	return ""
+}
+
+func (x *PeopleQuery) GetPage() *Page {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *PeopleQuery) GetRandomOrder() bool {
+	if x != nil {
+		return x.RandomOrder
+	}
+	return false
+}
+
+// A separate public card prevents contacts and proof IDs leaking through search.
+type Person struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	UserId                string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	DisplayName           string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	AvatarFileId          string                 `protobuf:"bytes,3,opt,name=avatar_file_id,json=avatarFileId,proto3" json:"avatar_file_id,omitempty"`
+	University            string                 `protobuf:"bytes,4,opt,name=university,proto3" json:"university,omitempty"`
+	StudyLevel            string                 `protobuf:"bytes,5,opt,name=study_level,json=studyLevel,proto3" json:"study_level,omitempty"`
+	StudyYear             int32                  `protobuf:"varint,6,opt,name=study_year,json=studyYear,proto3" json:"study_year,omitempty"`
+	Specialization        string                 `protobuf:"bytes,7,opt,name=specialization,proto3" json:"specialization,omitempty"`
+	Skills                []string               `protobuf:"bytes,8,rep,name=skills,proto3" json:"skills,omitempty"`
+	Interests             []string               `protobuf:"bytes,9,rep,name=interests,proto3" json:"interests,omitempty"`
+	OpenToCollaboration   bool                   `protobuf:"varint,10,opt,name=open_to_collaboration,json=openToCollaboration,proto3" json:"open_to_collaboration,omitempty"`
+	Verified              bool                   `protobuf:"varint,11,opt,name=verified,proto3" json:"verified,omitempty"`
+	Rating                float64                `protobuf:"fixed64,12,opt,name=rating,proto3" json:"rating,omitempty"`
+	CompletedProjectCount int32                  `protobuf:"varint,13,opt,name=completed_project_count,json=completedProjectCount,proto3" json:"completed_project_count,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *Person) Reset() {
+	*x = Person{}
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Person) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Person) ProtoMessage() {}
+
+func (x *Person) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Person.ProtoReflect.Descriptor instead.
+func (*Person) Descriptor() ([]byte, []int) {
+	return file_api_proto_user_v1_profile_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *Person) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *Person) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *Person) GetAvatarFileId() string {
+	if x != nil {
+		return x.AvatarFileId
+	}
+	return ""
+}
+
+func (x *Person) GetUniversity() string {
+	if x != nil {
+		return x.University
+	}
+	return ""
+}
+
+func (x *Person) GetStudyLevel() string {
+	if x != nil {
+		return x.StudyLevel
+	}
+	return ""
+}
+
+func (x *Person) GetStudyYear() int32 {
+	if x != nil {
+		return x.StudyYear
+	}
+	return 0
+}
+
+func (x *Person) GetSpecialization() string {
+	if x != nil {
+		return x.Specialization
+	}
+	return ""
+}
+
+func (x *Person) GetSkills() []string {
+	if x != nil {
+		return x.Skills
+	}
+	return nil
+}
+
+func (x *Person) GetInterests() []string {
+	if x != nil {
+		return x.Interests
+	}
+	return nil
+}
+
+func (x *Person) GetOpenToCollaboration() bool {
+	if x != nil {
+		return x.OpenToCollaboration
+	}
+	return false
+}
+
+func (x *Person) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *Person) GetRating() float64 {
+	if x != nil {
+		return x.Rating
+	}
+	return 0
+}
+
+func (x *Person) GetCompletedProjectCount() int32 {
+	if x != nil {
+		return x.CompletedProjectCount
+	}
+	return 0
+}
+
+type PeopleList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*Person              `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PeopleList) Reset() {
+	*x = PeopleList{}
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PeopleList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PeopleList) ProtoMessage() {}
+
+func (x *PeopleList) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_user_v1_profile_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PeopleList.ProtoReflect.Descriptor instead.
+func (*PeopleList) Descriptor() ([]byte, []int) {
+	return file_api_proto_user_v1_profile_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *PeopleList) GetItems() []*Person {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *PeopleList) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
 var File_api_proto_user_v1_profile_proto protoreflect.FileDescriptor
 
 const file_api_proto_user_v1_profile_proto_rawDesc = "" +
@@ -1554,14 +1999,15 @@ const file_api_proto_user_v1_profile_proto_rawDesc = "" +
 	" \x03(\tR\tinterests\x12\x16\n" +
 	"\x06skills\x18\v \x03(\tR\x06skills\x12#\n" +
 	"\rcontact_email\x18\f \x01(\tR\fcontactEmail\x12\x1a\n" +
-	"\btelegram\x18\r \x01(\tR\btelegram\"\xe7\x01\n" +
+	"\btelegram\x18\r \x01(\tR\btelegram\"\x9f\x02\n" +
 	"\aProfile\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x128\n" +
 	"\adetails\x18\x02 \x01(\v2\x1e.matchlab.user.v1.ProfileInputR\adetails\x12\x1a\n" +
 	"\bverified\x18\x03 \x01(\bR\bverified\x12\x16\n" +
 	"\x06rating\x18\x04 \x01(\x01R\x06rating\x12!\n" +
 	"\freview_count\x18\x05 \x01(\x05R\vreviewCount\x122\n" +
-	"\x15positive_review_count\x18\x06 \x01(\x05R\x13positiveReviewCount\"v\n" +
+	"\x15positive_review_count\x18\x06 \x01(\x05R\x13positiveReviewCount\x126\n" +
+	"\x17completed_project_count\x18\a \x01(\x05R\x15completedProjectCount\"v\n" +
 	"\x0fPrivacySettings\x12#\n" +
 	"\rshow_contacts\x18\x01 \x01(\bR\fshowContacts\x12>\n" +
 	"\x1bshow_participating_projects\x18\x02 \x01(\bR\x19showParticipatingProjects\"k\n" +
@@ -1611,14 +2057,16 @@ const file_api_proto_user_v1_profile_proto_rawDesc = "" +
 	"\acomment\x18\x04 \x01(\tR\acomment\"U\n" +
 	"\bEvidence\x12!\n" +
 	"\fdownload_url\x18\x01 \x01(\tR\vdownloadUrl\x12&\n" +
-	"\x0fexpires_at_unix\x18\x02 \x01(\x03R\rexpiresAtUnix\"\xcf\x01\n" +
+	"\x0fexpires_at_unix\x18\x02 \x01(\x03R\rexpiresAtUnix\"\x8e\x02\n" +
 	"\x0eProjectContext\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12*\n" +
 	"\x11initiator_user_id\x18\x03 \x01(\tR\x0finitiatorUserId\x120\n" +
 	"\x14participant_user_ids\x18\x04 \x03(\tR\x12participantUserIds\x12*\n" +
-	"\x11completed_at_unix\x18\x05 \x01(\x03R\x0fcompletedAtUnix\"R\n" +
+	"\x11completed_at_unix\x18\x05 \x01(\x03R\x0fcompletedAtUnix\x12\x14\n" +
+	"\x05state\x18\x06 \x01(\tR\x05state\x12'\n" +
+	"\x0fsource_revision\x18\a \x01(\x03R\x0esourceRevision\"R\n" +
 	"\vReviewQuery\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12*\n" +
 	"\x04page\x18\x02 \x01(\v2\x16.matchlab.user.v1.PageR\x04page\"\x94\x01\n" +
@@ -1647,8 +2095,55 @@ const file_api_proto_user_v1_profile_proto_rawDesc = "" +
 	"\x19project_completed_at_unix\x18\f \x01(\x03R\x16projectCompletedAtUnix\"<\n" +
 	"\n" +
 	"ReviewList\x12.\n" +
-	"\x05items\x18\x01 \x03(\v2\x18.matchlab.user.v1.ReviewR\x05items2\x80\f\n" +
-	"\x0eProfileService\x12G\n" +
+	"\x05items\x18\x01 \x03(\v2\x18.matchlab.user.v1.ReviewR\x05items\"7\n" +
+	"\bIdentity\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\"T\n" +
+	"\x12ParticipationFlags\x12>\n" +
+	"\x1bshow_participating_projects\x18\x01 \x01(\bR\x19showParticipatingProjects\"\xa1\x03\n" +
+	"\vPeopleQuery\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x12\x16\n" +
+	"\x06skills\x18\x02 \x03(\tR\x06skills\x12\x1c\n" +
+	"\tinterests\x18\x03 \x03(\tR\tinterests\x12\x1e\n" +
+	"\n" +
+	"university\x18\x04 \x01(\tR\n" +
+	"university\x12#\n" +
+	"\rmy_university\x18\x05 \x01(\bR\fmyUniversity\x12\x1b\n" +
+	"\topen_only\x18\x06 \x01(\bR\bopenOnly\x12#\n" +
+	"\rverified_only\x18\a \x01(\bR\fverifiedOnly\x12+\n" +
+	"\x11verified_projects\x18\b \x01(\bR\x10verifiedProjects\x12\"\n" +
+	"\fpublications\x18\t \x01(\bR\fpublications\x12!\n" +
+	"\fproject_type\x18\n" +
+	" \x01(\tR\vprojectType\x12*\n" +
+	"\x04page\x18\v \x01(\v2\x16.matchlab.user.v1.PageR\x04page\x12!\n" +
+	"\frandom_order\x18\f \x01(\bR\vrandomOrder\"\xc8\x03\n" +
+	"\x06Person\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12$\n" +
+	"\x0eavatar_file_id\x18\x03 \x01(\tR\favatarFileId\x12\x1e\n" +
+	"\n" +
+	"university\x18\x04 \x01(\tR\n" +
+	"university\x12\x1f\n" +
+	"\vstudy_level\x18\x05 \x01(\tR\n" +
+	"studyLevel\x12\x1d\n" +
+	"\n" +
+	"study_year\x18\x06 \x01(\x05R\tstudyYear\x12&\n" +
+	"\x0especialization\x18\a \x01(\tR\x0especialization\x12\x16\n" +
+	"\x06skills\x18\b \x03(\tR\x06skills\x12\x1c\n" +
+	"\tinterests\x18\t \x03(\tR\tinterests\x122\n" +
+	"\x15open_to_collaboration\x18\n" +
+	" \x01(\bR\x13openToCollaboration\x12\x1a\n" +
+	"\bverified\x18\v \x01(\bR\bverified\x12\x16\n" +
+	"\x06rating\x18\f \x01(\x01R\x06rating\x126\n" +
+	"\x17completed_project_count\x18\r \x01(\x05R\x15completedProjectCount\"R\n" +
+	"\n" +
+	"PeopleList\x12.\n" +
+	"\x05items\x18\x01 \x03(\v2\x18.matchlab.user.v1.PersonR\x05items\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total2\xec\r\n" +
+	"\x0eProfileService\x12B\n" +
+	"\vGetIdentity\x12\x17.matchlab.user.v1.Empty\x1a\x1a.matchlab.user.v1.Identity\x12K\n" +
+	"\fSearchPeople\x12\x1d.matchlab.user.v1.PeopleQuery\x1a\x1c.matchlab.user.v1.PeopleList\x12Y\n" +
+	"\x17ParticipationVisibility\x12\x18.matchlab.user.v1.UserID\x1a$.matchlab.user.v1.ParticipationFlags\x12G\n" +
 	"\n" +
 	"GetProfile\x12\x1e.matchlab.user.v1.ProfileQuery\x1a\x19.matchlab.user.v1.Profile\x12J\n" +
 	"\rUpdateProfile\x12\x1e.matchlab.user.v1.ProfileInput\x1a\x19.matchlab.user.v1.Profile\x12I\n" +
@@ -1683,7 +2178,7 @@ func file_api_proto_user_v1_profile_proto_rawDescGZIP() []byte {
 	return file_api_proto_user_v1_profile_proto_rawDescData
 }
 
-var file_api_proto_user_v1_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_api_proto_user_v1_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_api_proto_user_v1_profile_proto_goTypes = []any{
 	(*Empty)(nil),                // 0: matchlab.user.v1.Empty
 	(*Page)(nil),                 // 1: matchlab.user.v1.Page
@@ -1708,6 +2203,11 @@ var file_api_proto_user_v1_profile_proto_goTypes = []any{
 	(*ReviewInput)(nil),          // 20: matchlab.user.v1.ReviewInput
 	(*Review)(nil),               // 21: matchlab.user.v1.Review
 	(*ReviewList)(nil),           // 22: matchlab.user.v1.ReviewList
+	(*Identity)(nil),             // 23: matchlab.user.v1.Identity
+	(*ParticipationFlags)(nil),   // 24: matchlab.user.v1.ParticipationFlags
+	(*PeopleQuery)(nil),          // 25: matchlab.user.v1.PeopleQuery
+	(*Person)(nil),               // 26: matchlab.user.v1.Person
+	(*PeopleList)(nil),           // 27: matchlab.user.v1.PeopleList
 }
 var file_api_proto_user_v1_profile_proto_depIdxs = []int32{
 	4,  // 0: matchlab.user.v1.Profile.details:type_name -> matchlab.user.v1.ProfileInput
@@ -1717,49 +2217,57 @@ var file_api_proto_user_v1_profile_proto_depIdxs = []int32{
 	12, // 4: matchlab.user.v1.BlockList.items:type_name -> matchlab.user.v1.Block
 	1,  // 5: matchlab.user.v1.ReviewQuery.page:type_name -> matchlab.user.v1.Page
 	21, // 6: matchlab.user.v1.ReviewList.items:type_name -> matchlab.user.v1.Review
-	3,  // 7: matchlab.user.v1.ProfileService.GetProfile:input_type -> matchlab.user.v1.ProfileQuery
-	4,  // 8: matchlab.user.v1.ProfileService.UpdateProfile:input_type -> matchlab.user.v1.ProfileInput
-	0,  // 9: matchlab.user.v1.ProfileService.GetSettings:input_type -> matchlab.user.v1.Empty
-	6,  // 10: matchlab.user.v1.ProfileService.UpdateSettings:input_type -> matchlab.user.v1.PrivacySettings
-	7,  // 11: matchlab.user.v1.ProfileService.ListAchievements:input_type -> matchlab.user.v1.AchievementQuery
-	8,  // 12: matchlab.user.v1.ProfileService.GetAchievement:input_type -> matchlab.user.v1.AchievementID
-	9,  // 13: matchlab.user.v1.ProfileService.SaveAchievement:input_type -> matchlab.user.v1.AchievementInput
-	8,  // 14: matchlab.user.v1.ProfileService.DeleteAchievement:input_type -> matchlab.user.v1.AchievementID
-	8,  // 15: matchlab.user.v1.ProfileService.SubmitAchievement:input_type -> matchlab.user.v1.AchievementID
-	1,  // 16: matchlab.user.v1.ProfileService.ListBlocks:input_type -> matchlab.user.v1.Page
-	2,  // 17: matchlab.user.v1.ProfileService.BlockUser:input_type -> matchlab.user.v1.UserID
-	2,  // 18: matchlab.user.v1.ProfileService.UnblockUser:input_type -> matchlab.user.v1.UserID
-	14, // 19: matchlab.user.v1.ProfileService.CheckInteraction:input_type -> matchlab.user.v1.InteractionQuery
-	19, // 20: matchlab.user.v1.ProfileService.ListReviews:input_type -> matchlab.user.v1.ReviewQuery
-	20, // 21: matchlab.user.v1.ProfileService.CreateReview:input_type -> matchlab.user.v1.ReviewInput
-	1,  // 22: matchlab.user.v1.ProfileService.ListVerificationQueue:input_type -> matchlab.user.v1.Page
-	16, // 23: matchlab.user.v1.ProfileService.ReviewAchievement:input_type -> matchlab.user.v1.VerificationDecision
-	8,  // 24: matchlab.user.v1.ProfileService.GetAchievementEvidence:input_type -> matchlab.user.v1.AchievementID
-	18, // 25: matchlab.user.v1.ProfileService.RecordProjectContext:input_type -> matchlab.user.v1.ProjectContext
-	5,  // 26: matchlab.user.v1.ProfileService.GetProfile:output_type -> matchlab.user.v1.Profile
-	5,  // 27: matchlab.user.v1.ProfileService.UpdateProfile:output_type -> matchlab.user.v1.Profile
-	6,  // 28: matchlab.user.v1.ProfileService.GetSettings:output_type -> matchlab.user.v1.PrivacySettings
-	6,  // 29: matchlab.user.v1.ProfileService.UpdateSettings:output_type -> matchlab.user.v1.PrivacySettings
-	11, // 30: matchlab.user.v1.ProfileService.ListAchievements:output_type -> matchlab.user.v1.AchievementList
-	10, // 31: matchlab.user.v1.ProfileService.GetAchievement:output_type -> matchlab.user.v1.Achievement
-	10, // 32: matchlab.user.v1.ProfileService.SaveAchievement:output_type -> matchlab.user.v1.Achievement
-	0,  // 33: matchlab.user.v1.ProfileService.DeleteAchievement:output_type -> matchlab.user.v1.Empty
-	10, // 34: matchlab.user.v1.ProfileService.SubmitAchievement:output_type -> matchlab.user.v1.Achievement
-	13, // 35: matchlab.user.v1.ProfileService.ListBlocks:output_type -> matchlab.user.v1.BlockList
-	0,  // 36: matchlab.user.v1.ProfileService.BlockUser:output_type -> matchlab.user.v1.Empty
-	0,  // 37: matchlab.user.v1.ProfileService.UnblockUser:output_type -> matchlab.user.v1.Empty
-	15, // 38: matchlab.user.v1.ProfileService.CheckInteraction:output_type -> matchlab.user.v1.InteractionResult
-	22, // 39: matchlab.user.v1.ProfileService.ListReviews:output_type -> matchlab.user.v1.ReviewList
-	21, // 40: matchlab.user.v1.ProfileService.CreateReview:output_type -> matchlab.user.v1.Review
-	11, // 41: matchlab.user.v1.ProfileService.ListVerificationQueue:output_type -> matchlab.user.v1.AchievementList
-	10, // 42: matchlab.user.v1.ProfileService.ReviewAchievement:output_type -> matchlab.user.v1.Achievement
-	17, // 43: matchlab.user.v1.ProfileService.GetAchievementEvidence:output_type -> matchlab.user.v1.Evidence
-	0,  // 44: matchlab.user.v1.ProfileService.RecordProjectContext:output_type -> matchlab.user.v1.Empty
-	26, // [26:45] is the sub-list for method output_type
-	7,  // [7:26] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	1,  // 7: matchlab.user.v1.PeopleQuery.page:type_name -> matchlab.user.v1.Page
+	26, // 8: matchlab.user.v1.PeopleList.items:type_name -> matchlab.user.v1.Person
+	0,  // 9: matchlab.user.v1.ProfileService.GetIdentity:input_type -> matchlab.user.v1.Empty
+	25, // 10: matchlab.user.v1.ProfileService.SearchPeople:input_type -> matchlab.user.v1.PeopleQuery
+	2,  // 11: matchlab.user.v1.ProfileService.ParticipationVisibility:input_type -> matchlab.user.v1.UserID
+	3,  // 12: matchlab.user.v1.ProfileService.GetProfile:input_type -> matchlab.user.v1.ProfileQuery
+	4,  // 13: matchlab.user.v1.ProfileService.UpdateProfile:input_type -> matchlab.user.v1.ProfileInput
+	0,  // 14: matchlab.user.v1.ProfileService.GetSettings:input_type -> matchlab.user.v1.Empty
+	6,  // 15: matchlab.user.v1.ProfileService.UpdateSettings:input_type -> matchlab.user.v1.PrivacySettings
+	7,  // 16: matchlab.user.v1.ProfileService.ListAchievements:input_type -> matchlab.user.v1.AchievementQuery
+	8,  // 17: matchlab.user.v1.ProfileService.GetAchievement:input_type -> matchlab.user.v1.AchievementID
+	9,  // 18: matchlab.user.v1.ProfileService.SaveAchievement:input_type -> matchlab.user.v1.AchievementInput
+	8,  // 19: matchlab.user.v1.ProfileService.DeleteAchievement:input_type -> matchlab.user.v1.AchievementID
+	8,  // 20: matchlab.user.v1.ProfileService.SubmitAchievement:input_type -> matchlab.user.v1.AchievementID
+	1,  // 21: matchlab.user.v1.ProfileService.ListBlocks:input_type -> matchlab.user.v1.Page
+	2,  // 22: matchlab.user.v1.ProfileService.BlockUser:input_type -> matchlab.user.v1.UserID
+	2,  // 23: matchlab.user.v1.ProfileService.UnblockUser:input_type -> matchlab.user.v1.UserID
+	14, // 24: matchlab.user.v1.ProfileService.CheckInteraction:input_type -> matchlab.user.v1.InteractionQuery
+	19, // 25: matchlab.user.v1.ProfileService.ListReviews:input_type -> matchlab.user.v1.ReviewQuery
+	20, // 26: matchlab.user.v1.ProfileService.CreateReview:input_type -> matchlab.user.v1.ReviewInput
+	1,  // 27: matchlab.user.v1.ProfileService.ListVerificationQueue:input_type -> matchlab.user.v1.Page
+	16, // 28: matchlab.user.v1.ProfileService.ReviewAchievement:input_type -> matchlab.user.v1.VerificationDecision
+	8,  // 29: matchlab.user.v1.ProfileService.GetAchievementEvidence:input_type -> matchlab.user.v1.AchievementID
+	18, // 30: matchlab.user.v1.ProfileService.RecordProjectContext:input_type -> matchlab.user.v1.ProjectContext
+	23, // 31: matchlab.user.v1.ProfileService.GetIdentity:output_type -> matchlab.user.v1.Identity
+	27, // 32: matchlab.user.v1.ProfileService.SearchPeople:output_type -> matchlab.user.v1.PeopleList
+	24, // 33: matchlab.user.v1.ProfileService.ParticipationVisibility:output_type -> matchlab.user.v1.ParticipationFlags
+	5,  // 34: matchlab.user.v1.ProfileService.GetProfile:output_type -> matchlab.user.v1.Profile
+	5,  // 35: matchlab.user.v1.ProfileService.UpdateProfile:output_type -> matchlab.user.v1.Profile
+	6,  // 36: matchlab.user.v1.ProfileService.GetSettings:output_type -> matchlab.user.v1.PrivacySettings
+	6,  // 37: matchlab.user.v1.ProfileService.UpdateSettings:output_type -> matchlab.user.v1.PrivacySettings
+	11, // 38: matchlab.user.v1.ProfileService.ListAchievements:output_type -> matchlab.user.v1.AchievementList
+	10, // 39: matchlab.user.v1.ProfileService.GetAchievement:output_type -> matchlab.user.v1.Achievement
+	10, // 40: matchlab.user.v1.ProfileService.SaveAchievement:output_type -> matchlab.user.v1.Achievement
+	0,  // 41: matchlab.user.v1.ProfileService.DeleteAchievement:output_type -> matchlab.user.v1.Empty
+	10, // 42: matchlab.user.v1.ProfileService.SubmitAchievement:output_type -> matchlab.user.v1.Achievement
+	13, // 43: matchlab.user.v1.ProfileService.ListBlocks:output_type -> matchlab.user.v1.BlockList
+	0,  // 44: matchlab.user.v1.ProfileService.BlockUser:output_type -> matchlab.user.v1.Empty
+	0,  // 45: matchlab.user.v1.ProfileService.UnblockUser:output_type -> matchlab.user.v1.Empty
+	15, // 46: matchlab.user.v1.ProfileService.CheckInteraction:output_type -> matchlab.user.v1.InteractionResult
+	22, // 47: matchlab.user.v1.ProfileService.ListReviews:output_type -> matchlab.user.v1.ReviewList
+	21, // 48: matchlab.user.v1.ProfileService.CreateReview:output_type -> matchlab.user.v1.Review
+	11, // 49: matchlab.user.v1.ProfileService.ListVerificationQueue:output_type -> matchlab.user.v1.AchievementList
+	10, // 50: matchlab.user.v1.ProfileService.ReviewAchievement:output_type -> matchlab.user.v1.Achievement
+	17, // 51: matchlab.user.v1.ProfileService.GetAchievementEvidence:output_type -> matchlab.user.v1.Evidence
+	0,  // 52: matchlab.user.v1.ProfileService.RecordProjectContext:output_type -> matchlab.user.v1.Empty
+	31, // [31:53] is the sub-list for method output_type
+	9,  // [9:31] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_user_v1_profile_proto_init() }
@@ -1773,7 +2281,7 @@ func file_api_proto_user_v1_profile_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_user_v1_profile_proto_rawDesc), len(file_api_proto_user_v1_profile_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

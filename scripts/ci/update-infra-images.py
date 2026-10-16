@@ -4,7 +4,7 @@ import json
 import re
 from pathlib import Path
 
-SERVICES = {name: name.upper().replace("-", "_") + "_IMAGE" for name in ("gateway", "auth", "user", "mail", "media", "support", "api-docs")}
+SERVICES = {name: name.upper().replace("-", "_") + "_IMAGE" for name in ("gateway", "auth", "user", "mail", "media", "support", "project", "search", "recommendation", "api-docs")}
 
 
 def update(content, records, repository):
@@ -21,6 +21,14 @@ def update(content, records, repository):
         if not image.startswith(expected) or not re.fullmatch(r"[a-f0-9]{64}", image[len(expected):]):
             raise ValueError("Unexpected image for " + service)
         pattern = re.compile(r"^  " + SERVICES[service] + r": [^\n]+$", re.MULTILINE)
+        if not pattern.findall(content) and service in {"project", "search", "recommendation"}:
+            # First release introduces a digest without requiring a fake placeholder.
+            match = re.search(r"^data:\n(?:[ \t].*\n|#.*\n|\n)*", content, re.MULTILINE)
+            if not match:
+                raise ValueError("Expected ConfigMap data block")
+            pos = match.end()
+            content = content[:pos] + "  " + SERVICES[service] + ": " + image + "\n" + content[pos:]
+            continue
         if len(pattern.findall(content)) != 1:
             raise ValueError("Expected one image entry for " + service)
         content = pattern.sub("  " + SERVICES[service] + ": " + image, content)

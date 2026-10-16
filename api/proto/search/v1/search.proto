@@ -1,0 +1,9 @@
+syntax = "proto3";
+package matchlab.search.v1;
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/search/v1;searchv1";
+import "api/proto/user/v1/profile.proto";
+import "api/proto/project/v1/project.proto";
+service SearchService {
+ rpc People(matchlab.user.v1.PeopleQuery) returns (matchlab.user.v1.PeopleList);
+ rpc Projects(matchlab.project.v1.ProjectQuery) returns (matchlab.project.v1.ProjectList);
+}

@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	authpb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
 	media "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
@@ -27,9 +28,10 @@ type Media interface {
 }
 type Service struct {
 	pb.UnimplementedProfileServiceServer
-	Repo  *Repository
-	Auth  Auth
-	Media Media
+	Repo         *Repository
+	Auth         Auth
+	Media        Media
+	ProjectToken string
 }
 
 func validID(id string) bool {
@@ -450,10 +452,15 @@ func (s *Service) GetAchievementEvidence(ctx context.Context, p *pb.AchievementI
 	return &pb.Evidence{DownloadUrl: res.GetDownloadUrl(), ExpiresAtUnix: res.GetExpiresAtUnix()}, nil
 }
 func (s *Service) RecordProjectContext(ctx context.Context, p *pb.ProjectContext) (*pb.Empty, error) {
-	if _, err := s.actor(ctx, true, true); err != nil {
-		return nil, err
+	tokens := metadata.ValueFromIncomingContext(ctx, "x-matchlab-project-token")
+	if s.ProjectToken == "" || len(tokens) != 1 || subtle.ConstantTimeCompare([]byte(tokens[0]), []byte(s.ProjectToken)) != 1 {
+		return nil, status.Error(codes.PermissionDenied, "требуется сервис Projects")
 	}
-	if !validID(p.ProjectId) || !validID(p.InitiatorUserId) || !text(p.Title, 255, true) || p.CompletedAtUnix < 0 || p.CompletedAtUnix > time.Now().Unix() || len(p.ParticipantUserIds) < 1 || len(p.ParticipantUserIds) > 1000 {
+	if p.SourceRevision < 1 || (p.State != "active" && p.State != "completed" && p.State != "cancelled") || (p.State == "completed") != (p.CompletedAtUnix > 0) {
+		return nil, invalid()
+	}
+
+	if !validID(p.ProjectId) || !validID(p.InitiatorUserId) || !text(p.Title, 255, true) || p.CompletedAtUnix < 0 || p.CompletedAtUnix > time.Now().Unix() || len(p.ParticipantUserIds) < 1 || len(p.ParticipantUserIds) > 3001 {
 		return nil, invalid()
 	}
 	seen := map[string]bool{}
