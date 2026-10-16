@@ -290,11 +290,14 @@ func (r *Repository) RecordProject(ctx context.Context, p *pb.ProjectContext) er
 	if _, err = tx.ExecContext(ctx, `DELETE FROM users.project_context_member WHERE project_id=$1`, p.ProjectId); err != nil {
 		return err
 	}
-	for _, id := range p.ParticipantUserIds {
-		if _, err = tx.ExecContext(ctx, `INSERT INTO users.project_context_member(project_id,user_id) VALUES($1,$2)`, p.ProjectId, id); err != nil {
-			return dbError(err)
-		}
+	members, err := json.Marshal(p.ParticipantUserIds)
+	if err != nil {
+		return err
 	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO users.project_context_member(project_id,user_id) SELECT $1,value::uuid FROM jsonb_array_elements_text($2::jsonb)`, p.ProjectId, string(members)); err != nil {
+		return dbError(err)
+	}
+
 	return tx.Commit()
 }
 

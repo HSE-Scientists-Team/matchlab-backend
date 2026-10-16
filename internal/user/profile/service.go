@@ -460,7 +460,7 @@ func (s *Service) RecordProjectContext(ctx context.Context, p *pb.ProjectContext
 		return nil, invalid()
 	}
 
-	if !validID(p.ProjectId) || !validID(p.InitiatorUserId) || !text(p.Title, 255, true) || p.CompletedAtUnix < 0 || p.CompletedAtUnix > time.Now().Unix() || len(p.ParticipantUserIds) < 1 || len(p.ParticipantUserIds) > 1000 {
+	if !validID(p.ProjectId) || !validID(p.InitiatorUserId) || !text(p.Title, 255, true) || p.CompletedAtUnix < 0 || p.CompletedAtUnix > time.Now().Unix() || len(p.ParticipantUserIds) < 1 || len(p.ParticipantUserIds) > 3001 {
 		return nil, invalid()
 	}
 	seen := map[string]bool{}
