@@ -51,6 +51,11 @@ ALTER TABLE users.project_context ADD COLUMN state text NOT NULL DEFAULT 'active
 UPDATE users.project_context SET state='completed' WHERE completed_at IS NOT NULL;
 
 -- +goose Down
+-- Removing Project must revoke its current-team grants. Completed snapshots
+-- remain to preserve review history; legacy (revision 0) contexts are untouched.
+DELETE FROM users.project_context_member m USING users.project_context p
+WHERE p.project_id=m.project_id AND p.source_revision>0 AND p.state<>'completed';
+DELETE FROM users.project_context WHERE source_revision>0 AND state<>'completed';
 ALTER TABLE users.project_context DROP COLUMN state;
 ALTER TABLE users.project_context DROP COLUMN source_revision;
 DROP TABLE projects.context_outbox;

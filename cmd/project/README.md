@@ -40,7 +40,7 @@ Gateway предоставляет `/api/v1/projects`, карточку `/{id}`,
 
 Локально: `docker compose up --build`. Compose передаёт одинаковый тестовый PROJECT_SYNC_TOKEN в User и Project; это credential только локального окружения. Прямой запуск: задайте POSTGRES_PASSWORD и PROJECT_SYNC_TOKEN, запустите User и `go run ./cmd/project -config cmd/project/config.example.yaml`.
 
-Порт внутреннего gRPC — 8087. Config YAML содержит grpc, peers.user и postgres. При старте применяется весь общий SQL-набор, миграция 00006 создаёт таблицы Project и версии проекции User. Down удаляет все проекты, заявки, историю и outbox. Опубликованные SQL 00001–00005 не изменяются.
+Порт внутреннего gRPC — 8087. Config YAML содержит grpc, peers.user и postgres. При старте применяется весь общий SQL-набор, миграция 00006 создаёт таблицы Project и версии проекции User. Down удаляет все проекты, заявки, историю и outbox, отзывает их незавершённые проекции команды и сохраняет завершённые снимки для истории отзывов. Опубликованные SQL 00001–00005 не изменяются.
 
 Для k3s нужны отдельный Deployment/Service Project, конфигурации Search и Recommendation, адреса новых сервисов в Gateway и общий защищённый PROJECT_SYNC_TOKEN в User/Project. Сборка all включает три новых образа; propose_deploy добавляет их digest в ConfigMap инфры. Сами Deployment принадлежат matchlab-infra; добавление digest не создаёт их автоматически. Старые образы не знают миграцию 00006: выпускать нужно весь набор сервисов.
 
