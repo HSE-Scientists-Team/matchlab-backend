@@ -118,7 +118,7 @@ func normalizeDate(v string, end bool) (string, error) {
 			t = t.AddDate(0, 1, -1)
 		}
 	}
-	if err != nil {
+	if err != nil || t.Year() < 1 {
 		return "", invalid()
 	}
 	return t.Format("2006-01-02"), nil

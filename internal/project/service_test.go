@@ -39,6 +39,9 @@ func TestTransitionsAndPermissions(t *testing.T) {
 	}
 }
 func TestValidationAndPublicTeamPrivacy(t *testing.T) {
+	if _, err := normalizeDate("0000-01-01", false); err == nil {
+		t.Fatal("invalid PostgreSQL date accepted")
+	}
 	p := &pb.ProjectInput{Title: "Project", Type: "scientific", Field: "CS", Problem: "Problem", Goal: "Goal", PlannedStart: "2027-01", PlannedEnd: "2027-03", Roles: []*pb.RoleInput{{Title: "Engineer", Slots: 1}}}
 	if err := validate(p, true); err != nil {
 		t.Fatal(err)
