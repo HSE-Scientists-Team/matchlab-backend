@@ -21,6 +21,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/media/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/observability"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -35,7 +36,13 @@ func main() {
 	if err == nil {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		err = run(ctx, cfg, logger)
+		metrics, closeMetrics, metricsErr := observability.Start("media", *configPath, logger)
+		if metricsErr != nil {
+			err = metricsErr
+		} else {
+			defer closeMetrics()
+			err = runWithMetrics(ctx, cfg, logger, metrics)
+		}
 	}
 	if err != nil {
 		logger.Error("сервис Media остановлен", "error", err)
@@ -44,6 +51,10 @@ func main() {
 }
 
 func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	return runWithMetrics(ctx, cfg, logger, observability.New("media"))
+}
+
+func runWithMetrics(ctx context.Context, cfg config.Config, logger *slog.Logger, metrics *observability.Metrics) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
@@ -62,6 +73,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 			logger.Error("закрытие соединения с PostgreSQL", "error", err)
 		}
 	}()
+	metrics.Database(db, "media")
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
@@ -120,7 +132,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
 	defer listener.Close()
-	server := grpc.NewServer(grpc.UnaryInterceptor(func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(metrics.UnaryServerInterceptor, func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		started := time.Now()

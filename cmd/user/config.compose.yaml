@@ -17,3 +17,6 @@ mail:
 media:
   host: media
   port: 8085
+
+metrics:
+  address: 0.0.0.0:9090

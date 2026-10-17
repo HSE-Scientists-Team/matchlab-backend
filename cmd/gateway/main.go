@@ -24,6 +24,7 @@ import (
 	userv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/observability"
 	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -46,6 +47,11 @@ func run(logger *slog.Logger) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	metrics, closeMetrics, err := observability.Start("gateway", *configPath, logger)
+	if err != nil {
+		return err
+	}
+	defer closeMetrics()
 	version, err := migrations.Apply(ctx, cfg.DB)
 	if err != nil {
 		return err
@@ -106,6 +112,9 @@ func run(logger *slog.Logger) error {
 	}
 	defer recommendationConn.Close()
 	router := mux.NewRouter()
+	router.Use(metrics.HTTP)
+	router.NotFoundHandler = metrics.HTTP(http.NotFoundHandler())
+	router.MethodNotAllowedHandler = metrics.HTTP(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusMethodNotAllowed) }))
 	healthcheck.RegisterHTTP(router)
 	delivery.Register(router, authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
 	delivery.RegisterProfiles(router, userv1.NewProfileServiceClient(userConn), logger)

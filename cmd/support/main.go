@@ -22,6 +22,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/support/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/observability"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -45,6 +46,11 @@ func run(logger *slog.Logger) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	metrics, closeMetrics, err := observability.Start("support", *configPath, logger)
+	if err != nil {
+		return err
+	}
+	defer closeMetrics()
 	version, err := migrations.Apply(ctx, cfg.DB)
 	if err != nil {
 		return err
@@ -56,6 +62,7 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	defer func() { _ = db.Close() }()
+	metrics.Database(db, "support")
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
@@ -77,7 +84,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(metrics.UnaryServerInterceptor))
 	health := healthcheck.RegisterGRPC(server)
 	supportv1.RegisterSupportServiceServer(server, supportgrpc.NewServer(complaints, logger))
 	health.SetServingStatus("matchlab.support.v1.SupportService", grpc_health_v1.HealthCheckResponse_SERVING)

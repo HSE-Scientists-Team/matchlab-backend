@@ -28,3 +28,6 @@ multipart:
   part_size_bytes: 8388608
   session_ttl: 24h
   cleanup_interval: 10m
+
+metrics:
+  address: 0.0.0.0:9090
