@@ -1,0 +1,24 @@
+syntax = "proto3";
+package matchlab.support.v1;
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/support/v1;supportv1";
+import "api/proto/management/v1/common.proto";
+service SupportManagementService {
+ rpc ListTickets(matchlab.management.v1.Query) returns (TicketList);
+ rpc GetTicket(matchlab.management.v1.ID) returns (Ticket);
+ rpc UpdateTicket(TicketChange) returns (Ticket);
+ rpc AddNote(TicketNote) returns (matchlab.management.v1.Event);
+ rpc TicketHistory(matchlab.management.v1.HistoryQuery) returns (matchlab.management.v1.EventList);
+ rpc DownloadAttachment(AttachmentQuery) returns (matchlab.management.v1.Download);
+ rpc GetStatistics(matchlab.management.v1.StatisticsQuery) returns (matchlab.management.v1.Statistics);
+}
+message Ticket {
+ string id=1; string author_user_id=2; string assigned_admin_id=3; string status=4;
+ string subject=5; string description=6; string target_user_id=7; string target_project_id=8;
+ repeated string file_ids=9; int32 revision=10; string resolution_comment=11;
+ int64 created_at_unix=12; int64 updated_at_unix=13; int64 resolved_at_unix=14;
+}
+message TicketList { repeated Ticket items=1; int64 total=2; }
+// action: assign / unassign / resolve / decline / reopen. Closing/reopening requires comment.
+message TicketChange { string id=1; string action=2; string assigned_admin_id=3; string comment=4; int32 expected_revision=5; }
+message TicketNote { string id=1; string comment=2; int32 expected_revision=3; }
+message AttachmentQuery { string ticket_id=1; string file_id=2; }

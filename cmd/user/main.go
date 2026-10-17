@@ -19,6 +19,7 @@ import (
 	userv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	userconfig "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/config"
 	usergrpc "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/delivery/grpc"
+	usermanagement "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/management"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/profile"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/repository"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/usecase"
@@ -125,6 +126,7 @@ func run(logger *slog.Logger) error {
 		return handler(callCtx, req)
 	}))
 	health := healthcheck.RegisterGRPC(server)
+	userv1.RegisterUserManagementServiceServer(server, &usermanagement.Service{DB: db})
 	userv1.RegisterUserServiceServer(server, usergrpc.NewServer(users))
 	userv1.RegisterProfileServiceServer(server, &profile.Service{Repo: &profile.Repository{DB: db}, ProjectToken: os.Getenv("PROJECT_SYNC_TOKEN"), Auth: authClient, Media: mediav1.NewMediaServiceClient(mediaConn)})
 

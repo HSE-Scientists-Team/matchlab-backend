@@ -7,6 +7,7 @@
 package projectv1
 
 import (
+	v1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/management/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1405,6 +1406,8 @@ type ModerationQuery struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	HiddenOnly    bool                   `protobuf:"varint,1,opt,name=hidden_only,json=hiddenOnly,proto3" json:"hidden_only,omitempty"`
 	Page          *Page                  `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	Text          string                 `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1453,12 +1456,27 @@ func (x *ModerationQuery) GetPage() *Page {
 	return nil
 }
 
+func (x *ModerationQuery) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ModerationQuery) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 type ModerationRecord struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ActorUserId   string                 `protobuf:"bytes,1,opt,name=actor_user_id,json=actorUserId,proto3" json:"actor_user_id,omitempty"`
 	Hidden        bool                   `protobuf:"varint,2,opt,name=hidden,proto3" json:"hidden,omitempty"`
 	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	CreatedAtUnix int64                  `protobuf:"varint,4,opt,name=created_at_unix,json=createdAtUnix,proto3" json:"created_at_unix,omitempty"`
+	ActorAdminId  string                 `protobuf:"bytes,5,opt,name=actor_admin_id,json=actorAdminId,proto3" json:"actor_admin_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1521,9 +1539,17 @@ func (x *ModerationRecord) GetCreatedAtUnix() int64 {
 	return 0
 }
 
+func (x *ModerationRecord) GetActorAdminId() string {
+	if x != nil {
+		return x.ActorAdminId
+	}
+	return ""
+}
+
 type ModerationList struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Items         []*ModerationRecord    `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1565,11 +1591,18 @@ func (x *ModerationList) GetItems() []*ModerationRecord {
 	return nil
 }
 
+func (x *ModerationList) GetTotal() int64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
 var File_api_proto_project_v1_project_proto protoreflect.FileDescriptor
 
 const file_api_proto_project_v1_project_proto_rawDesc = "" +
 	"\n" +
-	"\"api/proto/project/v1/project.proto\x12\x13matchlab.project.v1\"\x1b\n" +
+	"\"api/proto/project/v1/project.proto\x12\x13matchlab.project.v1\x1a$api/proto/management/v1/common.proto\"\x1b\n" +
 	"\tProjectID\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"4\n" +
 	"\x04Page\x12\x14\n" +
@@ -1687,19 +1720,22 @@ const file_api_proto_project_v1_project_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
 	"\x04hide\x18\x02 \x01(\bR\x04hide\x12\x16\n" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\x12+\n" +
-	"\x11expected_revision\x18\x04 \x01(\x05R\x10expectedRevision\"a\n" +
+	"\x11expected_revision\x18\x04 \x01(\x05R\x10expectedRevision\"\x8d\x01\n" +
 	"\x0fModerationQuery\x12\x1f\n" +
 	"\vhidden_only\x18\x01 \x01(\bR\n" +
 	"hiddenOnly\x12-\n" +
-	"\x04page\x18\x02 \x01(\v2\x19.matchlab.project.v1.PageR\x04page\"\x8e\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x19.matchlab.project.v1.PageR\x04page\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\"\xb4\x01\n" +
 	"\x10ModerationRecord\x12\"\n" +
 	"\ractor_user_id\x18\x01 \x01(\tR\vactorUserId\x12\x16\n" +
 	"\x06hidden\x18\x02 \x01(\bR\x06hidden\x12\x16\n" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\x12&\n" +
-	"\x0fcreated_at_unix\x18\x04 \x01(\x03R\rcreatedAtUnix\"M\n" +
+	"\x0fcreated_at_unix\x18\x04 \x01(\x03R\rcreatedAtUnix\x12$\n" +
+	"\x0eactor_admin_id\x18\x05 \x01(\tR\factorAdminId\"c\n" +
 	"\x0eModerationList\x12;\n" +
-	"\x05items\x18\x01 \x03(\v2%.matchlab.project.v1.ModerationRecordR\x05items2\xba\n" +
-	"\n" +
+	"\x05items\x18\x01 \x03(\v2%.matchlab.project.v1.ModerationRecordR\x05items\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x03R\x05total2\xd3\f\n" +
 	"\x0eProjectService\x12I\n" +
 	"\x06Create\x12!.matchlab.project.v1.ProjectInput\x1a\x1c.matchlab.project.v1.Project\x12I\n" +
 	"\x06Update\x12!.matchlab.project.v1.ProjectInput\x1a\x1c.matchlab.project.v1.Project\x12C\n" +
@@ -1718,7 +1754,10 @@ const file_api_proto_project_v1_project_proto_rawDesc = "" +
 	"CancelJoin\x12\x1b.matchlab.project.v1.JoinID\x1a .matchlab.project.v1.JoinRequest\x12J\n" +
 	"\tListJoins\x12\x1e.matchlab.project.v1.JoinQuery\x1a\x1d.matchlab.project.v1.JoinList\x12K\n" +
 	"\fRemoveMember\x12\x1d.matchlab.project.v1.MemberID\x1a\x1c.matchlab.project.v1.Project\x12E\n" +
-	"\x05Leave\x12\x1e.matchlab.project.v1.ProjectID\x1a\x1c.matchlab.project.v1.Project\x12N\n" +
+	"\x05Leave\x12\x1e.matchlab.project.v1.ProjectID\x1a\x1c.matchlab.project.v1.Project\x12P\n" +
+	"\x10GetForModeration\x12\x1e.matchlab.project.v1.ProjectID\x1a\x1c.matchlab.project.v1.Project\x12\\\n" +
+	"\rGetStatistics\x12'.matchlab.management.v1.StatisticsQuery\x1a\".matchlab.management.v1.Statistics\x12g\n" +
+	"\x1aPaginatedModerationHistory\x12$.matchlab.management.v1.HistoryQuery\x1a#.matchlab.project.v1.ModerationList\x12N\n" +
 	"\bModerate\x12$.matchlab.project.v1.ModerationInput\x1a\x1c.matchlab.project.v1.Project\x12X\n" +
 	"\x0eListModeration\x12$.matchlab.project.v1.ModerationQuery\x1a .matchlab.project.v1.ProjectList\x12X\n" +
 	"\x11ModerationHistory\x12\x1e.matchlab.project.v1.ProjectID\x1a#.matchlab.project.v1.ModerationListBSZQgithub.com/HSE-Scientists-Team/matchlab-backend/internal/gen/project/v1;projectv1b\x06proto3"
@@ -1737,28 +1776,31 @@ func file_api_proto_project_v1_project_proto_rawDescGZIP() []byte {
 
 var file_api_proto_project_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_api_proto_project_v1_project_proto_goTypes = []any{
-	(*ProjectID)(nil),         // 0: matchlab.project.v1.ProjectID
-	(*Page)(nil),              // 1: matchlab.project.v1.Page
-	(*ProjectInput)(nil),      // 2: matchlab.project.v1.ProjectInput
-	(*RoleInput)(nil),         // 3: matchlab.project.v1.RoleInput
-	(*Role)(nil),              // 4: matchlab.project.v1.Role
-	(*Member)(nil),            // 5: matchlab.project.v1.Member
-	(*Project)(nil),           // 6: matchlab.project.v1.Project
-	(*ProjectQuery)(nil),      // 7: matchlab.project.v1.ProjectQuery
-	(*ProjectList)(nil),       // 8: matchlab.project.v1.ProjectList
-	(*RoleID)(nil),            // 9: matchlab.project.v1.RoleID
-	(*TransitionRequest)(nil), // 10: matchlab.project.v1.TransitionRequest
-	(*JoinInput)(nil),         // 11: matchlab.project.v1.JoinInput
-	(*JoinRequest)(nil),       // 12: matchlab.project.v1.JoinRequest
-	(*JoinID)(nil),            // 13: matchlab.project.v1.JoinID
-	(*JoinDecision)(nil),      // 14: matchlab.project.v1.JoinDecision
-	(*JoinQuery)(nil),         // 15: matchlab.project.v1.JoinQuery
-	(*JoinList)(nil),          // 16: matchlab.project.v1.JoinList
-	(*MemberID)(nil),          // 17: matchlab.project.v1.MemberID
-	(*ModerationInput)(nil),   // 18: matchlab.project.v1.ModerationInput
-	(*ModerationQuery)(nil),   // 19: matchlab.project.v1.ModerationQuery
-	(*ModerationRecord)(nil),  // 20: matchlab.project.v1.ModerationRecord
-	(*ModerationList)(nil),    // 21: matchlab.project.v1.ModerationList
+	(*ProjectID)(nil),          // 0: matchlab.project.v1.ProjectID
+	(*Page)(nil),               // 1: matchlab.project.v1.Page
+	(*ProjectInput)(nil),       // 2: matchlab.project.v1.ProjectInput
+	(*RoleInput)(nil),          // 3: matchlab.project.v1.RoleInput
+	(*Role)(nil),               // 4: matchlab.project.v1.Role
+	(*Member)(nil),             // 5: matchlab.project.v1.Member
+	(*Project)(nil),            // 6: matchlab.project.v1.Project
+	(*ProjectQuery)(nil),       // 7: matchlab.project.v1.ProjectQuery
+	(*ProjectList)(nil),        // 8: matchlab.project.v1.ProjectList
+	(*RoleID)(nil),             // 9: matchlab.project.v1.RoleID
+	(*TransitionRequest)(nil),  // 10: matchlab.project.v1.TransitionRequest
+	(*JoinInput)(nil),          // 11: matchlab.project.v1.JoinInput
+	(*JoinRequest)(nil),        // 12: matchlab.project.v1.JoinRequest
+	(*JoinID)(nil),             // 13: matchlab.project.v1.JoinID
+	(*JoinDecision)(nil),       // 14: matchlab.project.v1.JoinDecision
+	(*JoinQuery)(nil),          // 15: matchlab.project.v1.JoinQuery
+	(*JoinList)(nil),           // 16: matchlab.project.v1.JoinList
+	(*MemberID)(nil),           // 17: matchlab.project.v1.MemberID
+	(*ModerationInput)(nil),    // 18: matchlab.project.v1.ModerationInput
+	(*ModerationQuery)(nil),    // 19: matchlab.project.v1.ModerationQuery
+	(*ModerationRecord)(nil),   // 20: matchlab.project.v1.ModerationRecord
+	(*ModerationList)(nil),     // 21: matchlab.project.v1.ModerationList
+	(*v1.StatisticsQuery)(nil), // 22: matchlab.management.v1.StatisticsQuery
+	(*v1.HistoryQuery)(nil),    // 23: matchlab.management.v1.HistoryQuery
+	(*v1.Statistics)(nil),      // 24: matchlab.management.v1.Statistics
 }
 var file_api_proto_project_v1_project_proto_depIdxs = []int32{
 	3,  // 0: matchlab.project.v1.ProjectInput.roles:type_name -> matchlab.project.v1.RoleInput
@@ -1785,28 +1827,34 @@ var file_api_proto_project_v1_project_proto_depIdxs = []int32{
 	15, // 21: matchlab.project.v1.ProjectService.ListJoins:input_type -> matchlab.project.v1.JoinQuery
 	17, // 22: matchlab.project.v1.ProjectService.RemoveMember:input_type -> matchlab.project.v1.MemberID
 	0,  // 23: matchlab.project.v1.ProjectService.Leave:input_type -> matchlab.project.v1.ProjectID
-	18, // 24: matchlab.project.v1.ProjectService.Moderate:input_type -> matchlab.project.v1.ModerationInput
-	19, // 25: matchlab.project.v1.ProjectService.ListModeration:input_type -> matchlab.project.v1.ModerationQuery
-	0,  // 26: matchlab.project.v1.ProjectService.ModerationHistory:input_type -> matchlab.project.v1.ProjectID
-	6,  // 27: matchlab.project.v1.ProjectService.Create:output_type -> matchlab.project.v1.Project
-	6,  // 28: matchlab.project.v1.ProjectService.Update:output_type -> matchlab.project.v1.Project
-	6,  // 29: matchlab.project.v1.ProjectService.Get:output_type -> matchlab.project.v1.Project
-	8,  // 30: matchlab.project.v1.ProjectService.List:output_type -> matchlab.project.v1.ProjectList
-	6,  // 31: matchlab.project.v1.ProjectService.SaveRole:output_type -> matchlab.project.v1.Project
-	6,  // 32: matchlab.project.v1.ProjectService.DeleteRole:output_type -> matchlab.project.v1.Project
-	6,  // 33: matchlab.project.v1.ProjectService.Transition:output_type -> matchlab.project.v1.Project
-	12, // 34: matchlab.project.v1.ProjectService.Apply:output_type -> matchlab.project.v1.JoinRequest
-	12, // 35: matchlab.project.v1.ProjectService.Invite:output_type -> matchlab.project.v1.JoinRequest
-	12, // 36: matchlab.project.v1.ProjectService.DecideJoin:output_type -> matchlab.project.v1.JoinRequest
-	12, // 37: matchlab.project.v1.ProjectService.CancelJoin:output_type -> matchlab.project.v1.JoinRequest
-	16, // 38: matchlab.project.v1.ProjectService.ListJoins:output_type -> matchlab.project.v1.JoinList
-	6,  // 39: matchlab.project.v1.ProjectService.RemoveMember:output_type -> matchlab.project.v1.Project
-	6,  // 40: matchlab.project.v1.ProjectService.Leave:output_type -> matchlab.project.v1.Project
-	6,  // 41: matchlab.project.v1.ProjectService.Moderate:output_type -> matchlab.project.v1.Project
-	8,  // 42: matchlab.project.v1.ProjectService.ListModeration:output_type -> matchlab.project.v1.ProjectList
-	21, // 43: matchlab.project.v1.ProjectService.ModerationHistory:output_type -> matchlab.project.v1.ModerationList
-	27, // [27:44] is the sub-list for method output_type
-	10, // [10:27] is the sub-list for method input_type
+	0,  // 24: matchlab.project.v1.ProjectService.GetForModeration:input_type -> matchlab.project.v1.ProjectID
+	22, // 25: matchlab.project.v1.ProjectService.GetStatistics:input_type -> matchlab.management.v1.StatisticsQuery
+	23, // 26: matchlab.project.v1.ProjectService.PaginatedModerationHistory:input_type -> matchlab.management.v1.HistoryQuery
+	18, // 27: matchlab.project.v1.ProjectService.Moderate:input_type -> matchlab.project.v1.ModerationInput
+	19, // 28: matchlab.project.v1.ProjectService.ListModeration:input_type -> matchlab.project.v1.ModerationQuery
+	0,  // 29: matchlab.project.v1.ProjectService.ModerationHistory:input_type -> matchlab.project.v1.ProjectID
+	6,  // 30: matchlab.project.v1.ProjectService.Create:output_type -> matchlab.project.v1.Project
+	6,  // 31: matchlab.project.v1.ProjectService.Update:output_type -> matchlab.project.v1.Project
+	6,  // 32: matchlab.project.v1.ProjectService.Get:output_type -> matchlab.project.v1.Project
+	8,  // 33: matchlab.project.v1.ProjectService.List:output_type -> matchlab.project.v1.ProjectList
+	6,  // 34: matchlab.project.v1.ProjectService.SaveRole:output_type -> matchlab.project.v1.Project
+	6,  // 35: matchlab.project.v1.ProjectService.DeleteRole:output_type -> matchlab.project.v1.Project
+	6,  // 36: matchlab.project.v1.ProjectService.Transition:output_type -> matchlab.project.v1.Project
+	12, // 37: matchlab.project.v1.ProjectService.Apply:output_type -> matchlab.project.v1.JoinRequest
+	12, // 38: matchlab.project.v1.ProjectService.Invite:output_type -> matchlab.project.v1.JoinRequest
+	12, // 39: matchlab.project.v1.ProjectService.DecideJoin:output_type -> matchlab.project.v1.JoinRequest
+	12, // 40: matchlab.project.v1.ProjectService.CancelJoin:output_type -> matchlab.project.v1.JoinRequest
+	16, // 41: matchlab.project.v1.ProjectService.ListJoins:output_type -> matchlab.project.v1.JoinList
+	6,  // 42: matchlab.project.v1.ProjectService.RemoveMember:output_type -> matchlab.project.v1.Project
+	6,  // 43: matchlab.project.v1.ProjectService.Leave:output_type -> matchlab.project.v1.Project
+	6,  // 44: matchlab.project.v1.ProjectService.GetForModeration:output_type -> matchlab.project.v1.Project
+	24, // 45: matchlab.project.v1.ProjectService.GetStatistics:output_type -> matchlab.management.v1.Statistics
+	21, // 46: matchlab.project.v1.ProjectService.PaginatedModerationHistory:output_type -> matchlab.project.v1.ModerationList
+	6,  // 47: matchlab.project.v1.ProjectService.Moderate:output_type -> matchlab.project.v1.Project
+	8,  // 48: matchlab.project.v1.ProjectService.ListModeration:output_type -> matchlab.project.v1.ProjectList
+	21, // 49: matchlab.project.v1.ProjectService.ModerationHistory:output_type -> matchlab.project.v1.ModerationList
+	30, // [30:50] is the sub-list for method output_type
+	10, // [10:30] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name

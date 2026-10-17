@@ -67,7 +67,7 @@ const achievementSelect = `SELECT id::text,user_id::text,data,coalesce(evidence_
 
 type scanner interface{ Scan(...any) error }
 
-func scanAchievement(row scanner) (*pb.Achievement, error) {
+func ScanAchievement(row scanner) (*pb.Achievement, error) {
 	a := &pb.Achievement{Details: &pb.AchievementInput{}}
 	var raw []byte
 	var evidence string
@@ -84,7 +84,7 @@ func scanAchievement(row scanner) (*pb.Achievement, error) {
 	return a, nil
 }
 func (r *Repository) Achievement(ctx context.Context, id string) (*pb.Achievement, error) {
-	return scanAchievement(r.DB.QueryRowContext(ctx, achievementSelect+`WHERE id=$1 AND deleted_at IS NULL`, id))
+	return ScanAchievement(r.DB.QueryRowContext(ctx, achievementSelect+`WHERE id=$1 AND deleted_at IS NULL`, id))
 }
 func (r *Repository) Achievements(ctx context.Context, owner, kind string, queue bool, limit, offset int32) (*pb.AchievementList, error) {
 	rows, err := r.DB.QueryContext(ctx, achievementSelect+`WHERE deleted_at IS NULL AND (($1::boolean AND status='pending_review') OR (NOT $1 AND user_id::text=$2 AND ($3='' OR kind=$3))) ORDER BY CASE WHEN $1 THEN submitted_at ELSE created_at END,id LIMIT $4 OFFSET $5`, queue, owner, kind, limit, offset)
@@ -94,7 +94,7 @@ func (r *Repository) Achievements(ctx context.Context, owner, kind string, queue
 	defer rows.Close()
 	result := &pb.AchievementList{Items: []*pb.Achievement{}}
 	for rows.Next() {
-		a, err := scanAchievement(rows)
+		a, err := ScanAchievement(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -158,16 +158,22 @@ func (r *Repository) Submit(ctx context.Context, id, owner string, revision int3
 	return r.Achievement(ctx, id)
 }
 func (r *Repository) Decide(ctx context.Context, reviewer string, d *pb.VerificationDecision) (*pb.Achievement, error) {
+	return r.decide(ctx, reviewer, d, false)
+}
+func (r *Repository) DecideAdmin(ctx context.Context, reviewer string, d *pb.VerificationDecision) (*pb.Achievement, error) {
+	return r.decide(ctx, reviewer, d, true)
+}
+func (r *Repository) decide(ctx context.Context, reviewer string, d *pb.VerificationDecision, administrative bool) (*pb.Achievement, error) {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	a, err := scanAchievement(tx.QueryRowContext(ctx, achievementSelect+`WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, d.Id))
+	a, err := ScanAchievement(tx.QueryRowContext(ctx, achievementSelect+`WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, d.Id))
 	if err != nil {
 		return nil, err
 	}
-	if a.UserId == reviewer {
+	if !administrative && a.UserId == reviewer {
 		return nil, ErrForbidden
 	}
 	if a.Revision != d.ExpectedRevision || a.Status != "pending_review" {
@@ -177,11 +183,19 @@ func (r *Repository) Decide(ctx context.Context, reviewer string, d *pb.Verifica
 	if d.Approve {
 		state = "verified"
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO users.achievement_decision(achievement_id,revision,reviewer_user_id,approved,comment,reviewed_data,evidence_file_id) SELECT $1,$2,$3,$4,$5,data,evidence_file_id FROM users.achievement WHERE id=$1`, d.Id, d.ExpectedRevision, reviewer, d.Approve, d.Comment)
+	actorColumn := "reviewer_user_id"
+	if administrative {
+		actorColumn = "reviewer_admin_id"
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO users.achievement_decision(achievement_id,revision,`+actorColumn+`,approved,comment,reviewed_data,evidence_file_id) SELECT $1,$2,$3,$4,$5,data,evidence_file_id FROM users.achievement WHERE id=$1`, d.Id, d.ExpectedRevision, reviewer, d.Approve, d.Comment)
 	if err != nil {
 		return nil, dbError(err)
 	}
-	_, err = tx.ExecContext(ctx, `UPDATE users.achievement SET status=$2,moderation_comment=$3,updated_at=now() WHERE id=$1`, d.Id, state, d.Comment)
+	increment := 0
+	if administrative {
+		increment = 1
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE users.achievement SET status=$2,moderation_comment=$3,revision=revision+$4,updated_at=now() WHERE id=$1`, d.Id, state, d.Comment, increment)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +204,8 @@ func (r *Repository) Decide(ctx context.Context, reviewer string, d *pb.Verifica
 	}
 	a.Status = state
 	a.ModerationComment = d.Comment
+	a.Revision += int32(increment)
+	a.Details.ExpectedRevision = a.Revision
 	return a, nil
 }
 func (r *Repository) Blocks(ctx context.Context, owner string, limit, offset int32) (*pb.BlockList, error) {

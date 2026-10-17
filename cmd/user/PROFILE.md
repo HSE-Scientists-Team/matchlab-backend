@@ -22,9 +22,9 @@ User хранит профиль, достижения, приватность, 
 
 ## Внутренние RPC
 
-Gateway не публикует ListVerificationQueue, ReviewAchievement, GetAchievementEvidence, RecordProjectContext и CheckInteraction. Первые три требуют Bearer-сеанса активного moderator/administrator. RecordProjectContext с KAN-39 принимает только сервисный credential PROJECT_SYNC_TOKEN от Project. User проверяет роль в PostgreSQL; передача reviewer_user_id или actor_user_id от клиента не используется. Проверять своё достижение нельзя даже модератору. GetAchievementEvidence выдаёт временную ссылку Media, используя владельца из сохранённого достижения. API будущего администратора делегирует его сеанс в gRPC metadata authorization.
+Обычные маршруты Gateway не публикуют ListVerificationQueue, ReviewAchievement, GetAchievementEvidence и RecordProjectContext напрямую. С KAN-35 первые три принимают только короткоживущую Ed25519-подпись Admin с audience=user; служебные аккаунты изолированы в схеме admin. Публичные роли moderator/administrator больше не дают доступа к модерации. Актор берётся из проверенных полномочий, клиентский reviewer_user_id не используется. Проверка достижения сотрудника с тем же email запрещена. GetAchievementEvidence выдаёт временную ссылку через Media, используя владельца из сохранённого достижения. Gateway публикует эти возможности через отдельный фасад /api/v1/admin, а не через обычные маршруты профиля.
 
-Это модель авторизации администраторского пользователя, не идентификация сервисов. Перед автоматической отправкой проектных контекстов из будущего Projects потребуется добавить аутентификацию и отдельные права этого сервиса; принимать такие контексты от обычного пользовательского сеанса нельзя. Auth и другие внутренние RPC должны оставаться в закрытой сети.
+RecordProjectContext принимает отдельный PROJECT_SYNC_TOKEN от Project. UserManagementService предоставляет Admin поиск/блокировки пользователей, домены, очереди и историю достижений, статистику. ADMIN_PUBLIC_KEY содержит только ключ проверки. Межсервисные RPC остаются во внутренней сети. Личные блокировки users.user_block не меняют user_account.status; системная блокировка выполняется административным API.
 
 ## Минимальные данные проектов и отзывы
 

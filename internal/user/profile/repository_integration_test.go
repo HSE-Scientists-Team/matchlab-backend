@@ -4,11 +4,15 @@ package profile
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	auth "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
 	media "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
 	pb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/adminauth"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
@@ -85,7 +89,12 @@ func TestProfileLifecycle(t *testing.T) {
 	repo := &Repository{DB: db}
 	syncContext := metadata.NewIncomingContext(ctx, metadata.Pairs("x-matchlab-project-token", "integration-token-32-bytes-or-more"))
 	s := &Service{ProjectToken: "integration-token-32-bytes-or-more", Repo: repo, Auth: authStub{}, Media: mediaStub{owner: owner, file: uuid.NewString()}}
-	own, another, moderator := caller(owner), caller(other), caller(mod)
+	public, key, _ := ed25519.GenerateKey(rand.Reader)
+	t.Setenv("ADMIN_PUBLIC_KEY", base64.StdEncoding.EncodeToString(public))
+	signed, _ := adminauth.Sign(ctx, key, mod, "moderator", "user", "user2@hse.ru")
+	md, _ := metadata.FromOutgoingContext(signed)
+	md.Set("authorization", "Bearer "+mod)
+	own, another, moderator := caller(owner), caller(other), metadata.NewIncomingContext(ctx, md)
 	mustCode := func(err error, code codes.Code) {
 		t.Helper()
 		if status.Code(err) != code {

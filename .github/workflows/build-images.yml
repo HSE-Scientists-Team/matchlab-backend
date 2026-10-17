@@ -8,7 +8,7 @@ on:
         required: true
         default: all
         type: choice
-        options: [all, gateway, auth, user, mail, media, support, project, search, recommendation, api-docs]
+        options: [all, gateway, auth, user, mail, media, support, project, search, recommendation, admin, api-docs]
       propose_deploy:
         description: Создать PR с образами в matchlab-infra
         required: true
@@ -35,8 +35,8 @@ jobs:
           PACKAGE_OWNER: ${{ github.repository_owner }}
         run: |
           case "$SERVICE" in
-            all) services='["gateway","auth","user","mail","media","support","project","search","recommendation","api-docs"]' ;;
-            gateway|auth|user|mail|media|support|project|search|recommendation|api-docs) services="[\"$SERVICE\"]" ;;
+            all) services='["gateway","auth","user","mail","media","support","project","search","recommendation","admin","api-docs"]' ;;
+            gateway|auth|user|mail|media|support|project|search|recommendation|admin|api-docs) services="[\"$SERVICE\"]" ;;
             *) exit 1 ;;
           esac
           echo "services=$services" >> "$GITHUB_OUTPUT"
@@ -49,9 +49,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - run: go run ./scripts/api/admin-openapi.go --check
       - run: go test ./...
       - run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
-      - run: go test -tags=integration ./internal/auth/repository/redis ./pkg/migrations ./internal/user/repository ./internal/mail/smtp ./internal/media/repository ./internal/media/storage/s3 ./cmd/media ./internal/support/repository ./internal/user/profile ./internal/project
+      - run: go test -tags=integration ./internal/auth/repository/redis ./pkg/migrations ./internal/user/repository ./internal/mail/smtp ./internal/media/repository ./internal/media/storage/s3 ./cmd/media ./internal/support/repository ./internal/user/profile ./internal/project ./internal/admin ./internal/user/management ./internal/support/management
   build:
     needs: [prepare, test]
     runs-on: ubuntu-latest

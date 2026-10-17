@@ -207,7 +207,7 @@ func (p *Postgres) GetEmailStatus(ctx context.Context, userID string) (EmailStat
 	var result EmailStatus
 	err := p.db.QueryRowContext(ctx, `
 		SELECT COALESCE(verified.email, ''), CASE WHEN verified.email IS NULL THEN account.email ELSE '' END,
-		       CASE WHEN verified.email IS NOT NULL THEN 'verified'
+		       CASE WHEN account.status<>'active' THEN account.status::text WHEN verified.email IS NOT NULL THEN 'verified'
 		            ELSE 'pending' END
 		FROM users.user_account AS account
 		LEFT JOIN users.user_email AS verified ON verified.user_id = account.id

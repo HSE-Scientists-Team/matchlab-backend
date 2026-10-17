@@ -61,8 +61,8 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 
 func applyMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
 	t.Helper()
-	if version, err := Up(ctx, db); err != nil || version != 6 {
-		t.Fatalf("apply migrations: version=%d, want=6, error=%v", version, err)
+	if version, err := Up(ctx, db); err != nil || version != 7 {
+		t.Fatalf("apply migrations: version=%d, want=7, error=%v", version, err)
 	}
 }
 
@@ -215,9 +215,10 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve' AND is_public`, 1)
-		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4,5,6) AND is_applied`, 6)
+		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4,5,6,7) AND is_applied`, 7)
 	})
 	t.Run("support rollback preserves users and media", func(t *testing.T) {
+		down(t) // administration
 		down(t) // projects
 		down(t) // profiles
 		if _, err := db.ExecContext(ctx, `INSERT INTO support.support_ticket (author_user_id,subject,description,target_user_id) VALUES ('00000000-0000-4000-8000-000000000001','complaint','description','00000000-0000-4000-8000-000000000002')`); err != nil {
@@ -232,6 +233,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM support.support_ticket`, 0)
 	})
 	t.Run("multipart rollback preserves files", func(t *testing.T) {
+		down(t) // administration
 		down(t) // projects
 		down(t) // profiles
 		down(t)
@@ -244,6 +246,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 	})
 	t.Run("media rollback preserves users", func(t *testing.T) {
+		down(t) // administration
 		down(t) // projects
 		down(t) // profiles
 		down(t)
@@ -258,6 +261,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 	})
 	t.Run("full rollback and reapply", func(t *testing.T) {
+		down(t) // administration
 		down(t) // projects
 		down(t) // profiles
 		down(t)
@@ -389,7 +393,7 @@ func TestUpgradeAccountsSchemaToMediaPreservesUsers(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email,password_hash) VALUES ('upgrade@example.org','hash')`); err != nil {
 		t.Fatal(err)
 	}
-	if version, err := Up(ctx, db); err != nil || version != 6 {
+	if version, err := Up(ctx, db); err != nil || version != 7 {
 		t.Fatalf("upgrade: %d %v", version, err)
 	}
 	var count int
@@ -424,8 +428,10 @@ func TestProjectRollbackRevokesContactGrantsButKeepsReviewHistory(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = provider.Down(ctx); err != nil {
-		t.Fatal(err)
+	for _, version := range []int{7, 6} {
+		if _, err = provider.Down(ctx); err != nil {
+			t.Fatalf("rollback %d: %v", version, err)
+		}
 	}
 	var count int
 	if err = db.QueryRowContext(ctx, `SELECT count(*) FROM users.project_context`).Scan(&count); err != nil || count != 2 {

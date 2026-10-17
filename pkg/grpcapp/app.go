@@ -60,6 +60,9 @@ func Load(path string, peers []string) (Config, error) {
 type Setup func(context.Context, *sql.DB, Config, *grpc.Server, *slog.Logger) (func(), error)
 
 func Run(name, healthName string, peers []string, setup Setup) error {
+	return RunWithInterceptors(name, healthName, peers, setup)
+}
+func RunWithInterceptors(name, healthName string, peers []string, setup Setup, extra ...grpc.UnaryServerInterceptor) error {
 	path := flag.String("config", "/etc/app/config.yaml", "configuration YAML")
 	flag.Parse()
 	cfg, err := Load(*path, peers)
@@ -88,11 +91,13 @@ func Run(name, healthName string, peers []string, setup Setup) error {
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
-	server := grpc.NewServer(grpc.ChainUnaryInterceptor(metrics.UnaryServerInterceptor, func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, h grpc.UnaryHandler) (any, error) {
+	interceptors := []grpc.UnaryServerInterceptor{metrics.UnaryServerInterceptor, func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, h grpc.UnaryHandler) (any, error) {
 		call, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		return h(call, req)
-	}))
+	}}
+	interceptors = append(interceptors, extra...)
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors...))
 	health := healthcheck.RegisterGRPC(server)
 	cleanup, err := setup(ctx, db, cfg, server, logger)
 	if err != nil {

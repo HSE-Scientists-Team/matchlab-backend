@@ -18,6 +18,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/support/client"
 	supportconfig "github.com/HSE-Scientists-Team/matchlab-backend/internal/support/config"
 	supportgrpc "github.com/HSE-Scientists-Team/matchlab-backend/internal/support/delivery/grpc"
+	supportmanagement "github.com/HSE-Scientists-Team/matchlab-backend/internal/support/management"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/support/repository"
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/support/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
@@ -86,6 +87,7 @@ func run(logger *slog.Logger) error {
 	}
 	server := grpc.NewServer(grpc.ChainUnaryInterceptor(metrics.UnaryServerInterceptor))
 	health := healthcheck.RegisterGRPC(server)
+	supportv1.RegisterSupportManagementServiceServer(server, &supportmanagement.Service{DB: db, Media: mediav1.NewMediaServiceClient(mediaConn)})
 	supportv1.RegisterSupportServiceServer(server, supportgrpc.NewServer(complaints, logger))
 	health.SetServingStatus("matchlab.support.v1.SupportService", grpc_health_v1.HealthCheckResponse_SERVING)
 

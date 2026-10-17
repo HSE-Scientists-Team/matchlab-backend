@@ -45,3 +45,5 @@ Gateway предоставляет `/api/v1/projects`, карточку `/{id}`,
 Для k3s нужны отдельный Deployment/Service Project, конфигурации Search и Recommendation, адреса новых сервисов в Gateway и общий защищённый PROJECT_SYNC_TOKEN в User/Project. Сборка all включает три новых образа; propose_deploy добавляет их digest в ConfigMap инфры. Сами Deployment принадлежат matchlab-infra; добавление digest не создаёт их автоматически. Старые образы не знают миграцию 00006: выпускать нужно весь набор сервисов.
 
 Проверки: `go test ./...`, `go test -tags=integration ./internal/project ./internal/user/profile ./pkg/migrations`. Проверяются конкурентное принятие на последнее место, права, блокировки, жизненный цикл, приватность каталога, модерация, сохранность и повторная доставка outbox.
+
+С KAN-35 модерация, административный просмотр, история с пагинацией и статистика требуют Ed25519 assertion Admin с audience=project (ADMIN_PUBLIC_KEY). Новые акторы пишутся в actor_admin_id; actor_user_id сохраняется для старой истории. Публичный пользовательский Bearer и роль профиля эти права не дают. HTTP-фасад: /api/v1/admin/projects.

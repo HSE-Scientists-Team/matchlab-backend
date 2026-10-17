@@ -1,6 +1,7 @@
 syntax = "proto3";
 package matchlab.project.v1;
 option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/project/v1;projectv1";
+import "api/proto/management/v1/common.proto";
 service ProjectService {
  rpc Create(ProjectInput) returns (Project);
  rpc Update(ProjectInput) returns (Project);
@@ -17,6 +18,9 @@ service ProjectService {
  rpc RemoveMember(MemberID) returns (Project);
  rpc Leave(ProjectID) returns (Project);
  // Internal administrator RPCs, never mapped in Gateway.
+ rpc GetForModeration(ProjectID) returns (Project);
+ rpc GetStatistics(matchlab.management.v1.StatisticsQuery) returns (matchlab.management.v1.Statistics);
+ rpc PaginatedModerationHistory(matchlab.management.v1.HistoryQuery) returns (ModerationList);
  rpc Moderate(ModerationInput) returns (Project);
  rpc ListModeration(ModerationQuery) returns (ProjectList);
  rpc ModerationHistory(ProjectID) returns (ModerationList);
@@ -58,6 +62,6 @@ message JoinQuery { string project_id=1; string role_id=2; string status=3; Page
 message JoinList { repeated JoinRequest items=1; int64 total=2; }
 message MemberID { string project_id=1; string user_id=2; }
 message ModerationInput { string project_id=1; bool hide=2; string reason=3; int32 expected_revision=4; }
-message ModerationQuery { bool hidden_only=1; Page page=2; }
-message ModerationRecord { string actor_user_id=1; bool hidden=2; string reason=3; int64 created_at_unix=4; }
-message ModerationList { repeated ModerationRecord items=1; }
+message ModerationQuery { bool hidden_only=1; Page page=2; string text=3; string status=4; }
+message ModerationRecord { string actor_user_id=1; bool hidden=2; string reason=3; int64 created_at_unix=4; string actor_admin_id=5; }
+message ModerationList { repeated ModerationRecord items=1; int64 total=2; }

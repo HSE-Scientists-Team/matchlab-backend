@@ -15,6 +15,7 @@ import (
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/config"
 	delivery "github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/delivery/http"
+	adminv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/admin/v1"
 	authv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
 	mediav1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
 	projectv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/project/v1"
@@ -111,11 +112,22 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	defer recommendationConn.Close()
+	var adminConn *grpc.ClientConn
+	if cfg.Admin.Host != "" {
+		adminConn, err = grpc.NewClient(cfg.Admin.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return err
+		}
+		defer adminConn.Close()
+	}
 	router := mux.NewRouter()
 	router.Use(metrics.HTTP)
 	router.NotFoundHandler = metrics.HTTP(http.NotFoundHandler())
 	router.MethodNotAllowedHandler = metrics.HTTP(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusMethodNotAllowed) }))
 	healthcheck.RegisterHTTP(router)
+	if adminConn != nil {
+		delivery.RegisterAdmin(router, adminv1.NewAdminServiceClient(adminConn), logger)
+	}
 	delivery.Register(router, authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
 	delivery.RegisterProfiles(router, userv1.NewProfileServiceClient(userConn), logger)
 	delivery.RegisterMedia(router, mediav1.NewMediaServiceClient(mediaConn), authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
