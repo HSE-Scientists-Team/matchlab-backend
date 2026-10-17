@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/observability"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/postgres"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/spf13/viper"
@@ -68,6 +69,11 @@ func Run(name, healthName string, peers []string, setup Setup) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	metrics, closeMetrics, err := observability.Start(name, *path, logger)
+	if err != nil {
+		return err
+	}
+	defer closeMetrics()
 	version, err := migrations.Apply(ctx, cfg.DB)
 	if err != nil {
 		return err
@@ -78,10 +84,11 @@ func Run(name, healthName string, peers []string, setup Setup) error {
 		return err
 	}
 	defer db.Close()
+	metrics.Database(db, name)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
-	server := grpc.NewServer(grpc.UnaryInterceptor(func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, h grpc.UnaryHandler) (any, error) {
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(metrics.UnaryServerInterceptor, func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, h grpc.UnaryHandler) (any, error) {
 		call, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		return h(call, req)

@@ -33,3 +33,6 @@ search:
 recommendation:
   host: recommendation
   port: 8089
+
+metrics:
+  address: 0.0.0.0:9090

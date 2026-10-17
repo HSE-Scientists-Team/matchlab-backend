@@ -19,7 +19,7 @@ func TestConfigurations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, body := range []string{strings.Replace(string(body), "port: 8086", "port: 0", 1), strings.Replace(string(body), "port: 8085", "port: 70000", 1), string(body) + "  password: secret\n"} {
+	for _, body := range []string{strings.Replace(string(body), "port: 8086", "port: 0", 1), strings.Replace(string(body), "port: 8085", "port: 70000", 1), strings.Replace(string(body), "postgres:\n", "postgres:\n  password: secret\n", 1)} {
 		path := filepath.Join(t.TempDir(), "config.yaml")
 		if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 			t.Fatal(err)

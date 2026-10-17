@@ -24,6 +24,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/usecase"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/observability"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -50,6 +51,11 @@ func run(logger *slog.Logger) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	metrics, closeMetrics, err := observability.Start("user", *configPath, logger)
+	if err != nil {
+		return err
+	}
+	defer closeMetrics()
 	version, err := migrations.Apply(ctx, cfg.DB)
 	if err != nil {
 		return err
@@ -65,6 +71,7 @@ func run(logger *slog.Logger) error {
 			logger.Error("закрытие соединения с PostgreSQL", "error", err)
 		}
 	}()
+	metrics.Database(db, "user")
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
@@ -109,7 +116,7 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	defer mediaConn.Close()
-	server := grpc.NewServer(grpc.UnaryInterceptor(func(callCtx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(metrics.UnaryServerInterceptor, func(callCtx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if strings.HasPrefix(info.FullMethod, "/matchlab.user.v1.ProfileService/") {
 			limited, cancel := context.WithTimeout(callCtx, 10*time.Second)
 			defer cancel()

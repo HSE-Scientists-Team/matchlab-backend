@@ -126,3 +126,11 @@ User ProfileService реализует KAN-38: [профили, достижен
 - [Recommendation](cmd/recommendation/README.md): отдельные случайные рекомендации человек–человек и человек–проект через Search, без выдуманных процентов совпадения.
 
 Gateway — единственный публичный HTTP API. Project передаёт версионированные снимки команды в User через transactional outbox и защищённый сервисный RPC; User хранит проекцию для контактов и отзывов. Source_revision предотвращает откат состава старым событием. Межсервисных FK и чтения чужих таблиц нет. Полная схема и HTTP-примеры доступны в OpenAPI; публикация проекта не требует предварительной модерации.
+
+## Метрики
+
+Все Go-сервисы предоставляют Prometheus `GET /metrics` на отдельном listener. YAML-настройка `metrics.address` по умолчанию `127.0.0.1:9090`; пустая строка отключает listener. В Compose listener доступен внутри контейнера на `0.0.0.0:9090`, без публикации порта на хост. В k3s сбор и дашборды настраиваются в matchlab-infra; публичный Gateway не публикует `/metrics`.
+
+`matchlab_requests_total{service,protocol,method,route,result}` считает завершённые HTTP/gRPC операции: регистрации и подтверждения, сеансы, профили, проекты, заявки, рекомендации, жалобы, файлы и отправку писем. `result` — HTTP-статус или gRPC-код. `matchlab_request_duration_seconds` — гистограмма задержек с теми же метками без result; `matchlab_requests_in_flight` — активные запросы. Health probes исключены. HTTP route содержит шаблон, например `/api/v1/projects/{id}`, а не фактический URL. Тела, query, email, идентификаторы, токены и тексты ошибок в метрики не попадают.
+
+Экспортируются стандартные `go_*`, `process_*`, `go_sql_*` (для сервисов с SQL-пулом). `matchlab_build_info{service,version,revision}=1` показывает работающую версию. CI передаёт commit через Docker build args `VCS_REF` и `VERSION`; локальный build использует доступные VCS-метаданные. Метрики операций показывают результат RPC, а не отдельный аудит изменений данных.

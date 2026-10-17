@@ -19,6 +19,7 @@ import (
 	mailsmtp "github.com/HSE-Scientists-Team/matchlab-backend/internal/mail/smtp"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/observability"
 	"google.golang.org/grpc"
 )
 
@@ -39,6 +40,11 @@ func run(logger *slog.Logger) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	metrics, closeMetrics, err := observability.Start("mail", *configPath, logger)
+	if err != nil {
+		return err
+	}
+	defer closeMetrics()
 	version, err := migrations.Apply(ctx, cfg.DB)
 	if err != nil {
 		return err
@@ -51,7 +57,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(metrics.UnaryServerInterceptor))
 	health := healthcheck.RegisterGRPC(server)
 	mailv1.RegisterEmailServiceServer(server, mailgrpc.NewServer(mailService))
 

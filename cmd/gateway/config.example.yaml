@@ -31,3 +31,6 @@ search:
 recommendation:
   host: localhost
   port: 8089
+
+metrics:
+  address: 127.0.0.1:9090

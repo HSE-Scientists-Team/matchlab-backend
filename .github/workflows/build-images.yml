@@ -87,6 +87,9 @@ jobs:
           file: ${{ steps.dockerfile.outputs.path }}
           platforms: linux/amd64
           push: true
+          build-args: |
+            VCS_REF=${{ github.sha }}
+            VERSION=sha-${{ github.sha }}
           tags: ghcr.io/${{ needs.prepare.outputs.repository }}/${{ matrix.service }}:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}

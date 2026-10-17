@@ -19,6 +19,7 @@ import (
 	authv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/healthcheck"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/observability"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 )
@@ -40,6 +41,11 @@ func run(logger *slog.Logger) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	metrics, closeMetrics, err := observability.Start("auth", *configPath, logger)
+	if err != nil {
+		return err
+	}
+	defer closeMetrics()
 	version, err := migrations.Apply(ctx, cfg.DB)
 	if err != nil {
 		return err
@@ -63,7 +69,7 @@ func run(logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("запуск прослушивания gRPC: %w", err)
 	}
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.ChainUnaryInterceptor(metrics.UnaryServerInterceptor))
 	health := healthcheck.RegisterGRPC(server)
 	authv1.RegisterAuthServiceServer(server, authgrpc.NewServer(usecase.NewSessionService(redisrepo.NewSessionStore(redisrepo.NewClientAdapter(client)))))
 
