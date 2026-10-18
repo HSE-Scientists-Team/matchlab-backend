@@ -1,0 +1,53 @@
+syntax = "proto3";
+package matchlab.admin.v1;
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/admin/v1;adminv1";
+import "api/proto/management/v1/common.proto";
+import "api/proto/user/v1/profile.proto";
+import "api/proto/user/v1/management.proto";
+import "api/proto/support/v1/management.proto";
+import "api/proto/project/v1/project.proto";
+service AdminService {
+ rpc Login(LoginInput) returns (LoginResult);
+ rpc Logout(matchlab.management.v1.Empty) returns (matchlab.management.v1.Empty);
+ rpc GetMe(matchlab.management.v1.Empty) returns (StaffAccount);
+ rpc ChangePassword(PasswordChange) returns (matchlab.management.v1.Empty);
+ rpc ListStaff(matchlab.management.v1.Query) returns (StaffList);
+ rpc GetStaff(matchlab.management.v1.ID) returns (StaffAccount);
+ rpc CreateStaff(StaffInput) returns (StaffAccount);
+ rpc UpdateStaff(StaffUpdate) returns (StaffAccount);
+ rpc ResetStaffPassword(PasswordReset) returns (matchlab.management.v1.Empty);
+ rpc RevokeStaffSessions(matchlab.management.v1.ID) returns (matchlab.management.v1.Empty);
+ rpc ListAudit(matchlab.management.v1.Query) returns (matchlab.management.v1.EventList);
+ rpc ListTickets(matchlab.management.v1.Query) returns (matchlab.support.v1.TicketList);
+ rpc GetTicket(matchlab.management.v1.ID) returns (matchlab.support.v1.Ticket);
+ rpc UpdateTicket(matchlab.support.v1.TicketChange) returns (matchlab.support.v1.Ticket);
+ rpc AddTicketNote(matchlab.support.v1.TicketNote) returns (matchlab.management.v1.Event);
+ rpc TicketHistory(matchlab.management.v1.HistoryQuery) returns (matchlab.management.v1.EventList);
+ rpc DownloadTicketAttachment(matchlab.support.v1.AttachmentQuery) returns (matchlab.management.v1.Download);
+ rpc ListUsers(matchlab.management.v1.Query) returns (matchlab.user.v1.ManagedUserList);
+ rpc GetUser(matchlab.management.v1.ID) returns (matchlab.user.v1.ManagedUser);
+ rpc SetUserStatus(matchlab.user.v1.UserStatusChange) returns (matchlab.user.v1.ManagedUser);
+ rpc UserHistory(matchlab.management.v1.HistoryQuery) returns (matchlab.management.v1.EventList);
+ rpc ListDomains(matchlab.management.v1.Query) returns (matchlab.user.v1.DomainList);
+ rpc SaveDomain(matchlab.user.v1.DomainInput) returns (matchlab.user.v1.EmailDomain);
+ rpc DomainHistory(matchlab.management.v1.HistoryQuery) returns (matchlab.management.v1.EventList);
+ rpc ListAchievements(matchlab.management.v1.Query) returns (matchlab.user.v1.ManagedAchievementList);
+ rpc GetAchievement(matchlab.management.v1.ID) returns (matchlab.user.v1.Achievement);
+ rpc ReviewAchievement(matchlab.user.v1.VerificationDecision) returns (matchlab.user.v1.Achievement);
+ rpc AchievementHistory(matchlab.management.v1.HistoryQuery) returns (matchlab.user.v1.AchievementDecisionList);
+ rpc AchievementEvidence(matchlab.user.v1.AchievementID) returns (matchlab.user.v1.Evidence);
+ rpc ListProjects(matchlab.project.v1.ModerationQuery) returns (matchlab.project.v1.ProjectList);
+ rpc GetProject(matchlab.project.v1.ProjectID) returns (matchlab.project.v1.Project);
+ rpc ModerateProject(matchlab.project.v1.ModerationInput) returns (matchlab.project.v1.Project);
+ rpc ProjectHistory(matchlab.management.v1.HistoryQuery) returns (matchlab.project.v1.ModerationList);
+ rpc GetStatistics(matchlab.management.v1.StatisticsQuery) returns (AdminStatistics);
+}
+message LoginInput { string email=1; string password=2; }
+message LoginResult { string session_token=1; int64 expires_at_unix=2; StaffAccount account=3; }
+message StaffAccount { string id=1; string email=2; string display_name=3; string role=4; bool active=5; int32 revision=6; int64 created_at_unix=7; int64 last_login_at_unix=8; }
+message StaffList { repeated StaffAccount items=1; int64 total=2; }
+message StaffInput { string email=1; string display_name=2; string role=3; string password=4; }
+message StaffUpdate { string id=1; string display_name=2; string role=3; bool active=4; int32 expected_revision=5; string reason=6; }
+message PasswordChange { string current_password=1; string new_password=2; }
+message PasswordReset { string id=1; string password=2; string reason=3; int32 expected_revision=4; }
+message AdminStatistics { matchlab.management.v1.Statistics users=1; matchlab.management.v1.Statistics support=2; matchlab.management.v1.Statistics projects=3; matchlab.management.v1.Statistics staff=4; }

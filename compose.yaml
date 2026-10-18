@@ -141,6 +141,7 @@ services:
     environment:
       PROJECT_SYNC_TOKEN: ${PROJECT_SYNC_TOKEN:-matchlab_local_project_sync_only_32bytes}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+      ADMIN_PUBLIC_KEY: ${ADMIN_PUBLIC_KEY:-ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=}
     ports:
       - "127.0.0.1:${USER_GRPC_PORT:-8082}:8082"
     restart: on-failure
@@ -183,6 +184,7 @@ services:
         target: /etc/app/config.yaml
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+      ADMIN_PUBLIC_KEY: ${ADMIN_PUBLIC_KEY:-ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=}
     restart: on-failure
     depends_on:
       postgres:
@@ -225,6 +227,7 @@ services:
         target: /etc/app/config.yaml
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+      ADMIN_PUBLIC_KEY: ${ADMIN_PUBLIC_KEY:-ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=}
       PROJECT_SYNC_TOKEN: ${PROJECT_SYNC_TOKEN:-matchlab_local_project_sync_only_32bytes}
     restart: on-failure
     depends_on:
@@ -271,6 +274,23 @@ services:
       gateway:
         condition: service_started
 
+  admin:
+    build:
+      context: .
+      dockerfile: cmd/admin/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: admin-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+      # Known test-only seed; replace together with ADMIN_PUBLIC_KEY outside local development.
+      ADMIN_SIGNING_KEY: ${ADMIN_SIGNING_KEY:-AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA=}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 configs:
   project-compose-config:
     file: ./cmd/project/config.compose.yaml
@@ -290,6 +310,8 @@ configs:
     file: ./cmd/mail/config.compose.yaml
   gateway-compose-config:
     file: ./cmd/gateway/config.compose.yaml
+  admin-compose-config:
+    file: ./cmd/admin/config.compose.yaml
 
 volumes:
   postgres-data:

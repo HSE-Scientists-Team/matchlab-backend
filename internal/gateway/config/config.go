@@ -21,6 +21,7 @@ func (e Endpoint) Address() string { return net.JoinHostPort(e.Host, strconv.Ito
 type Config struct {
 	DB             postgres.Config `mapstructure:"postgres"`
 	HTTP           Endpoint        `mapstructure:"http"`
+	Admin          Endpoint        `mapstructure:"admin"`
 	Auth           Endpoint        `mapstructure:"auth"`
 	User           Endpoint        `mapstructure:"user"`
 	Media          Endpoint        `mapstructure:"media"`
@@ -60,6 +61,11 @@ func Load(path string) (Config, error) {
 	}
 	for name, endpoint := range map[string]Endpoint{"project": cfg.Project, "search": cfg.Search, "recommendation": cfg.Recommendation} {
 		if err := validateEndpoint(name, endpoint); err != nil {
+			return Config{}, err
+		}
+	}
+	if cfg.Admin.Host != "" || cfg.Admin.Port != 0 {
+		if err := validateEndpoint("admin", cfg.Admin); err != nil {
 			return Config{}, err
 		}
 	}

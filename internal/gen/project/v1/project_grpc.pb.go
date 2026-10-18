@@ -8,6 +8,7 @@ package projectv1
 
 import (
 	context "context"
+	v1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/management/v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -19,23 +20,26 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ProjectService_Create_FullMethodName            = "/matchlab.project.v1.ProjectService/Create"
-	ProjectService_Update_FullMethodName            = "/matchlab.project.v1.ProjectService/Update"
-	ProjectService_Get_FullMethodName               = "/matchlab.project.v1.ProjectService/Get"
-	ProjectService_List_FullMethodName              = "/matchlab.project.v1.ProjectService/List"
-	ProjectService_SaveRole_FullMethodName          = "/matchlab.project.v1.ProjectService/SaveRole"
-	ProjectService_DeleteRole_FullMethodName        = "/matchlab.project.v1.ProjectService/DeleteRole"
-	ProjectService_Transition_FullMethodName        = "/matchlab.project.v1.ProjectService/Transition"
-	ProjectService_Apply_FullMethodName             = "/matchlab.project.v1.ProjectService/Apply"
-	ProjectService_Invite_FullMethodName            = "/matchlab.project.v1.ProjectService/Invite"
-	ProjectService_DecideJoin_FullMethodName        = "/matchlab.project.v1.ProjectService/DecideJoin"
-	ProjectService_CancelJoin_FullMethodName        = "/matchlab.project.v1.ProjectService/CancelJoin"
-	ProjectService_ListJoins_FullMethodName         = "/matchlab.project.v1.ProjectService/ListJoins"
-	ProjectService_RemoveMember_FullMethodName      = "/matchlab.project.v1.ProjectService/RemoveMember"
-	ProjectService_Leave_FullMethodName             = "/matchlab.project.v1.ProjectService/Leave"
-	ProjectService_Moderate_FullMethodName          = "/matchlab.project.v1.ProjectService/Moderate"
-	ProjectService_ListModeration_FullMethodName    = "/matchlab.project.v1.ProjectService/ListModeration"
-	ProjectService_ModerationHistory_FullMethodName = "/matchlab.project.v1.ProjectService/ModerationHistory"
+	ProjectService_Create_FullMethodName                     = "/matchlab.project.v1.ProjectService/Create"
+	ProjectService_Update_FullMethodName                     = "/matchlab.project.v1.ProjectService/Update"
+	ProjectService_Get_FullMethodName                        = "/matchlab.project.v1.ProjectService/Get"
+	ProjectService_List_FullMethodName                       = "/matchlab.project.v1.ProjectService/List"
+	ProjectService_SaveRole_FullMethodName                   = "/matchlab.project.v1.ProjectService/SaveRole"
+	ProjectService_DeleteRole_FullMethodName                 = "/matchlab.project.v1.ProjectService/DeleteRole"
+	ProjectService_Transition_FullMethodName                 = "/matchlab.project.v1.ProjectService/Transition"
+	ProjectService_Apply_FullMethodName                      = "/matchlab.project.v1.ProjectService/Apply"
+	ProjectService_Invite_FullMethodName                     = "/matchlab.project.v1.ProjectService/Invite"
+	ProjectService_DecideJoin_FullMethodName                 = "/matchlab.project.v1.ProjectService/DecideJoin"
+	ProjectService_CancelJoin_FullMethodName                 = "/matchlab.project.v1.ProjectService/CancelJoin"
+	ProjectService_ListJoins_FullMethodName                  = "/matchlab.project.v1.ProjectService/ListJoins"
+	ProjectService_RemoveMember_FullMethodName               = "/matchlab.project.v1.ProjectService/RemoveMember"
+	ProjectService_Leave_FullMethodName                      = "/matchlab.project.v1.ProjectService/Leave"
+	ProjectService_GetForModeration_FullMethodName           = "/matchlab.project.v1.ProjectService/GetForModeration"
+	ProjectService_GetStatistics_FullMethodName              = "/matchlab.project.v1.ProjectService/GetStatistics"
+	ProjectService_PaginatedModerationHistory_FullMethodName = "/matchlab.project.v1.ProjectService/PaginatedModerationHistory"
+	ProjectService_Moderate_FullMethodName                   = "/matchlab.project.v1.ProjectService/Moderate"
+	ProjectService_ListModeration_FullMethodName             = "/matchlab.project.v1.ProjectService/ListModeration"
+	ProjectService_ModerationHistory_FullMethodName          = "/matchlab.project.v1.ProjectService/ModerationHistory"
 )
 
 // ProjectServiceClient is the client API for ProjectService service.
@@ -57,6 +61,9 @@ type ProjectServiceClient interface {
 	RemoveMember(ctx context.Context, in *MemberID, opts ...grpc.CallOption) (*Project, error)
 	Leave(ctx context.Context, in *ProjectID, opts ...grpc.CallOption) (*Project, error)
 	// Internal administrator RPCs, never mapped in Gateway.
+	GetForModeration(ctx context.Context, in *ProjectID, opts ...grpc.CallOption) (*Project, error)
+	GetStatistics(ctx context.Context, in *v1.StatisticsQuery, opts ...grpc.CallOption) (*v1.Statistics, error)
+	PaginatedModerationHistory(ctx context.Context, in *v1.HistoryQuery, opts ...grpc.CallOption) (*ModerationList, error)
 	Moderate(ctx context.Context, in *ModerationInput, opts ...grpc.CallOption) (*Project, error)
 	ListModeration(ctx context.Context, in *ModerationQuery, opts ...grpc.CallOption) (*ProjectList, error)
 	ModerationHistory(ctx context.Context, in *ProjectID, opts ...grpc.CallOption) (*ModerationList, error)
@@ -210,6 +217,36 @@ func (c *projectServiceClient) Leave(ctx context.Context, in *ProjectID, opts ..
 	return out, nil
 }
 
+func (c *projectServiceClient) GetForModeration(ctx context.Context, in *ProjectID, opts ...grpc.CallOption) (*Project, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Project)
+	err := c.cc.Invoke(ctx, ProjectService_GetForModeration_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *projectServiceClient) GetStatistics(ctx context.Context, in *v1.StatisticsQuery, opts ...grpc.CallOption) (*v1.Statistics, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(v1.Statistics)
+	err := c.cc.Invoke(ctx, ProjectService_GetStatistics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *projectServiceClient) PaginatedModerationHistory(ctx context.Context, in *v1.HistoryQuery, opts ...grpc.CallOption) (*ModerationList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ModerationList)
+	err := c.cc.Invoke(ctx, ProjectService_PaginatedModerationHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *projectServiceClient) Moderate(ctx context.Context, in *ModerationInput, opts ...grpc.CallOption) (*Project, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Project)
@@ -259,6 +296,9 @@ type ProjectServiceServer interface {
 	RemoveMember(context.Context, *MemberID) (*Project, error)
 	Leave(context.Context, *ProjectID) (*Project, error)
 	// Internal administrator RPCs, never mapped in Gateway.
+	GetForModeration(context.Context, *ProjectID) (*Project, error)
+	GetStatistics(context.Context, *v1.StatisticsQuery) (*v1.Statistics, error)
+	PaginatedModerationHistory(context.Context, *v1.HistoryQuery) (*ModerationList, error)
 	Moderate(context.Context, *ModerationInput) (*Project, error)
 	ListModeration(context.Context, *ModerationQuery) (*ProjectList, error)
 	ModerationHistory(context.Context, *ProjectID) (*ModerationList, error)
@@ -313,6 +353,15 @@ func (UnimplementedProjectServiceServer) RemoveMember(context.Context, *MemberID
 }
 func (UnimplementedProjectServiceServer) Leave(context.Context, *ProjectID) (*Project, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Leave not implemented")
+}
+func (UnimplementedProjectServiceServer) GetForModeration(context.Context, *ProjectID) (*Project, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetForModeration not implemented")
+}
+func (UnimplementedProjectServiceServer) GetStatistics(context.Context, *v1.StatisticsQuery) (*v1.Statistics, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStatistics not implemented")
+}
+func (UnimplementedProjectServiceServer) PaginatedModerationHistory(context.Context, *v1.HistoryQuery) (*ModerationList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PaginatedModerationHistory not implemented")
 }
 func (UnimplementedProjectServiceServer) Moderate(context.Context, *ModerationInput) (*Project, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Moderate not implemented")
@@ -596,6 +645,60 @@ func _ProjectService_Leave_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProjectService_GetForModeration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProjectID)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectServiceServer).GetForModeration(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectService_GetForModeration_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectServiceServer).GetForModeration(ctx, req.(*ProjectID))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProjectService_GetStatistics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(v1.StatisticsQuery)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectServiceServer).GetStatistics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectService_GetStatistics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectServiceServer).GetStatistics(ctx, req.(*v1.StatisticsQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProjectService_PaginatedModerationHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(v1.HistoryQuery)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectServiceServer).PaginatedModerationHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectService_PaginatedModerationHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectServiceServer).PaginatedModerationHistory(ctx, req.(*v1.HistoryQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ProjectService_Moderate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ModerationInput)
 	if err := dec(in); err != nil {
@@ -712,6 +815,18 @@ var ProjectService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Leave",
 			Handler:    _ProjectService_Leave_Handler,
+		},
+		{
+			MethodName: "GetForModeration",
+			Handler:    _ProjectService_GetForModeration_Handler,
+		},
+		{
+			MethodName: "GetStatistics",
+			Handler:    _ProjectService_GetStatistics_Handler,
+		},
+		{
+			MethodName: "PaginatedModerationHistory",
+			Handler:    _ProjectService_PaginatedModerationHistory_Handler,
 		},
 		{
 			MethodName: "Moderate",

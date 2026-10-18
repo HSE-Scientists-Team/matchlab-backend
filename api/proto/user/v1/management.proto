@@ -1,0 +1,35 @@
+syntax = "proto3";
+package matchlab.user.v1;
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1;userv1";
+import "api/proto/management/v1/common.proto";
+import "api/proto/user/v1/profile.proto";
+// Only signed, short-lived service assertions from Admin are accepted.
+service UserManagementService {
+ rpc ListUsers(matchlab.management.v1.Query) returns (ManagedUserList);
+ rpc GetUser(matchlab.management.v1.ID) returns (ManagedUser);
+ rpc SetUserStatus(UserStatusChange) returns (ManagedUser);
+ rpc UserHistory(matchlab.management.v1.HistoryQuery) returns (matchlab.management.v1.EventList);
+ rpc ListDomains(matchlab.management.v1.Query) returns (DomainList);
+ rpc SaveDomain(DomainInput) returns (EmailDomain);
+ rpc DomainHistory(matchlab.management.v1.HistoryQuery) returns (matchlab.management.v1.EventList);
+ rpc ListAchievementsForReview(matchlab.management.v1.Query) returns (ManagedAchievementList);
+ rpc GetAchievementForReview(matchlab.management.v1.ID) returns (Achievement);
+ rpc AchievementHistory(matchlab.management.v1.HistoryQuery) returns (AchievementDecisionList);
+ rpc GetStatistics(matchlab.management.v1.StatisticsQuery) returns (matchlab.management.v1.Statistics);
+}
+message ManagedUser {
+ string id=1; string email=2; string display_name=3; string status=4; bool email_verified=5;
+ int32 revision=6; string status_comment=7; int64 created_at_unix=8; int64 last_login_at_unix=9;
+ string status_changed_by_admin_id=10; int64 status_changed_at_unix=11;
+}
+message ManagedUserList { repeated ManagedUser items=1; int64 total=2; }
+message UserStatusChange { string id=1; string status=2; string reason=3; int32 expected_revision=4; }
+message EmailDomain { string id=1; string domain=2; string organization_name=3; bool is_active=4; int32 revision=5; int64 created_at_unix=6; int64 updated_at_unix=7; }
+message DomainInput { string id=1; string domain=2; string organization_name=3; bool is_active=4; int32 expected_revision=5; string reason=6; }
+message DomainList { repeated EmailDomain items=1; int64 total=2; }
+message ManagedAchievementList { repeated Achievement items=1; int64 total=2; }
+message AchievementDecision {
+ string id=1; string actor_admin_id=2; string legacy_reviewer_user_id=3; int32 revision=4;
+ bool approved=5; string comment=6; AchievementInput reviewed_details=7; string evidence_file_id=8; int64 created_at_unix=9;
+}
+message AchievementDecisionList { repeated AchievementDecision items=1; int64 total=2; }

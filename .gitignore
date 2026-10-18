@@ -7,3 +7,5 @@ coverage/
 *.matchlab-upload.json.tmp
 __pycache__/
 /scripts/media/
+
+.local/

@@ -4,9 +4,13 @@ package project
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	pb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/project/v1"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/adminauth"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
@@ -49,7 +53,11 @@ func TestProjectLifecycleAndConcurrentAcceptance(t *testing.T) {
 	users := &stubUser{}
 	s := &Service{Repo: &Repository{DB: db}, Users: users, SyncToken: "test-service-token"}
 	owner, a, b, admin := uuid.NewString(), uuid.NewString(), uuid.NewString(), uuid.NewString()
-	own, one, two, mod := as(owner), as(a), as(b), as("admin:"+admin)
+	public, key, _ := ed25519.GenerateKey(rand.Reader)
+	t.Setenv("ADMIN_PUBLIC_KEY", base64.StdEncoding.EncodeToString(public))
+	signed, _ := adminauth.Sign(ctx, key, admin, "administrator", "project", "admin@hse.ru")
+	md, _ := metadata.FromOutgoingContext(signed)
+	own, one, two, mod := as(owner), as(a), as(b), metadata.NewIncomingContext(ctx, md)
 	check := func(err error, code codes.Code) {
 		t.Helper()
 		if status.Code(err) != code {

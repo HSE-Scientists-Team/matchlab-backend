@@ -309,6 +309,10 @@ func requireVerifiedEmail(w http.ResponseWriter, r *http.Request, user UserClien
 		writeError(w, http.StatusServiceUnavailable, "состояние адреса электронной почты недоступно")
 		return false
 	}
+	if result.GetStatus() == "blocked" || result.GetStatus() == "deleted" {
+		writeError(w, http.StatusForbidden, "учётная запись неактивна")
+		return false
+	}
 	if result.GetStatus() != "verified" {
 		writeError(w, http.StatusForbidden, "подтвердите адрес электронной почты")
 		return false

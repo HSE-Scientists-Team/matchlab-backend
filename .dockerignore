@@ -10,3 +10,5 @@ coverage
 **/config.local.yaml
 **/config.local.yml
 *.exe
+
+.local

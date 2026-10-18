@@ -7,6 +7,7 @@ import (
 	authpb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
 	media "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
 	pb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/adminauth"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -60,6 +61,10 @@ func rpcError(err error) error {
 	return status.Error(codes.Internal, "ошибка сервиса User")
 }
 func (s *Service) actor(ctx context.Context, required, moderator bool) (string, error) {
+	if moderator {
+		a, e := adminauth.Verify(ctx, "user")
+		return a.ID, e
+	}
 	values := metadata.ValueFromIncomingContext(ctx, "authorization")
 	if len(values) == 0 && !required {
 		return "", nil
@@ -418,7 +423,16 @@ func (s *Service) ReviewAchievement(ctx context.Context, p *pb.VerificationDecis
 	if err != nil {
 		return nil, rpcError(err)
 	}
-	if a.UserId == id {
+
+	claims, claimsErr := adminauth.Verify(ctx, "user")
+	if claimsErr != nil || claims.Email == "" {
+		return nil, status.Error(codes.PermissionDenied, "неполная служебная идентификация")
+	}
+	var ownerEmail string
+	if err = s.Repo.DB.QueryRowContext(ctx, `SELECT email FROM users.user_account WHERE id=$1`, a.UserId).Scan(&ownerEmail); err != nil {
+		return nil, rpcError(err)
+	}
+	if strings.EqualFold(ownerEmail, claims.Email) {
 		return nil, status.Error(codes.PermissionDenied, "нельзя проверять собственные достижения")
 	}
 	if p.Approve {
@@ -426,7 +440,7 @@ func (s *Service) ReviewAchievement(ctx context.Context, p *pb.VerificationDecis
 			return nil, err
 		}
 	}
-	res, err := s.Repo.Decide(ctx, id, p)
+	res, err := s.Repo.DecideAdmin(ctx, id, p)
 	return res, rpcError(err)
 }
 func (s *Service) GetAchievementEvidence(ctx context.Context, p *pb.AchievementID) (*pb.Evidence, error) {

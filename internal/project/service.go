@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	managementv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/management/v1"
 	pb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/project/v1"
 	upb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
+	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/adminauth"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/rpcmeta"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -59,6 +61,10 @@ func failure(err error) error {
 }
 
 func (s *Service) actor(ctx context.Context, required, admin bool) (string, error) {
+	if admin {
+		a, e := adminauth.Verify(ctx, "project")
+		return a.ID, e
+	}
 	if !required && !admin && len(metadata.ValueFromIncomingContext(ctx, "authorization")) == 0 {
 		return "", nil
 	}
@@ -656,7 +662,7 @@ func (s *Service) Moderate(ctx context.Context, q *pb.ModerationInput) (*pb.Proj
 			return ErrConflict
 		}
 		p.ModerationHidden = q.Hide
-		_, e := tx.ExecContext(ctx, `INSERT INTO projects.moderation(project_id,actor_user_id,hidden,reason) VALUES($1,$2,$3,$4)`, p.Id, id, q.Hide, q.Reason)
+		_, e := tx.ExecContext(ctx, `INSERT INTO projects.moderation(project_id,actor_admin_id,hidden,reason) VALUES($1,$2,$3,$4)`, p.Id, id, q.Hide, q.Reason)
 		return e
 	})
 	if err != nil {
@@ -672,7 +678,10 @@ func (s *Service) ListModeration(ctx context.Context, q *pb.ModerationQuery) (*p
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.Repo.List(ctx, &pb.ProjectQuery{}, "", true, limit, offset, true, q.HiddenOnly)
+	if !text(q.Text, 200, false) || (q.Status != "" && q.Status != "unpublished" && q.Status != "recruiting" && q.Status != "active" && q.Status != "completed" && q.Status != "cancelled") {
+		return nil, invalid()
+	}
+	res, err := s.Repo.List(ctx, &pb.ProjectQuery{Text: q.Text, Status: q.Status}, "", true, limit, offset, true, q.HiddenOnly)
 	if err != nil {
 		return nil, failure(err)
 	}
@@ -680,24 +689,5 @@ func (s *Service) ListModeration(ctx context.Context, q *pb.ModerationQuery) (*p
 	return res, nil
 }
 func (s *Service) ModerationHistory(ctx context.Context, q *pb.ProjectID) (*pb.ModerationList, error) {
-	if _, err := s.actor(ctx, true, true); err != nil {
-		return nil, err
-	}
-	if !validID(q.Id) {
-		return nil, invalid()
-	}
-	rows, err := s.Repo.DB.QueryContext(ctx, `SELECT actor_user_id::text,hidden,reason,extract(epoch FROM created_at)::bigint FROM projects.moderation WHERE project_id=$1 ORDER BY id`, q.Id)
-	if err != nil {
-		return nil, failure(err)
-	}
-	defer rows.Close()
-	res := &pb.ModerationList{Items: []*pb.ModerationRecord{}}
-	for rows.Next() {
-		p := &pb.ModerationRecord{}
-		if err = rows.Scan(&p.ActorUserId, &p.Hidden, &p.Reason, &p.CreatedAtUnix); err != nil {
-			return nil, failure(err)
-		}
-		res.Items = append(res.Items, p)
-	}
-	return res, failure(rows.Err())
+	return s.PaginatedModerationHistory(ctx, &managementv1.HistoryQuery{Id: q.Id})
 }

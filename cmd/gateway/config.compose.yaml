@@ -36,3 +36,7 @@ recommendation:
 
 metrics:
   address: 0.0.0.0:9090
+
+admin:
+  host: admin
+  port: 8090

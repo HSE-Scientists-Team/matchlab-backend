@@ -1,0 +1,24 @@
+syntax = "proto3";
+package matchlab.management.v1;
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/management/v1;managementv1";
+message Empty {}
+message ID { string id=1; }
+message Page { int32 limit=1; int32 offset=2; }
+message Query {
+ Page page=1; string text=2; string status=3; string user_id=4;
+ string assigned_admin_id=5; bool unassigned_only=6; string kind=7;
+ int64 created_from_unix=8; int64 created_to_unix=9; string actor_admin_id=10;
+ string action=11; string result=12; string target_user_id=13; string target_project_id=14;
+}
+message StatisticsQuery { int64 from_unix=1; int64 to_unix=2; }
+message Counter { string category=1; string value=2; int64 count=3; }
+message DailyCount { string date=1; string category=2; int64 count=3; }
+message Statistics { repeated Counter counters=1; repeated DailyCount daily=2; int64 generated_at_unix=3; }
+message Event {
+ string id=1; string actor_admin_id=2; string action=3; string resource_id=4;
+ string comment=5; string result=6; int64 created_at_unix=7;
+ string previous_status=8; string status=9; int32 revision=10; string previous_assigned_admin_id=11; string assigned_admin_id=12;
+}
+message EventList { repeated Event items=1; int64 total=2; }
+message HistoryQuery { string id=1; Page page=2; }
+message Download { string download_url=1; int64 expires_at_unix=2; }

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: MatchLab Gateway API
-  version: 2.4.0
+  version: 2.5.0
   description: |
     Текущий публичный HTTP API MatchLab: учётные записи, сеансы, подтверждение почты, файлы и жалобы.
     Это описание реализованных маршрутов Gateway. Для локальной проверки сначала
@@ -16,6 +16,8 @@ servers:
   - url: http://localhost:8080
     description: Gateway в локальном Docker Compose
 tags:
+  - name: Администрирование
+    description: Отдельная авторизация сотрудников, модерация и аудит; роли moderator и administrator.
   - name: Состояние
   - name: Учётная запись
   - name: Почта
@@ -25,6 +27,3134 @@ tags:
   - name: Support
     description: Создание жалоб
 paths:
+  # BEGIN GENERATED ADMIN PATHS
+  /api/v1/admin/achievements:
+    get:
+      operationId: adminListAchievementsGET
+      parameters:
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: user_id
+          schema:
+            type: string
+        - in: query
+          name: kind
+          schema:
+            type: string
+        - in: query
+          name: created_from_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+        - in: query
+          name: created_to_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_ManagedAchievementList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ListAchievements
+      tags:
+        - Администрирование
+  /api/v1/admin/achievements/{id}:
+    get:
+      operationId: adminGetAchievementGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_Achievement'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: GetAchievement
+      tags:
+        - Администрирование
+  /api/v1/admin/achievements/{id}/decision:
+    post:
+      description: Approve pending evidence or return it for additional proof (needs_evidence). Rejection requires a comment. A staff email cannot review its own public achievement.
+      operationId: adminReviewAchievementPOST
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                approve:
+                  type: boolean
+                comment:
+                  type: string
+                expected_revision:
+                  format: int32
+                  type: integer
+              required:
+                - approve
+                - expected_revision
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_Achievement'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ReviewAchievement
+      tags:
+        - Администрирование
+  /api/v1/admin/achievements/{id}/evidence/download-url:
+    post:
+      operationId: adminAchievementEvidencePOST
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_Evidence'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: AchievementEvidence
+      tags:
+        - Администрирование
+  /api/v1/admin/achievements/{id}/history:
+    get:
+      operationId: adminAchievementHistoryGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_AchievementDecisionList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: AchievementHistory
+      tags:
+        - Администрирование
+  /api/v1/admin/audit:
+    get:
+      operationId: adminListAuditGET
+      parameters:
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: created_from_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+        - in: query
+          name: created_to_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+        - in: query
+          name: actor_admin_id
+          schema:
+            type: string
+        - in: query
+          name: action
+          schema:
+            type: string
+        - in: query
+          name: result
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_management_v1_EventList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ListAudit
+      tags:
+        - Администрирование
+  /api/v1/admin/auth/login:
+    post:
+      description: Separate staff login, no public registration. 12–72 byte passwords; five failures per normalized email per 15 minutes. Staff tokens expire after eight hours and are incompatible with user sessions.
+      operationId: adminLoginPOST
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+              required:
+                - email
+                - password
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_admin_v1_LoginResult'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security: []
+      summary: Login
+      tags:
+        - Администрирование
+  /api/v1/admin/email-domains:
+    get:
+      operationId: adminListDomainsGET
+      parameters:
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_DomainList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ListDomains
+      tags:
+        - Администрирование
+    post:
+      description: Requires administrator role; other moderation operations also accept moderator.
+      operationId: adminSaveDomainPOST
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                domain:
+                  type: string
+                expected_revision:
+                  format: int32
+                  type: integer
+                id:
+                  type: string
+                is_active:
+                  type: boolean
+                organization_name:
+                  type: string
+                reason:
+                  type: string
+              required:
+                - domain
+                - organization_name
+                - is_active
+                - reason
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_EmailDomain'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: SaveDomain
+      tags:
+        - Администрирование
+  /api/v1/admin/email-domains/{id}:
+    put:
+      description: Requires administrator role; other moderation operations also accept moderator.
+      operationId: adminSaveDomainPUT
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                domain:
+                  type: string
+                expected_revision:
+                  format: int32
+                  type: integer
+                is_active:
+                  type: boolean
+                organization_name:
+                  type: string
+                reason:
+                  type: string
+              required:
+                - domain
+                - organization_name
+                - is_active
+                - reason
+                - expected_revision
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_EmailDomain'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: SaveDomain
+      tags:
+        - Администрирование
+  /api/v1/admin/email-domains/{id}/history:
+    get:
+      operationId: adminDomainHistoryGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_management_v1_EventList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: DomainHistory
+      tags:
+        - Администрирование
+  /api/v1/admin/me:
+    get:
+      operationId: adminGetMeGET
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_admin_v1_StaffAccount'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: GetMe
+      tags:
+        - Администрирование
+  /api/v1/admin/me/password:
+    put:
+      operationId: adminChangePasswordPUT
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+              required:
+                - current_password
+                - new_password
+              type: object
+        required: true
+      responses:
+        "204":
+          description: Success; password changes invalidate existing staff sessions.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ChangePassword
+      tags:
+        - Администрирование
+  /api/v1/admin/projects:
+    get:
+      operationId: adminListProjectsGET
+      parameters:
+        - in: query
+          name: hidden_only
+          schema:
+            type: boolean
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_project_v1_ProjectList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ListProjects
+      tags:
+        - Администрирование
+  /api/v1/admin/projects/{id}:
+    get:
+      operationId: adminGetProjectGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_project_v1_Project'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: GetProject
+      tags:
+        - Администрирование
+  /api/v1/admin/projects/{id}/history:
+    get:
+      operationId: adminProjectHistoryGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_project_v1_ModerationList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ProjectHistory
+      tags:
+        - Администрирование
+  /api/v1/admin/projects/{id}/moderation:
+    put:
+      operationId: adminModerateProjectPUT
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                expected_revision:
+                  format: int32
+                  type: integer
+                hide:
+                  type: boolean
+                reason:
+                  type: string
+              required:
+                - hide
+                - reason
+                - expected_revision
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_project_v1_Project'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ModerateProject
+      tags:
+        - Администрирование
+  /api/v1/admin/sessions/current:
+    delete:
+      operationId: adminLogoutDELETE
+      parameters: []
+      responses:
+        "204":
+          description: Success; password changes invalidate existing staff sessions.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: Logout
+      tags:
+        - Администрирование
+  /api/v1/admin/staff:
+    get:
+      description: Requires administrator role; other moderation operations also accept moderator.
+      operationId: adminListStaffGET
+      parameters:
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_admin_v1_StaffList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ListStaff
+      tags:
+        - Администрирование
+    post:
+      description: Requires administrator role; other moderation operations also accept moderator.
+      operationId: adminCreateStaffPOST
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                display_name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+              required:
+                - email
+                - display_name
+                - role
+                - password
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_admin_v1_StaffAccount'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: CreateStaff
+      tags:
+        - Администрирование
+  /api/v1/admin/staff/{id}:
+    get:
+      description: Requires administrator role; other moderation operations also accept moderator.
+      operationId: adminGetStaffGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_admin_v1_StaffAccount'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: GetStaff
+      tags:
+        - Администрирование
+    put:
+      description: Requires administrator role; other moderation operations also accept moderator.
+      operationId: adminUpdateStaffPUT
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                active:
+                  type: boolean
+                display_name:
+                  type: string
+                expected_revision:
+                  format: int32
+                  type: integer
+                reason:
+                  type: string
+                role:
+                  type: string
+              required:
+                - display_name
+                - role
+                - active
+                - expected_revision
+                - reason
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_admin_v1_StaffAccount'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: UpdateStaff
+      tags:
+        - Администрирование
+  /api/v1/admin/staff/{id}/password:
+    put:
+      description: Requires administrator role; other moderation operations also accept moderator.
+      operationId: adminResetStaffPasswordPUT
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                expected_revision:
+                  format: int32
+                  type: integer
+                password:
+                  type: string
+                reason:
+                  type: string
+              required:
+                - password
+                - reason
+                - expected_revision
+              type: object
+        required: true
+      responses:
+        "204":
+          description: Success; password changes invalidate existing staff sessions.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ResetStaffPassword
+      tags:
+        - Администрирование
+  /api/v1/admin/staff/{id}/sessions:
+    delete:
+      description: Requires administrator role; other moderation operations also accept moderator.
+      operationId: adminRevokeStaffSessionsDELETE
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "204":
+          description: Success; password changes invalidate existing staff sessions.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: RevokeStaffSessions
+      tags:
+        - Администрирование
+  /api/v1/admin/statistics:
+    get:
+      description: Current distributions and UTC daily activity for [from_unix,to_unix). Default last 30 days; maximum 366 days. Missing sources are errors, never zero counts.
+      operationId: adminGetStatisticsGET
+      parameters:
+        - in: query
+          name: from_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+        - in: query
+          name: to_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_admin_v1_AdminStatistics'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: GetStatistics
+      tags:
+        - Администрирование
+  /api/v1/admin/tickets:
+    get:
+      operationId: adminListTicketsGET
+      parameters:
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: user_id
+          schema:
+            type: string
+        - in: query
+          name: assigned_admin_id
+          schema:
+            type: string
+        - in: query
+          name: unassigned_only
+          schema:
+            type: boolean
+        - in: query
+          name: created_from_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+        - in: query
+          name: created_to_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+        - in: query
+          name: target_user_id
+          schema:
+            type: string
+        - in: query
+          name: target_project_id
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_support_v1_TicketList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ListTickets
+      tags:
+        - Администрирование
+  /api/v1/admin/tickets/{id}:
+    get:
+      operationId: adminGetTicketGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_support_v1_Ticket'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: GetTicket
+      tags:
+        - Администрирование
+  /api/v1/admin/tickets/{id}/actions:
+    post:
+      description: 'Actions: assign/unassign/resolve/decline/reopen. Closing and reopening require a non-empty comment. expected_revision protects concurrent changes (409).'
+      operationId: adminUpdateTicketPOST
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                action:
+                  type: string
+                assigned_admin_id:
+                  type: string
+                comment:
+                  type: string
+                expected_revision:
+                  format: int32
+                  type: integer
+              required:
+                - action
+                - expected_revision
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_support_v1_Ticket'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: UpdateTicket
+      tags:
+        - Администрирование
+  /api/v1/admin/tickets/{id}/history:
+    get:
+      operationId: adminTicketHistoryGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_management_v1_EventList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: TicketHistory
+      tags:
+        - Администрирование
+  /api/v1/admin/tickets/{id}/notes:
+    post:
+      operationId: adminAddTicketNotePOST
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                comment:
+                  type: string
+                expected_revision:
+                  format: int32
+                  type: integer
+              required:
+                - comment
+                - expected_revision
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_management_v1_Event'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: AddTicketNote
+      tags:
+        - Администрирование
+  /api/v1/admin/tickets/{ticket_id}/attachments/{file_id}/download-url:
+    post:
+      operationId: adminDownloadTicketAttachmentPOST
+      parameters:
+        - in: path
+          name: file_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: ticket_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_management_v1_Download'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: DownloadTicketAttachment
+      tags:
+        - Администрирование
+  /api/v1/admin/users:
+    get:
+      operationId: adminListUsersGET
+      parameters:
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+        - in: query
+          name: text
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: user_id
+          schema:
+            type: string
+        - in: query
+          name: created_from_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+        - in: query
+          name: created_to_unix
+          schema:
+            description: Unix seconds in UTC; upper bound is exclusive.
+            format: int64
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_ManagedUserList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: ListUsers
+      tags:
+        - Администрирование
+  /api/v1/admin/users/{id}:
+    get:
+      operationId: adminGetUserGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_ManagedUser'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: GetUser
+      tags:
+        - Администрирование
+  /api/v1/admin/users/{id}/history:
+    get:
+      operationId: adminUserHistoryGET
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: limit
+          schema:
+            minimum: 0
+            type: integer
+        - description: 'limit: 1–100 (default 20); offset: 0–10000. Stable ordering, total returned separately.'
+          in: query
+          name: offset
+          schema:
+            minimum: 0
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_management_v1_EventList'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: UserHistory
+      tags:
+        - Администрирование
+  /api/v1/admin/users/{id}/status:
+    put:
+      operationId: adminSetUserStatusPUT
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                expected_revision:
+                  format: int32
+                  type: integer
+                reason:
+                  type: string
+                status:
+                  type: string
+              required:
+                - status
+                - reason
+                - expected_revision
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Admin_matchlab_user_v1_ManagedUser'
+          description: Success
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid input, pagination or filter
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Missing/expired staff session or invalid login
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Insufficient staff permissions
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Resource not found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Stale revision or invalid state transition
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Login attempt limit reached
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Internal failure
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Dependency unavailable; inspect state before retrying mutations
+        "504":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Request timed out; inspect state before retrying mutations
+      security:
+        - AdminSession: []
+      summary: SetUserStatus
+      tags:
+        - Администрирование
+  # END GENERATED ADMIN PATHS
   /api/v1/projects:
     post:
       tags:
@@ -2083,11 +5213,827 @@ components:
       required: true
       schema: {type: string, format: uuid}
   securitySchemes:
+    AdminSession:
+      type: http
+      scheme: bearer
+      description: Только отдельный сеанс из POST /api/v1/admin/auth/login; обычный пользовательский токен не подходит.
     bearerAuth:
       type: http
       scheme: bearer
       description: Токен access_token из ответа POST /api/v1/auth/login.
   schemas:
+    # BEGIN GENERATED ADMIN SCHEMAS
+    Admin_matchlab_admin_v1_AdminStatistics:
+      additionalProperties: false
+      properties:
+        projects:
+          $ref: '#/components/schemas/Admin_matchlab_management_v1_Statistics'
+        staff:
+          $ref: '#/components/schemas/Admin_matchlab_management_v1_Statistics'
+        support:
+          $ref: '#/components/schemas/Admin_matchlab_management_v1_Statistics'
+        users:
+          $ref: '#/components/schemas/Admin_matchlab_management_v1_Statistics'
+      type: object
+    Admin_matchlab_admin_v1_LoginInput:
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      type: object
+    Admin_matchlab_admin_v1_LoginResult:
+      additionalProperties: false
+      properties:
+        account:
+          $ref: '#/components/schemas/Admin_matchlab_admin_v1_StaffAccount'
+        expires_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        session_token:
+          type: string
+      type: object
+    Admin_matchlab_admin_v1_PasswordChange:
+      additionalProperties: false
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+      type: object
+    Admin_matchlab_admin_v1_PasswordReset:
+      additionalProperties: false
+      properties:
+        expected_revision:
+          format: int32
+          type: integer
+        id:
+          type: string
+        password:
+          type: string
+        reason:
+          type: string
+      type: object
+    Admin_matchlab_admin_v1_StaffAccount:
+      additionalProperties: false
+      properties:
+        active:
+          type: boolean
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        display_name:
+          type: string
+        email:
+          type: string
+        id:
+          type: string
+        last_login_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        revision:
+          format: int32
+          type: integer
+        role:
+          type: string
+      type: object
+    Admin_matchlab_admin_v1_StaffInput:
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+      type: object
+    Admin_matchlab_admin_v1_StaffList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_admin_v1_StaffAccount'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_admin_v1_StaffUpdate:
+      additionalProperties: false
+      properties:
+        active:
+          type: boolean
+        display_name:
+          type: string
+        expected_revision:
+          format: int32
+          type: integer
+        id:
+          type: string
+        reason:
+          type: string
+        role:
+          type: string
+      type: object
+    Admin_matchlab_management_v1_Counter:
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+        count:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        value:
+          type: string
+      type: object
+    Admin_matchlab_management_v1_DailyCount:
+      additionalProperties: false
+      properties:
+        category:
+          type: string
+        count:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        date:
+          type: string
+      type: object
+    Admin_matchlab_management_v1_Download:
+      additionalProperties: false
+      properties:
+        download_url:
+          type: string
+        expires_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_management_v1_Empty:
+      additionalProperties: false
+      properties: {}
+      type: object
+    Admin_matchlab_management_v1_Event:
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+        actor_admin_id:
+          type: string
+        assigned_admin_id:
+          type: string
+        comment:
+          type: string
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        id:
+          type: string
+        previous_assigned_admin_id:
+          type: string
+        previous_status:
+          type: string
+        resource_id:
+          type: string
+        result:
+          type: string
+        revision:
+          format: int32
+          type: integer
+        status:
+          type: string
+      type: object
+    Admin_matchlab_management_v1_EventList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_management_v1_Event'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_management_v1_HistoryQuery:
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+        page:
+          $ref: '#/components/schemas/Admin_matchlab_management_v1_Page'
+      type: object
+    Admin_matchlab_management_v1_ID:
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+      type: object
+    Admin_matchlab_management_v1_Page:
+      additionalProperties: false
+      properties:
+        limit:
+          format: int32
+          type: integer
+        offset:
+          format: int32
+          type: integer
+      type: object
+    Admin_matchlab_management_v1_Query:
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+        actor_admin_id:
+          type: string
+        assigned_admin_id:
+          type: string
+        created_from_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        created_to_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        kind:
+          type: string
+        page:
+          $ref: '#/components/schemas/Admin_matchlab_management_v1_Page'
+        result:
+          type: string
+        status:
+          type: string
+        target_project_id:
+          type: string
+        target_user_id:
+          type: string
+        text:
+          type: string
+        unassigned_only:
+          type: boolean
+        user_id:
+          type: string
+      type: object
+    Admin_matchlab_management_v1_Statistics:
+      additionalProperties: false
+      properties:
+        counters:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_management_v1_Counter'
+          type: array
+        daily:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_management_v1_DailyCount'
+          type: array
+        generated_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_management_v1_StatisticsQuery:
+      additionalProperties: false
+      properties:
+        from_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        to_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_project_v1_Member:
+      additionalProperties: false
+      properties:
+        role_id:
+          type: string
+        role_title:
+          type: string
+        status:
+          type: string
+        user_id:
+          type: string
+      type: object
+    Admin_matchlab_project_v1_ModerationInput:
+      additionalProperties: false
+      properties:
+        expected_revision:
+          format: int32
+          type: integer
+        hide:
+          type: boolean
+        project_id:
+          type: string
+        reason:
+          type: string
+      type: object
+    Admin_matchlab_project_v1_ModerationList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_project_v1_ModerationRecord'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_project_v1_ModerationQuery:
+      additionalProperties: false
+      properties:
+        hidden_only:
+          type: boolean
+        page:
+          $ref: '#/components/schemas/Admin_matchlab_project_v1_Page'
+        status:
+          type: string
+        text:
+          type: string
+      type: object
+    Admin_matchlab_project_v1_ModerationRecord:
+      additionalProperties: false
+      properties:
+        actor_admin_id:
+          type: string
+        actor_user_id:
+          type: string
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        hidden:
+          type: boolean
+        reason:
+          type: string
+      type: object
+    Admin_matchlab_project_v1_Page:
+      additionalProperties: false
+      properties:
+        limit:
+          format: int32
+          type: integer
+        offset:
+          format: int32
+          type: integer
+      type: object
+    Admin_matchlab_project_v1_Project:
+      additionalProperties: false
+      properties:
+        completed_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        details:
+          $ref: '#/components/schemas/Admin_matchlab_project_v1_ProjectInput'
+        id:
+          type: string
+        members:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_project_v1_Member'
+          type: array
+        moderation_hidden:
+          type: boolean
+        owner_user_id:
+          type: string
+        pending_join_count:
+          format: int32
+          type: integer
+        revision:
+          format: int32
+          type: integer
+        roles:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_project_v1_Role'
+          type: array
+        status:
+          type: string
+      type: object
+    Admin_matchlab_project_v1_ProjectID:
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+      type: object
+    Admin_matchlab_project_v1_ProjectInput:
+      additionalProperties: false
+      properties:
+        expected_revision:
+          format: int32
+          type: integer
+        field:
+          type: string
+        goal:
+          type: string
+        id:
+          type: string
+        planned_end:
+          type: string
+        planned_start:
+          type: string
+        problem:
+          type: string
+        roles:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_project_v1_RoleInput'
+          type: array
+        tags:
+          items:
+            type: string
+          type: array
+        title:
+          type: string
+        type:
+          type: string
+      type: object
+    Admin_matchlab_project_v1_ProjectList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_project_v1_Project'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_project_v1_Role:
+      additionalProperties: false
+      properties:
+        description:
+          type: string
+        id:
+          type: string
+        occupied:
+          format: int32
+          type: integer
+        skills:
+          items:
+            type: string
+          type: array
+        slots:
+          format: int32
+          type: integer
+        title:
+          type: string
+      type: object
+    Admin_matchlab_project_v1_RoleInput:
+      additionalProperties: false
+      properties:
+        description:
+          type: string
+        expected_revision:
+          format: int32
+          type: integer
+        id:
+          type: string
+        project_id:
+          type: string
+        skills:
+          items:
+            type: string
+          type: array
+        slots:
+          format: int32
+          type: integer
+        title:
+          type: string
+      type: object
+    Admin_matchlab_support_v1_AttachmentQuery:
+      additionalProperties: false
+      properties:
+        file_id:
+          type: string
+        ticket_id:
+          type: string
+      type: object
+    Admin_matchlab_support_v1_Ticket:
+      additionalProperties: false
+      properties:
+        assigned_admin_id:
+          type: string
+        author_user_id:
+          type: string
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        description:
+          type: string
+        file_ids:
+          items:
+            type: string
+          type: array
+        id:
+          type: string
+        resolution_comment:
+          type: string
+        resolved_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        revision:
+          format: int32
+          type: integer
+        status:
+          type: string
+        subject:
+          type: string
+        target_project_id:
+          type: string
+        target_user_id:
+          type: string
+        updated_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_support_v1_TicketChange:
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+        assigned_admin_id:
+          type: string
+        comment:
+          type: string
+        expected_revision:
+          format: int32
+          type: integer
+        id:
+          type: string
+      type: object
+    Admin_matchlab_support_v1_TicketList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_support_v1_Ticket'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_support_v1_TicketNote:
+      additionalProperties: false
+      properties:
+        comment:
+          type: string
+        expected_revision:
+          format: int32
+          type: integer
+        id:
+          type: string
+      type: object
+    Admin_matchlab_user_v1_Achievement:
+      additionalProperties: false
+      properties:
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        details:
+          $ref: '#/components/schemas/Admin_matchlab_user_v1_AchievementInput'
+        id:
+          type: string
+        moderation_comment:
+          type: string
+        revision:
+          format: int32
+          type: integer
+        status:
+          type: string
+        user_id:
+          type: string
+      type: object
+    Admin_matchlab_user_v1_AchievementDecision:
+      additionalProperties: false
+      properties:
+        actor_admin_id:
+          type: string
+        approved:
+          type: boolean
+        comment:
+          type: string
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        evidence_file_id:
+          type: string
+        id:
+          type: string
+        legacy_reviewer_user_id:
+          type: string
+        reviewed_details:
+          $ref: '#/components/schemas/Admin_matchlab_user_v1_AchievementInput'
+        revision:
+          format: int32
+          type: integer
+      type: object
+    Admin_matchlab_user_v1_AchievementDecisionList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_user_v1_AchievementDecision'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_user_v1_AchievementID:
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+      type: object
+    Admin_matchlab_user_v1_AchievementInput:
+      additionalProperties: false
+      properties:
+        description:
+          type: string
+        evidence_file_id:
+          type: string
+        expected_revision:
+          format: int32
+          type: integer
+        graduation_year:
+          format: int32
+          type: integer
+        id:
+          type: string
+        institution:
+          type: string
+        kind:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+      type: object
+    Admin_matchlab_user_v1_DomainInput:
+      additionalProperties: false
+      properties:
+        domain:
+          type: string
+        expected_revision:
+          format: int32
+          type: integer
+        id:
+          type: string
+        is_active:
+          type: boolean
+        organization_name:
+          type: string
+        reason:
+          type: string
+      type: object
+    Admin_matchlab_user_v1_DomainList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_user_v1_EmailDomain'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_user_v1_EmailDomain:
+      additionalProperties: false
+      properties:
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        domain:
+          type: string
+        id:
+          type: string
+        is_active:
+          type: boolean
+        organization_name:
+          type: string
+        revision:
+          format: int32
+          type: integer
+        updated_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_user_v1_Evidence:
+      additionalProperties: false
+      properties:
+        download_url:
+          type: string
+        expires_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_user_v1_ManagedAchievementList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_user_v1_Achievement'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_user_v1_ManagedUser:
+      additionalProperties: false
+      properties:
+        created_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        display_name:
+          type: string
+        email:
+          type: string
+        email_verified:
+          type: boolean
+        id:
+          type: string
+        last_login_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        revision:
+          format: int32
+          type: integer
+        status:
+          type: string
+        status_changed_at_unix:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+        status_changed_by_admin_id:
+          type: string
+        status_comment:
+          type: string
+      type: object
+    Admin_matchlab_user_v1_ManagedUserList:
+      additionalProperties: false
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/Admin_matchlab_user_v1_ManagedUser'
+          type: array
+        total:
+          description: 64-bit integer encoded as a string by ProtoJSON.
+          pattern: ^-?[0-9]+$
+          type: string
+      type: object
+    Admin_matchlab_user_v1_UserStatusChange:
+      additionalProperties: false
+      properties:
+        expected_revision:
+          format: int32
+          type: integer
+        id:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+      type: object
+    Admin_matchlab_user_v1_VerificationDecision:
+      additionalProperties: false
+      properties:
+        approve:
+          type: boolean
+        comment:
+          type: string
+        expected_revision:
+          format: int32
+          type: integer
+        id:
+          type: string
+      type: object
+    # END GENERATED ADMIN SCHEMAS
     ProjectInitialRole:
       type: object
       additionalProperties: false
