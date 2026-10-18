@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	pb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/admin/v1"
 	authpb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
@@ -24,6 +25,7 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
@@ -405,11 +407,24 @@ func TestAdministrativeLifecycle(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = provider.Down(ctx); e == nil {
+	var auditBefore int
+	if e = db.QueryRowContext(ctx, `SELECT count(*) FROM admin.audit_event`).Scan(&auditBefore); e != nil || auditBefore < 1 {
+		t.Fatal("expected administrative audit before rollback", auditBefore, e)
+	}
+	// Roll back through administration (00007), even when newer migrations exist.
+	// A single Down would only revert the latest migration, e.g. Chat (00008).
+	if _, e = provider.DownTo(ctx, 6); e == nil {
 		t.Fatal("rollback erased administrative audit")
 	}
+	var pgErr *pgconn.PgError
+	if !errors.As(e, &pgErr) || pgErr.Code != "P0001" || pgErr.Message != "Administrative moderation history must be archived before reverting 00007" {
+		t.Fatalf("expected administration rollback guard, got %v", e)
+	}
+	if version, err := provider.GetDBVersion(ctx); err != nil || version != 7 {
+		t.Fatalf("failed administration rollback changed version: got %d, want 7, error %v", version, err)
+	}
 	var retained int
-	if e = db.QueryRowContext(ctx, `SELECT count(*) FROM admin.audit_event`).Scan(&retained); e != nil || retained < 1 {
-		t.Fatal("audit lost on failed rollback", e)
+	if e = db.QueryRowContext(ctx, `SELECT count(*) FROM admin.audit_event`).Scan(&retained); e != nil || retained != auditBefore {
+		t.Fatal("audit changed on failed rollback", retained, auditBefore, e)
 	}
 }
