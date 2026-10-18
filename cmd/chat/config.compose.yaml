@@ -1,0 +1,12 @@
+grpc: 0.0.0.0:8091
+peers:
+  user: user:8082
+postgres:
+  host: postgres
+  port: 5432
+  database: matchlab
+  user: matchlab
+  ssl_mode: disable
+  migration_timeout: 5m
+metrics:
+  address: 0.0.0.0:9090

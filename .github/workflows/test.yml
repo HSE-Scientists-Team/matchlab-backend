@@ -20,7 +20,7 @@ jobs:
       - name: Проверить все пакеты и покрытие сервисов
         run: bash scripts/ci/test-coverage.sh
       - name: Запустить интеграционные тесты с контейнерами Redis, PostgreSQL, Mailpit и SeaweedFS
-        run: go test -tags=integration ./internal/auth/repository/redis ./pkg/migrations ./internal/user/repository ./internal/mail/smtp ./internal/media/repository ./internal/media/storage/s3 ./cmd/media ./internal/support/repository ./internal/user/profile ./internal/project ./internal/admin ./internal/user/management ./internal/support/management
+        run: go test -tags=integration ./internal/auth/repository/redis ./pkg/migrations ./internal/user/repository ./internal/mail/smtp ./internal/media/repository ./internal/media/storage/s3 ./cmd/media ./internal/support/repository ./internal/user/profile ./internal/project ./internal/admin ./internal/user/management ./internal/support/management ./internal/chat
       - name: Загрузить отчёт о покрытии
         uses: actions/upload-artifact@v4
         with:

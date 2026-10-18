@@ -48,7 +48,7 @@ class ImageUpdateTest(unittest.TestCase):
             images.update(self.content, [record], "org/matchlab-services")
 
     def test_first_project_service_release_appends_digest(self):
-        for service in ("project", "search", "recommendation", "admin"):
+        for service in ("project", "search", "recommendation", "admin", "chat"):
             record = {"service": service, "image": "ghcr.io/org/backend/" + service + "@sha256:" + "f" * 64}
             result = images.update(self.content, [record], "org/backend")
             self.assertIn(record["image"], result)

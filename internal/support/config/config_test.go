@@ -19,13 +19,27 @@ func TestConfigurations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, body := range []string{strings.Replace(string(body), "port: 8086", "port: 0", 1), strings.Replace(string(body), "port: 8085", "port: 70000", 1), strings.Replace(string(body), "postgres:\n", "postgres:\n  password: secret\n", 1)} {
-		path := filepath.Join(t.TempDir(), "config.yaml")
-		if err := os.WriteFile(path, []byte(body), 0600); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := Load(path); err == nil {
-			t.Fatal("invalid config accepted")
+	base := strings.ReplaceAll(string(body), "\r\n", "\n")
+	for _, ending := range []struct{ name, value string }{{"LF", "\n"}, {"CRLF", "\r\n"}} {
+		for _, tc := range []struct{ name, old, replacement string }{
+			{"invalid_grpc_port", "port: 8086", "port: 0"},
+			{"invalid_media_port", "port: 8085", "port: 70000"},
+			{"password_in_yaml", "postgres:\n", "postgres:\n  password: secret\n"},
+		} {
+			t.Run(ending.name+"/"+tc.name, func(t *testing.T) {
+				modified := strings.Replace(base, tc.old, tc.replacement, 1)
+				if modified == base {
+					t.Fatal("test fixture replacement did not match the example configuration")
+				}
+				modified = strings.ReplaceAll(modified, "\n", ending.value)
+				path := filepath.Join(t.TempDir(), "config.yaml")
+				if err := os.WriteFile(path, []byte(modified), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := Load(path); err == nil {
+					t.Fatal("invalid config accepted")
+				}
+			})
 		}
 	}
 }

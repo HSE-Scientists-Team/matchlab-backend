@@ -38,3 +38,7 @@ metrics:
 admin:
   host: 127.0.0.1
   port: 8090
+
+chat:
+  host: localhost
+  port: 8091

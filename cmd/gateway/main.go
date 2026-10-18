@@ -17,6 +17,7 @@ import (
 	delivery "github.com/HSE-Scientists-Team/matchlab-backend/internal/gateway/delivery/http"
 	adminv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/admin/v1"
 	authv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/auth/v1"
+	chatv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/chat/v1"
 	mediav1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/media/v1"
 	projectv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/project/v1"
 	recommendationv1 "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/recommendation/v1"
@@ -112,6 +113,11 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	defer recommendationConn.Close()
+	chatConn, err := dial(cfg.Chat.Address())
+	if err != nil {
+		return err
+	}
+	defer chatConn.Close()
 	var adminConn *grpc.ClientConn
 	if cfg.Admin.Host != "" {
 		adminConn, err = grpc.NewClient(cfg.Admin.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -132,6 +138,7 @@ func run(logger *slog.Logger) error {
 	delivery.RegisterProfiles(router, userv1.NewProfileServiceClient(userConn), logger)
 	delivery.RegisterMedia(router, mediav1.NewMediaServiceClient(mediaConn), authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
 	delivery.RegisterSupport(router, supportv1.NewSupportServiceClient(supportConn), authv1.NewAuthServiceClient(authConn), userv1.NewUserServiceClient(userConn), logger)
+	delivery.RegisterChat(router, chatv1.NewChatServiceClient(chatConn), logger)
 	delivery.RegisterProjects(router, projectv1.NewProjectServiceClient(projectConn), searchv1.NewSearchServiceClient(searchConn), recommendationv1.NewRecommendationServiceClient(recommendationConn), logger)
 	server := &http.Server{
 		Handler:           delivery.Middleware(logger, delivery.CORS(cfg.CORS.AllowedOrigins, router)),
