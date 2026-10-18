@@ -192,6 +192,23 @@ services:
       media:
         condition: service_started
 
+  chat:
+    build:
+      context: .
+      dockerfile: cmd/chat/Dockerfile
+    command: ["-config", "/etc/app/config.yaml"]
+    configs:
+      - source: chat-compose-config
+        target: /etc/app/config.yaml
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-matchlab_local_only}
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      user:
+        condition: service_started
+
   gateway:
     build:
       context: .
@@ -215,6 +232,8 @@ services:
       media:
         condition: service_started
       support:
+        condition: service_started
+      chat:
         condition: service_started
 
   project:
@@ -292,6 +311,8 @@ services:
         condition: service_healthy
 
 configs:
+  chat-compose-config:
+    file: ./cmd/chat/config.compose.yaml
   project-compose-config:
     file: ./cmd/project/config.compose.yaml
   search-compose-config:

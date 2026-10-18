@@ -215,3 +215,47 @@ curl -X POST http://localhost:8080/api/v1/complaints \
 `docker compose up -d --build gateway support api-docs`.
 
 Профили KAN-38: `/api/v1/users/me/profile`, настройки, достижения, блокировки и отзывы. Чтение `/api/v1/users/{user_id}/profile`, achievements и reviews допускает гостя; внутренние методы модерации не представлены HTTP-маршрутами. Контракты и примеры — в [документации User](../../cmd/user/PROFILE.md).
+
+## Личные текстовые чаты
+
+Все запросы требуют Bearer-сеанс активного пользователя с подтверждённой почтой.
+Собеседник определяется по user_id, отправитель — из сеанса. Пример открытия:
+
+```sh
+curl -X POST http://localhost:8080/api/v1/chat/conversations \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"user_id":"00000000-0000-4000-8000-000000000002"}'
+```
+
+Ответ 201 (новый) или 200 (существующий) содержит id диалога. Сохраните его в CONVERSATION_ID.
+Список: GET `/api/v1/chat/conversations?limit=20&cursor=...`; курсор берётся из next_cursor.
+
+```sh
+curl -X POST "http://localhost:8080/api/v1/chat/conversations/$CONVERSATION_ID/messages" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"client_message_id":"00000000-0000-4000-8000-000000000003","body":"Привет!"}'
+```
+
+Фронт генерирует новый client_message_id для каждого нового сообщения. При сетевом сбое повторяет
+запрос с прежним ID и тем же текстом: сервер вернёт сохранённое сообщение (200 вместо 201).
+Другой текст с прежним ID — 409. Разрешён обычный текст длиной 1–10000 символов, не только пробелы;
+HTML отображается как текст. Вложений, редактирования и удаления нет.
+
+История: GET `/api/v1/chat/conversations/{id}/messages?limit=50`.
+Старые сообщения: before_seq=N; новые: after_seq=N (можно 0). Границы исключительные;
+оба фильтра одновременно запрещены. Ответ items всегда в порядке seq ASC, has_more сообщает о продолжении.
+Для polling передавайте after_seq последнего полученного сообщения и продолжайте, пока has_more=true.
+
+```sh
+curl -X PUT "http://localhost:8080/api/v1/chat/conversations/$CONVERSATION_ID/read" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"last_read_seq":12}'
+```
+
+Ответ 204. Отметка только увеличивается и не превышает последний номер. Просмотр истории автоматически
+не отмечает сообщения прочитанными. unread_count считает только входящие сообщения.
+Все int64 в ответах (номера, счётчики, created_at_unix) — десятичные строки ProtoJSON.
+Чужой или отсутствующий диалог — 404. При блокировке в любую сторону новые сообщения запрещены (403),
+история доступна участникам. Прочие ошибки описаны в OpenAPI и [README Chat](../../cmd/chat/README.md).
+
+Обновление локальных образов: `docker compose up -d --build chat gateway api-docs`.

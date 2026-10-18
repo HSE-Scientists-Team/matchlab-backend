@@ -40,3 +40,7 @@ metrics:
 admin:
   host: admin
   port: 8090
+
+chat:
+  host: chat
+  port: 8091
