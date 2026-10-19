@@ -1,0 +1,392 @@
+{
+  "ProjectStatus": {
+    "description": "Состояние жизненного цикла проекта. Скрытие модератором задаётся отдельно полем moderation_hidden.",
+    "values": [
+      {
+        "value": "recruiting",
+        "description": "Опубликован, идёт набор участников."
+      },
+      {
+        "value": "unpublished",
+        "description": "Снят с публикации; доступен владельцу и участникам."
+      },
+      {
+        "value": "active",
+        "description": "Проект выполняется, набор завершён."
+      },
+      {
+        "value": "completed",
+        "description": "Проект завершён."
+      },
+      {
+        "value": "cancelled",
+        "description": "Проект отменён."
+      }
+    ]
+  },
+  "ProjectType": {
+    "description": "Тип проекта.",
+    "values": [
+      {
+        "value": "scientific",
+        "description": "Научный проект."
+      },
+      {
+        "value": "practical",
+        "description": "Практический проект."
+      }
+    ]
+  },
+  "ProjectMemberStatus": {
+    "description": "Состояние участия человека в проекте; не заменяет статус самого проекта.",
+    "values": [
+      {
+        "value": "active",
+        "description": "Состоит в команде."
+      },
+      {
+        "value": "left",
+        "description": "Самостоятельно вышел из команды."
+      },
+      {
+        "value": "removed",
+        "description": "Исключён владельцем проекта."
+      }
+    ]
+  },
+  "ProjectJoinType": {
+    "description": "Кто инициировал вступление в команду.",
+    "values": [
+      {
+        "value": "application",
+        "description": "Пользователь подал заявку на роль."
+      },
+      {
+        "value": "invitation",
+        "description": "Владелец проекта пригласил пользователя на роль."
+      }
+    ]
+  },
+  "ProjectJoinStatus": {
+    "description": "Состояние заявки или приглашения.",
+    "values": [
+      {
+        "value": "pending",
+        "description": "Ожидает решения адресата."
+      },
+      {
+        "value": "accepted",
+        "description": "Принято, пользователь добавлен в команду."
+      },
+      {
+        "value": "rejected",
+        "description": "Отклонено адресатом."
+      },
+      {
+        "value": "cancelled",
+        "description": "Отменено инициатором или автоматически после изменения проекта, роли или принятия другой заявки."
+      }
+    ]
+  },
+  "ProjectTransitionAction": {
+    "description": "Команда изменения состояния проекта. Недопустимый переход возвращает 409.",
+    "values": [
+      {
+        "value": "publish",
+        "description": "unpublished → recruiting: опубликовать проект."
+      },
+      {
+        "value": "unpublish",
+        "description": "recruiting → unpublished: снять с публикации."
+      },
+      {
+        "value": "start",
+        "description": "recruiting → active: начать выполнение."
+      },
+      {
+        "value": "complete",
+        "description": "active → completed: завершить проект."
+      },
+      {
+        "value": "cancel",
+        "description": "recruiting, unpublished или active → cancelled: отменить проект."
+      }
+    ]
+  },
+  "ProjectMineFilter": {
+    "description": "Отношение текущего пользователя к проекту. Непустой фильтр требует авторизации.",
+    "values": [
+      {
+        "value": "owner",
+        "description": "Только проекты, которыми пользователь владеет."
+      },
+      {
+        "value": "participant",
+        "description": "Только проекты с активным участием пользователя, кроме собственных."
+      }
+    ]
+  },
+  "ProjectDurationFilter": {
+    "description": "Длительность между planned_start и planned_end в днях.",
+    "values": [
+      {
+        "value": "up_to_3m",
+        "description": "Не более 92 дней."
+      },
+      {
+        "value": "3_to_6m",
+        "description": "Больше 92 и не более 183 дней."
+      },
+      {
+        "value": "over_6m",
+        "description": "Больше 183 дней."
+      }
+    ]
+  },
+  "AchievementKind": {
+    "description": "Категория достижения.",
+    "values": [
+      {
+        "value": "education",
+        "description": "Образование."
+      },
+      {
+        "value": "certificate",
+        "description": "Сертификат."
+      },
+      {
+        "value": "scientific",
+        "description": "Научное достижение."
+      },
+      {
+        "value": "project",
+        "description": "Проектное достижение."
+      }
+    ]
+  },
+  "AchievementStatus": {
+    "description": "Состояние проверки достижения.",
+    "values": [
+      {
+        "value": "unverified",
+        "description": "Достижение ещё не отправлено на проверку либо изменено после предыдущей проверки."
+      },
+      {
+        "value": "pending_review",
+        "description": "Отправлено и ожидает решения модератора."
+      },
+      {
+        "value": "verified",
+        "description": "Подтверждено модератором."
+      },
+      {
+        "value": "needs_evidence",
+        "description": "Возвращено для уточнения или дополнительных подтверждений; причина в moderation_comment."
+      }
+    ]
+  },
+  "TicketStatus": {
+    "description": "Состояние жалобы.",
+    "values": [
+      {
+        "value": "open",
+        "description": "Открыта и ожидает обработки."
+      },
+      {
+        "value": "resolved",
+        "description": "Рассмотрена и удовлетворена."
+      },
+      {
+        "value": "declined",
+        "description": "Рассмотрена и отклонена."
+      }
+    ]
+  },
+  "TicketStatusFilter": {
+    "description": "Фильтр жалоб. closed используется только в фильтре, а не в статусе ответа.",
+    "values": [
+      {
+        "value": "open",
+        "description": "Открытые жалобы."
+      },
+      {
+        "value": "resolved",
+        "description": "Удовлетворённые жалобы."
+      },
+      {
+        "value": "declined",
+        "description": "Отклонённые жалобы."
+      },
+      {
+        "value": "closed",
+        "description": "Все закрытые жалобы: resolved и declined."
+      }
+    ]
+  },
+  "TicketAction": {
+    "description": "Действие модератора с жалобой; требуется актуальный expected_revision.",
+    "values": [
+      {
+        "value": "assign",
+        "description": "Назначить ответственного: требуется assigned_admin_id, жалоба должна быть open."
+      },
+      {
+        "value": "unassign",
+        "description": "Снять ответственного с открытой жалобы."
+      },
+      {
+        "value": "resolve",
+        "description": "Удовлетворить открытую жалобу; обязателен comment."
+      },
+      {
+        "value": "decline",
+        "description": "Отклонить открытую жалобу; обязателен comment."
+      },
+      {
+        "value": "reopen",
+        "description": "Вернуть закрытую жалобу в open; обязателен comment."
+      }
+    ]
+  },
+  "StaffRole": {
+    "description": "Роль отдельной служебной учётной записи; не является ролью участника проекта.",
+    "values": [
+      {
+        "value": "administrator",
+        "description": "Полный доступ, включая сотрудников и правила почтовых доменов."
+      },
+      {
+        "value": "moderator",
+        "description": "Модерация жалоб, достижений, пользователей и проектов; без управления сотрудниками и доменами."
+      }
+    ]
+  },
+  "AccountStatus": {
+    "description": "Состояние публичной учётной записи.",
+    "values": [
+      {
+        "value": "active",
+        "description": "Аккаунт активен; подтверждение почты проверяется отдельно."
+      },
+      {
+        "value": "blocked",
+        "description": "Заблокирован администратором."
+      },
+      {
+        "value": "deleted",
+        "description": "Аккаунт удалён."
+      }
+    ]
+  },
+  "AccountStatusChange": {
+    "description": "Доступные действия блокировки и разблокировки. Удаление этим методом не выполняется.",
+    "values": [
+      {
+        "value": "active",
+        "description": "Разблокировать пользователя."
+      },
+      {
+        "value": "blocked",
+        "description": "Заблокировать пользователя."
+      }
+    ]
+  },
+  "ActiveStatusFilter": {
+    "description": "Фильтр активности сотрудников или правил доменов.",
+    "values": [
+      {
+        "value": "active",
+        "description": "Только активные."
+      },
+      {
+        "value": "inactive",
+        "description": "Только неактивные."
+      }
+    ]
+  },
+  "AuditResult": {
+    "description": "Результат административной операции.",
+    "values": [
+      {
+        "value": "started",
+        "description": "Операция начата, итог ещё не зафиксирован."
+      },
+      {
+        "value": "succeeded",
+        "description": "Операция успешно завершена."
+      },
+      {
+        "value": "failed",
+        "description": "Зафиксирована ошибка выполнения."
+      },
+      {
+        "value": "unknown",
+        "description": "Ответ зависимости потерян или истёк тайм-аут; результат нужно уточнить по состоянию и истории перед повтором."
+      }
+    ]
+  },
+  "MediaFileStatus": {
+    "description": "Состояние файла в Media.",
+    "values": [
+      {
+        "value": "pending",
+        "description": "Ожидает загрузки и подтверждения."
+      },
+      {
+        "value": "ready",
+        "description": "Загрузка подтверждена, файл доступен."
+      },
+      {
+        "value": "deleted",
+        "description": "Файл удалён."
+      },
+      {
+        "value": "failed",
+        "description": "Загрузка или проверка завершилась ошибкой."
+      }
+    ]
+  },
+  "MediaMultipartStatus": {
+    "description": "Состояние составной загрузки.",
+    "values": [
+      {
+        "value": "uploading",
+        "description": "Загружаются части."
+      },
+      {
+        "value": "completing",
+        "description": "Выполняется сборка и проверка объекта."
+      },
+      {
+        "value": "completed",
+        "description": "Составная загрузка завершена."
+      },
+      {
+        "value": "aborted",
+        "description": "Загрузка отменена."
+      }
+    ]
+  },
+  "RegistrationStatus": {
+    "description": "Состояние заявки на регистрацию.",
+    "values": [
+      {
+        "value": "pending",
+        "description": "Письмо отправлено; требуется перейти по ссылке, подтвердить адрес и затем войти."
+      }
+    ]
+  },
+  "EmailVerificationStatus": {
+    "description": "Состояние подтверждения электронной почты.",
+    "values": [
+      {
+        "value": "pending",
+        "description": "Ожидается подтверждение адреса."
+      },
+      {
+        "value": "verified",
+        "description": "Адрес подтверждён."
+      }
+    ]
+  }
+}

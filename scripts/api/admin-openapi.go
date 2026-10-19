@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -19,6 +20,92 @@ func name(d protoreflect.MessageDescriptor) string {
 }
 
 var schemas = map[string]any{}
+
+//go:embed string-enums.json
+var enumCatalogJSON []byte
+
+type enumEntry struct {
+	Description string `json:"description"`
+	Values      []struct {
+		Value       string `json:"value"`
+		Description string `json:"description"`
+	} `json:"values"`
+}
+
+func enumRef(name string) map[string]any {
+	return map[string]any{"$ref": "#/components/schemas/" + name}
+}
+
+// String fields keep their existing JSON representation. Only closed business
+// domains get enum schemas; generic audit actions and free text stay strings.
+var fieldEnums = map[protoreflect.FullName]string{
+	"matchlab.project.v1.Project.status":          "ProjectStatus",
+	"matchlab.project.v1.ProjectInput.type":       "ProjectType",
+	"matchlab.project.v1.Member.status":           "ProjectMemberStatus",
+	"matchlab.project.v1.JoinRequest.type":        "ProjectJoinType",
+	"matchlab.project.v1.JoinRequest.status":      "ProjectJoinStatus",
+	"matchlab.user.v1.Achievement.status":         "AchievementStatus",
+	"matchlab.user.v1.AchievementInput.kind":      "AchievementKind",
+	"matchlab.user.v1.ProfileInput.project_types": "ProjectType",
+	"matchlab.user.v1.ManagedUser.status":         "AccountStatus",
+	"matchlab.user.v1.UserStatusChange.status":    "AccountStatusChange",
+	"matchlab.support.v1.Ticket.status":           "TicketStatus",
+	"matchlab.support.v1.TicketChange.action":     "TicketAction",
+	"matchlab.admin.v1.StaffAccount.role":         "StaffRole",
+	"matchlab.admin.v1.StaffInput.role":           "StaffRole",
+	"matchlab.admin.v1.StaffUpdate.role":          "StaffRole",
+	"matchlab.management.v1.Event.result":         "AuditResult",
+}
+
+func queryEnum(method, field string) string {
+	if field == "status" {
+		switch method {
+		case "ListStaff", "ListDomains":
+			return "ActiveStatusFilterOptionalFilter"
+		case "ListUsers":
+			return "AccountStatusOptionalFilter"
+		case "ListAchievements":
+			return "AchievementStatusOptionalFilter"
+		case "ListTickets":
+			return "TicketStatusFilterOptionalFilter"
+		case "ListProjects":
+			return "ProjectStatusOptionalFilter"
+		}
+	}
+	if method == "ListAchievements" && field == "kind" {
+		return "AchievementKindOptionalFilter"
+	}
+	if method == "ListAudit" && field == "result" {
+		return "AuditResultOptionalFilter"
+	}
+	return ""
+}
+
+func registerEnums() {
+	var catalog map[string]enumEntry
+	if err := json.Unmarshal(enumCatalogJSON, &catalog); err != nil {
+		panic(err)
+	}
+	filters := map[string]bool{}
+	for _, name := range []string{"ProjectType", "ProjectStatus", "ProjectMineFilter", "ProjectDurationFilter", "ProjectJoinStatus", "AchievementKind", "ActiveStatusFilter", "AccountStatus", "AchievementStatus", "TicketStatusFilter", "AuditResult"} {
+		filters[name] = true
+	}
+	for name, entry := range catalog {
+		values := []string{}
+		descriptions := []string{}
+		description := entry.Description + "\n\n"
+		for _, item := range entry.Values {
+			values = append(values, item.Value)
+			descriptions = append(descriptions, item.Description)
+			description += "- `" + item.Value + "` — " + item.Description + "\n"
+		}
+		schemas[name] = map[string]any{"type": "string", "enum": values, "description": description, "x-enum-descriptions": descriptions}
+		if filters[name] {
+			schemas[name+"OptionalFilter"] = map[string]any{"type": "string", "enum": append([]string{""}, values...), "description": description + "\nПараметр можно не передавать. Пустая строка также отключает этот фильтр.", "x-enum-descriptions": append([]string{"Без фильтра."}, descriptions...)}
+		}
+	}
+	schemas["CreatedComplaintStatus"] = map[string]any{"type": "string", "enum": []string{"open"}, "description": "Только что созданная жалоба открыта и ожидает обработки (`open`)."}
+}
 
 func schema(d protoreflect.MessageDescriptor) map[string]any {
 	n := name(d)
@@ -38,6 +125,21 @@ func schema(d protoreflect.MessageDescriptor) map[string]any {
 	return map[string]any{"$ref": "#/components/schemas/" + n}
 }
 func value(f protoreflect.FieldDescriptor) map[string]any {
+	// Shared protobuf messages serve several resources. Their field domains
+	// depend on the route, so document that rather than inventing a global enum.
+	descriptions := map[protoreflect.FullName]string{
+		"matchlab.management.v1.Query.status":          "Значения зависят от метода; см. enum query-параметра status конкретного HTTP-маршрута.",
+		"matchlab.management.v1.Query.kind":            "Для очереди достижений: education, certificate, scientific, project; см. enum query-параметра kind.",
+		"matchlab.management.v1.Event.action":          "Имя операции в истории конкретного ресурса или общем аудите. Набор отличается от команд TicketAction; например, domain.save или session.login.",
+		"matchlab.management.v1.Event.status":          "Состояние после операции; формат зависит от ресурса. История доменов может содержать домен и флаг активности; общий аудит может оставлять поле пустым.",
+		"matchlab.management.v1.Event.previous_status": "Состояние до операции в том же формате, что status; может быть пустым, например при создании ресурса.",
+	}
+	if description := descriptions[f.FullName()]; description != "" {
+		return map[string]any{"type": "string", "description": description}
+	}
+	if n := fieldEnums[f.FullName()]; n != "" {
+		return enumRef(n)
+	}
 	switch f.Kind() {
 	case protoreflect.MessageKind:
 		return schema(f.Message())
@@ -63,6 +165,7 @@ func main() {
 	write := flag.Bool("write", false, "update generated OpenAPI sections")
 	check := flag.Bool("check", false, "verify generated sections")
 	flag.Parse()
+	registerEnums()
 	raw, e := os.ReadFile("scripts/api/admin-routes.json")
 	if e != nil {
 		panic(e)
@@ -136,6 +239,9 @@ func main() {
 					continue
 				}
 				v := value(f)
+				if n := queryEnum(method, string(f.Name())); n != "" {
+					v = enumRef(n)
+				}
 				if f.Kind() == protoreflect.Int64Kind {
 					v = map[string]any{"type": "integer", "format": "int64", "minimum": 0, "description": "Unix seconds in UTC; upper bound is exclusive."}
 				}
@@ -244,7 +350,11 @@ func main() {
 			var replacement strings.Builder
 			replacement.WriteString(marker)
 			for _, line := range strings.Split(strings.TrimSuffix(buffer.String(), "\n"), "\n") {
-				replacement.WriteString(strings.Repeat(" ", section.indent) + line + "\n")
+				if line == "" {
+					replacement.WriteString("\n")
+				} else {
+					replacement.WriteString(strings.Repeat(" ", section.indent) + line + "\n")
+				}
 			}
 			replacement.WriteString(endMarker)
 			source = source[:start] + replacement.String() + source[end:]
