@@ -10,7 +10,7 @@ import (
 func TestLoad(t *testing.T) {
 	t.Setenv("POSTGRES_PASSWORD", "postgres-test")
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	body := "project:\n  host: project\n  port: 8087\nsearch:\n  host: search\n  port: 8088\nrecommendation:\n  host: recommendation\n  port: 8089\nhttp:\n  host: 127.0.0.1\n  port: 8080\nauth:\n  host: localhost\n  port: 8081\nuser:\n  host: localhost\n  port: 8082\nmedia:\n  host: localhost\n  port: 8085\nsupport:\n  host: localhost\n  port: 8086\n"
+	body := "chat:\n  host: chat\n  port: 8091\nproject:\n  host: project\n  port: 8087\nsearch:\n  host: search\n  port: 8088\nrecommendation:\n  host: recommendation\n  port: 8089\nhttp:\n  host: 127.0.0.1\n  port: 8080\nauth:\n  host: localhost\n  port: 8081\nuser:\n  host: localhost\n  port: 8082\nmedia:\n  host: localhost\n  port: 8085\nsupport:\n  host: localhost\n  port: 8086\n"
 	if err := os.WriteFile(path, []byte(body+"postgres:\n  host: localhost\n  port: 5432\n  database: matchlab\n  user: matchlab\n  ssl_mode: disable\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestLoadRejectsMissingServiceAddress(t *testing.T) {
 
 func TestLoadRejectsMissingMediaAddress(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	body := "project:\n  host: project\n  port: 8087\nsearch:\n  host: search\n  port: 8088\nrecommendation:\n  host: recommendation\n  port: 8089\nhttp:\n  host: localhost\n  port: 8080\nauth:\n  host: localhost\n  port: 8081\nuser:\n  host: localhost\n  port: 8082\n"
+	body := "chat:\n  host: chat\n  port: 8091\nproject:\n  host: project\n  port: 8087\nsearch:\n  host: search\n  port: 8088\nrecommendation:\n  host: recommendation\n  port: 8089\nhttp:\n  host: localhost\n  port: 8080\nauth:\n  host: localhost\n  port: 8081\nuser:\n  host: localhost\n  port: 8082\n"
 	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -67,5 +67,22 @@ func TestLoadRejectsMissingSupportAddress(t *testing.T) {
 	}
 	if _, err := Load(path); err == nil {
 		t.Fatal("missing Support endpoint accepted")
+	}
+}
+
+func TestLoadRejectsMissingChatAddress(t *testing.T) {
+	t.Setenv("POSTGRES_PASSWORD", "postgres-test")
+	body, err := os.ReadFile(filepath.Join("..", "..", "..", "cmd", "gateway", "config.example.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	content := strings.ReplaceAll(string(body), "\r\n", "\n")
+	content = strings.Replace(content, "chat:\n  host: localhost\n  port: 8091\n", "", 1)
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err == nil {
+		t.Fatal("missing Chat endpoint accepted")
 	}
 }

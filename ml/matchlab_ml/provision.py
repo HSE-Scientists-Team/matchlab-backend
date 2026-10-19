@@ -24,6 +24,18 @@ def role(conn, name, password):
     # Reruns never silently rotate a stored credential.
 
 
+def wait_database(dsn, attempts=120):
+    for attempt in range(attempts):
+        try:
+            with psycopg.connect(dsn, connect_timeout=5) as conn:
+                conn.execute("SELECT 1")
+            return
+        except psycopg.OperationalError:
+            if attempt + 1 == attempts:
+                raise RuntimeError("Database did not become ready; credentials omitted") from None
+            time.sleep(5)
+
+
 def main():
     # Only this named Docker volume, never a source or host directory.
     if os.environ.get("ML_PREPARE_ARTIFACTS") == "true":
@@ -43,7 +55,7 @@ def main():
             break
         time.sleep(2)
     else:
-        raise RuntimeError("Versioned ML exports missing: rebuild all backend images with migration 00008")
+        raise RuntimeError("Versioned ML exports missing: rebuild all backend images with migration 00009")
     with psycopg.connect(source_admin) as conn:
         role(conn, "ml_reader", os.environ["ML_SOURCE_PASSWORD"])
         conn.execute("ALTER ROLE ml_reader SET default_transaction_read_only=on")
@@ -53,6 +65,7 @@ def main():
             conn.execute(sql.SQL("GRANT SELECT ON {} TO ml_reader").format(sql.Identifier(*view.split("."))))
 
     admin_dsn = os.environ["ML_ADMIN_URL"]
+    wait_database(admin_dsn)
     accounts = [("analytics_writer", "analytics", "ML_ANALYTICS_PASSWORD"),
                 ("airflow", "airflow", "ML_AIRFLOW_PASSWORD"),
                 ("superset", "superset", "ML_SUPERSET_DB_PASSWORD")]

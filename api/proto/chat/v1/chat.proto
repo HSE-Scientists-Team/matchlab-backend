@@ -1,0 +1,54 @@
+syntax = "proto3";
+package matchlab.chat.v1;
+option go_package = "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/chat/v1;chatv1";
+
+// All RPCs authenticate the Bearer session through User. Caller IDs are never
+// accepted from the client. No message editing, deletion or attachments.
+service ChatService {
+  rpc OpenConversation(OpenConversationRequest) returns (OpenConversationResponse);
+  rpc ListConversations(ConversationQuery) returns (ConversationList);
+  rpc ListMessages(MessageQuery) returns (MessageList);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc MarkRead(MarkReadRequest) returns (Empty);
+}
+message Empty {}
+message OpenConversationRequest { string user_id = 1; }
+message OpenConversationResponse { Conversation conversation = 1; bool created = 2; }
+message ConversationQuery { int32 limit = 1; string cursor = 2; }
+message ConversationList { repeated Conversation items = 1; string next_cursor = 2; }
+message Conversation {
+  string id = 1;
+  string peer_user_id = 2;
+  int64 last_message_seq = 3;
+  int64 last_read_seq = 4;
+  int64 peer_last_read_seq = 5;
+  int64 unread_count = 6; // Incoming messages only.
+  int64 created_at_unix = 7;
+  optional int64 last_message_at_unix = 8;
+  Message last_message = 9;
+}
+message Message {
+  string id = 1;
+  string conversation_id = 2;
+  int64 seq = 3;
+  string sender_user_id = 4;
+  string client_message_id = 5;
+  string body = 6;
+  int64 created_at_unix = 7;
+}
+message MessageQuery {
+  string conversation_id = 1;
+  int32 limit = 2; // Default 50, maximum 100.
+  optional int64 before_seq = 3;
+  optional int64 after_seq = 4;
+}
+// Messages are always returned in ascending seq order. Without after_seq the
+// latest matching page is selected; with after_seq the earliest matching page.
+message MessageList { repeated Message items = 1; bool has_more = 2; }
+message SendMessageRequest {
+  string conversation_id = 1;
+  string client_message_id = 2;
+  string body = 3; // Plain UTF-8 text, 1-10000 characters, not whitespace-only.
+}
+message SendMessageResponse { Message message = 1; bool created = 2; }
+message MarkReadRequest { string conversation_id = 1; int64 last_read_seq = 2; }

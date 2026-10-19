@@ -28,6 +28,7 @@ type Config struct {
 	Project        Endpoint        `mapstructure:"project"`
 	Search         Endpoint        `mapstructure:"search"`
 	Recommendation Endpoint        `mapstructure:"recommendation"`
+	Chat           Endpoint        `mapstructure:"chat"`
 	Support        Endpoint        `mapstructure:"support"`
 	CORS           struct {
 		AllowedOrigins []string `mapstructure:"allowed_origins"`
@@ -59,7 +60,7 @@ func Load(path string) (Config, error) {
 	if err := validateEndpoint("support", cfg.Support); err != nil {
 		return Config{}, err
 	}
-	for name, endpoint := range map[string]Endpoint{"project": cfg.Project, "search": cfg.Search, "recommendation": cfg.Recommendation} {
+	for name, endpoint := range map[string]Endpoint{"chat": cfg.Chat, "project": cfg.Project, "search": cfg.Search, "recommendation": cfg.Recommendation} {
 		if err := validateEndpoint(name, endpoint); err != nil {
 			return Config{}, err
 		}

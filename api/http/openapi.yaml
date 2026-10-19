@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: MatchLab Gateway API
-  version: 2.5.0
+  version: 2.6.0
   description: |
-    Текущий публичный HTTP API MatchLab: учётные записи, сеансы, подтверждение почты, файлы и жалобы.
+    Текущий публичный HTTP API MatchLab: учётные записи, сеансы, подтверждение почты, файлы, жалобы и личные текстовые чаты.
     Это описание реализованных маршрутов Gateway. Для локальной проверки сначала
     зарегистрируйтесь, подтвердите email из письма, затем войдите и укажите полученный токен доступа в Bearer Auth.
     Для регистрации администратор должен настроить разрешённые почтовые домены.
@@ -26,6 +26,8 @@ tags:
     description: Цельная загрузка, метаданные, скачивание и удаление; затем загрузка частями, прогресс, завершение и отмена.
   - name: Support
     description: Создание жалоб
+  - name: Chat
+    description: Личные текстовые диалоги
 paths:
   # BEGIN GENERATED ADMIN PATHS
   /api/v1/admin/achievements:
@@ -5215,6 +5217,160 @@ paths:
           description: Некорректный ответ Support
         '503':
           description: Зависимость недоступна или срок запроса истёк
+  /api/v1/chat/conversations:
+    post:
+      tags: [Chat]
+      operationId: chatOpenConversation
+      summary: Открыть личный диалог
+      description: |
+        Возвращает существующий диалог пары или создаёт новый. Чат с собой запрещён.
+        Требуется активный аккаунт с подтверждённой почтой, проверяется блокировка в обе стороны.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ChatOpenInput'}
+            example: {user_id: '00000000-0000-4000-8000-000000000002'}
+      responses:
+        '200':
+          description: Существующий диалог
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChatConversation'}
+        '201':
+          description: Новый диалог
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChatConversation'}
+        '400': {description: Некорректный UUID или диалог с собой}
+        '401': {description: Требуется действительный сеанс}
+        '403': {description: Аккаунт неактивен или взаимодействие заблокировано}
+        '404': {description: Собеседник не найден}
+        '503': {description: User недоступен}
+    get:
+      tags: [Chat]
+      operationId: chatListConversations
+      summary: Список своих диалогов
+      description: |
+        Сортировка по последней активности и ID убыванию, включая пустые диалоги.
+        Непрочитанные — только входящие сообщения. Курсор передаётся из next_cursor.
+        Это живая выдача, новые сообщения могут менять порядок между страницами.
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        '200':
+          description: Диалоги пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, next_cursor]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/ChatConversation'}}
+                  next_cursor: {type: string, description: Пустая строка означает конец списка}
+        '400': {description: Некорректная пагинация}
+        '401': {description: Требуется действительный сеанс}
+        '403': {description: Требуется активный подтверждённый аккаунт}
+        '503': {description: User недоступен}
+  /api/v1/chat/conversations/{id}/messages:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    get:
+      tags: [Chat]
+      operationId: chatListMessages
+      summary: История сообщений
+      description: |
+        Без фильтра — последняя страница. before_seq выбирает более старые,
+        after_seq — ближайшие новые сообщения. Границы исключительные, фильтры несовместимы.
+        Порядок ответа всегда seq ASC. Чтение истории не меняет отметку прочтения.
+        Для polling продолжайте с after_seq последнего полученного сообщения.
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {name: before_seq, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: after_seq, in: query, schema: {type: integer, format: int64, minimum: 0}}
+      responses:
+        '200':
+          description: Страница в хронологическом порядке
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, has_more]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/ChatMessage'}}
+                  has_more: {type: boolean}
+        '400': {description: Некорректные фильтры или пагинация}
+        '401': {description: Требуется действительный сеанс}
+        '403': {description: Требуется активный подтверждённый аккаунт}
+        '404': {description: Диалог отсутствует или пользователь не участник}
+        '503': {description: User недоступен}
+    post:
+      tags: [Chat]
+      operationId: chatSendMessage
+      summary: Отправить текстовое сообщение
+      description: |
+        Автор определяется из сеанса. Текст сохраняется без обработки разметки;
+        фронт отображает его как обычный текст. Проверяется блокировка в обе стороны.
+        Повтор с тем же client_message_id и текстом возвращает прежнее сообщение,
+        даже после последующей блокировки. Другой текст с тем же ID — 409.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ChatSendInput'}
+            example: {client_message_id: '00000000-0000-4000-8000-000000000003', body: 'Привет!'}
+      responses:
+        '201':
+          description: Сообщение создано
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChatMessage'}
+        '200':
+          description: Повтор ранее выполненной отправки
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ChatMessage'}
+        '400': {description: Некорректные ID или текст}
+        '401': {description: Требуется действительный сеанс}
+        '403': {description: Аккаунт неактивен или взаимодействие заблокировано}
+        '404': {description: Диалог отсутствует или пользователь не участник; собеседник неактивен}
+        '409': {description: client_message_id уже использован с другим текстом}
+        '503': {description: User недоступен}
+        '504': {description: Истёк срок выполнения запроса}
+  /api/v1/chat/conversations/{id}/read:
+    put:
+      tags: [Chat]
+      operationId: chatMarkRead
+      summary: Отметить сообщения прочитанными
+      description: |
+        Отметка включает указанный seq, может только увеличиваться и не превышает
+        последний номер сообщения. Старые и повторные отметки безопасны.
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [last_read_seq]
+              properties:
+                last_read_seq: {type: integer, format: int64, minimum: 0}
+            example: {last_read_seq: 12}
+      responses:
+        '204': {description: Отметка сохранена}
+        '400': {description: Некорректный номер или номер за пределами истории}
+        '401': {description: Требуется действительный сеанс}
+        '403': {description: Требуется активный подтверждённый аккаунт}
+        '404': {description: Диалог отсутствует или пользователь не участник}
+        '503': {description: User недоступен}
 components:
   parameters:
     MediaFileID:
@@ -5232,6 +5388,54 @@ components:
       scheme: bearer
       description: Токен access_token из ответа POST /api/v1/auth/login.
   schemas:
+    ChatOpenInput:
+      type: object
+      additionalProperties: false
+      required: [user_id]
+      properties:
+        user_id: {type: string, format: uuid, description: UUID собеседника в каноническом формате}
+    ChatSendInput:
+      type: object
+      additionalProperties: false
+      required: [client_message_id, body]
+      properties:
+        client_message_id: {type: string, format: uuid, description: Новый UUID для сообщения; сохраняется при повторных попытках}
+        body:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: Обычный UTF-8 текст; не только пробелы и без NUL; пробелы по краям сохраняются
+    ChatMessage:
+      type: object
+      required: [id, conversation_id, seq, sender_user_id, client_message_id, body, created_at_unix]
+      properties:
+        id: {type: string, format: uuid}
+        conversation_id: {type: string, format: uuid}
+        seq: {$ref: '#/components/schemas/ChatInt64'}
+        sender_user_id: {type: string, format: uuid}
+        client_message_id: {type: string, format: uuid}
+        body: {type: string, description: Отображать как текст без интерпретации HTML}
+        created_at_unix: {$ref: '#/components/schemas/ChatInt64'}
+    ChatConversation:
+      type: object
+      required: [id, peer_user_id, last_message_seq, last_read_seq, peer_last_read_seq, unread_count, created_at_unix]
+      properties:
+        id: {type: string, format: uuid}
+        peer_user_id: {type: string, format: uuid}
+        last_message_seq: {$ref: '#/components/schemas/ChatInt64'}
+        last_read_seq: {$ref: '#/components/schemas/ChatInt64'}
+        peer_last_read_seq: {$ref: '#/components/schemas/ChatInt64'}
+        unread_count: {$ref: '#/components/schemas/ChatInt64'}
+        created_at_unix: {$ref: '#/components/schemas/ChatInt64'}
+        last_message_at_unix: {$ref: '#/components/schemas/ChatInt64', description: Отсутствует у пустого диалога}
+        last_message:
+          oneOf:
+            - {$ref: '#/components/schemas/ChatMessage'}
+            - {type: 'null'}
+    ChatInt64:
+      type: string
+      pattern: '^[0-9]+$'
+      description: int64 передаётся десятичной строкой согласно ProtoJSON; время — Unix seconds
     # BEGIN GENERATED ADMIN SCHEMAS
     Admin_matchlab_admin_v1_AdminStatistics:
       additionalProperties: false
