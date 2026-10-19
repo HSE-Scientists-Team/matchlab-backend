@@ -211,6 +211,11 @@ func (s *Service) GetProfile(ctx context.Context, q *pb.ProfileQuery) (*pb.Profi
 	if !validID(id) {
 		return nil, invalid()
 	}
+	// Public profile rehydration, including recommendations, requires the same
+	// active confirmed account as discovery. Do not revive legacy unconfirmed accounts.
+	if _, _, err := s.Repo.Identity(ctx, id); err != nil {
+		return nil, rpcError(err)
+	}
 	p, privacy, err := s.Repo.Profile(ctx, id)
 	if err != nil {
 		return nil, rpcError(err)

@@ -105,6 +105,14 @@ func TestProfileLifecycle(t *testing.T) {
 	if err != nil || !p.Verified {
 		t.Fatalf("profile: %v %v", p, err)
 	}
+	t.Run("public hydration rejects an unconfirmed account", func(t *testing.T) {
+		unconfirmed := uuid.NewString()
+		if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account(id,email,password_hash) VALUES($1,'unconfirmed@example.org','hash')`, unconfirmed); err != nil {
+			t.Fatal(err)
+		}
+		_, err := s.GetProfile(ctx, &pb.ProfileQuery{UserId: unconfirmed})
+		mustCode(err, codes.NotFound)
+	})
 	people, e := s.SearchPeople(ctx, &pb.PeopleQuery{Text: "Анна", Skills: []string{"go"}})
 	if e != nil || people.Total != 1 || len(people.Items) != 1 {
 		t.Fatalf("people filters: %v %v", people, e)
