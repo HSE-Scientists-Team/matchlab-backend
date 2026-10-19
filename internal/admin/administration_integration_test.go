@@ -407,6 +407,10 @@ func TestAdministrativeLifecycle(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	var auditBefore int
+	if e = db.QueryRowContext(ctx, `SELECT count(*) FROM admin.audit_event`).Scan(&auditBefore); e != nil || auditBefore < 1 {
+		t.Fatal("expected administrative audit before rollback", auditBefore, e)
+	}
 	// Later additive migrations (including ML views) may be reverted first.
 	// The audit-retention assertion specifically targets administration version 7.
 	if _, e = provider.DownTo(ctx, 7); e != nil {
