@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "matchlab-ml"
+version = "0.1.0"
+description = "Batch recommendations and product analytics for MatchLab"
+requires-python = ">=3.10"
+dependencies = ["psycopg[binary]==3.3.6", "redis==6.4.0"]
+
+[project.optional-dependencies]
+tracking = ["mlflow-skinny==3.17.1"]
+
+[project.scripts]
+matchlab-ml = "matchlab_ml.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["matchlab_ml*"]
+
+[tool.setuptools.package-data]
+matchlab_ml = ["*.sql"]
