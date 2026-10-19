@@ -2,12 +2,17 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	ppb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/project/v1"
 	rpb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/recommendation/v1"
 	spb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/search/v1"
 	upb "github.com/HSE-Scientists-Team/matchlab-backend/internal/gen/user/v1"
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -229,14 +234,45 @@ func (h *projectHandler) recommend(w http.ResponseWriter, r *http.Request, peopl
 		return
 	}
 	if page.Offset != 0 {
-		writeError(w, 400, "случайная выдача не поддерживает offset")
+		writeError(w, 400, "рекомендации не поддерживают offset")
 		return
 	}
 	h.run(w, r, 200, func(ctx context.Context) (proto.Message, error) {
 		q := &rpb.RecommendationQuery{Limit: page.Limit}
+		var headers metadata.MD
+		var value proto.Message
+		var err error
 		if people {
-			return h.recommendation.People(ctx, q)
+			value, err = h.recommendation.People(ctx, q, grpc.Header(&headers))
+		} else {
+			value, err = h.recommendation.Projects(ctx, q, grpc.Header(&headers))
 		}
-		return h.recommendation.Projects(ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		return recommendationEnvelope(value, headers)
 	})
+}
+
+// Preserve existing protobuf cards and add batch provenance/explanations only on
+// recommendation routes. Older internal servers without metadata still work.
+func recommendationEnvelope(value proto.Message, headers metadata.MD) (proto.Message, error) {
+	info := headers.Get("matchlab-recommendations-bin")
+	if len(info) == 0 {
+		return value, nil
+	}
+	raw, err := (protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: true}).Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var body map[string]any
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return nil, err
+	}
+	var recommendation map[string]any
+	if err := json.Unmarshal([]byte(info[0]), &recommendation); err != nil {
+		return nil, err
+	}
+	body["recommendation"] = recommendation
+	return structpb.NewStruct(body)
 }

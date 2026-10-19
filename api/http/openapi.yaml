@@ -4063,7 +4063,13 @@ paths:
     get:
       tags:
       - Поиск и рекомендации
-      summary: Случайные рекомендации открытых к сотрудничеству людей
+      summary: Рекомендации соавторов из периодического расчёта с резервной выдачей
+      description: |
+        Ранжированные ID читаются из Redis, карточки и блокировки проверяются User заново.
+        При отсутствии профиля в кэше, истечении срока или сбое Redis используется доступный каталог.
+        recommendation содержит версию модели, время расчёта и факторы для возвращённых ID.
+        score — сигнал сортировки, не вероятность успеха. total — размер каталога владельца
+        до дополнительной проверки кандидатов, а не число записей в кэше.
       security:
       - bearerAuth: []
       responses:
@@ -4098,7 +4104,11 @@ paths:
     get:
       tags:
       - Проекты
-      summary: Случайные рекомендации доступных проектов с набором
+      summary: Рекомендации проектов из периодического расчёта с резервной выдачей
+      description: |
+        Проекты из кэша проверяются через текущий Project API: видимость, состояние,
+        участие и свободные места. Блокировки проверяются User. При сбое кэша есть резервная выдача.
+        recommendation объясняет расчёт на generated_at; score не является процентом совместимости.
       security:
       - bearerAuth: []
       responses:
@@ -6186,6 +6196,8 @@ components:
         total:
           type: string
           pattern: ^-?[0-9]+$
+        recommendation:
+          $ref: '#/components/schemas/RecommendationInfo'
     ProjectTransitionRequest:
       type: object
       additionalProperties: false
@@ -6297,6 +6309,41 @@ components:
         total:
           type: string
           pattern: ^-?[0-9]+$
+        recommendation:
+          $ref: '#/components/schemas/RecommendationInfo'
+    RecommendationInfo:
+      type: object
+      description: Только ответы маршрутов recommendations; факторы рассчитаны на generated_at.
+      properties:
+        schema_version:
+          type: integer
+        run_id:
+          type: string
+        model:
+          type: string
+        generated_at:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              score:
+                type: number
+                minimum: 0
+                maximum: 1
+              factors:
+                type: array
+                items:
+                  type: string
+              role_id:
+                type: string
+              fallback:
+                type: boolean
+              model:
+                type: string
     ProjectCreate:
       allOf:
       - $ref: '#/components/schemas/ProjectInput'
