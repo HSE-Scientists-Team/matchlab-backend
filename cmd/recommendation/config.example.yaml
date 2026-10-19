@@ -2,6 +2,9 @@ grpc: 127.0.0.1:8089
 peers:
   user: localhost:8082
   search: localhost:8088
+  project: localhost:8087
+  # Optional dedicated cache; set RECOMMENDATION_REDIS_PASSWORD when enabled.
+  # recommendation_redis: localhost:6380
 postgres:
   host: localhost
   port: 5432

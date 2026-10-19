@@ -12,3 +12,10 @@ coverage
 *.exe
 
 .local
+
+ml/artifacts
+ml/.venv
+**/__pycache__
+
+**/artifacts
+**/.local

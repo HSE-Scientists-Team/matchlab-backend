@@ -411,9 +411,12 @@ func TestAdministrativeLifecycle(t *testing.T) {
 	if e = db.QueryRowContext(ctx, `SELECT count(*) FROM admin.audit_event`).Scan(&auditBefore); e != nil || auditBefore < 1 {
 		t.Fatal("expected administrative audit before rollback", auditBefore, e)
 	}
-	// Roll back through administration (00007), even when newer migrations exist.
-	// A single Down would only revert the latest migration, e.g. Chat (00008).
-	if _, e = provider.DownTo(ctx, 6); e == nil {
+	// Later additive migrations (including ML views) may be reverted first.
+	// The audit-retention assertion specifically targets administration version 7.
+	if _, e = provider.DownTo(ctx, 7); e != nil {
+		t.Fatal("rollback later migrations", e)
+	}
+	if _, e = provider.Down(ctx); e == nil {
 		t.Fatal("rollback erased administrative audit")
 	}
 	var pgErr *pgconn.PgError

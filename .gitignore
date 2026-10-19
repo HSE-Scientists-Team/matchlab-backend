@@ -6,6 +6,12 @@ coverage/
 *.matchlab-upload.json
 *.matchlab-upload.json.tmp
 __pycache__/
+*.py[cod]
+/ml/artifacts/
+/ml/.venv/
+*.egg-info/
 /scripts/media/
 
 .local/
+
+artifacts/
