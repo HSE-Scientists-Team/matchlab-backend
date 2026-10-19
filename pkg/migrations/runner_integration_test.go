@@ -61,8 +61,8 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 
 func applyMigrations(t *testing.T, ctx context.Context, db *sql.DB) {
 	t.Helper()
-	if version, err := Up(ctx, db); err != nil || version != 7 {
-		t.Fatalf("apply migrations: version=%d, want=7, error=%v", version, err)
+	if version, err := Up(ctx, db); err != nil || version != 8 {
+		t.Fatalf("apply migrations: version=%d, want=8, error=%v", version, err)
 	}
 }
 
@@ -215,9 +215,10 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 		requireCount(t, `SELECT count(*) FROM media.file WHERE object_key='preserve' AND is_public`, 1)
-		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4,5,6,7) AND is_applied`, 7)
+		requireCount(t, `SELECT count(*) FROM users.goose_db_version WHERE version_id IN (1,2,3,4,5,6,7,8) AND is_applied`, 8)
 	})
 	t.Run("support rollback preserves users and media", func(t *testing.T) {
+		down(t) // ML export views
 		down(t) // administration
 		down(t) // projects
 		down(t) // profiles
@@ -233,6 +234,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM support.support_ticket`, 0)
 	})
 	t.Run("multipart rollback preserves files", func(t *testing.T) {
+		down(t) // ML export views
 		down(t) // administration
 		down(t) // projects
 		down(t) // profiles
@@ -246,6 +248,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		applyMigrations(t, ctx, db)
 	})
 	t.Run("media rollback preserves users", func(t *testing.T) {
+		down(t) // ML export views
 		down(t) // administration
 		down(t) // projects
 		down(t) // profiles
@@ -261,6 +264,7 @@ func TestMigrationsApplyAndStayCurrent(t *testing.T) {
 		requireCount(t, `SELECT count(*) FROM users.user_account WHERE email='preserve@example.org'`, 1)
 	})
 	t.Run("full rollback and reapply", func(t *testing.T) {
+		down(t) // ML export views
 		down(t) // administration
 		down(t) // projects
 		down(t) // profiles
@@ -393,7 +397,7 @@ func TestUpgradeAccountsSchemaToMediaPreservesUsers(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `INSERT INTO users.user_account (email,password_hash) VALUES ('upgrade@example.org','hash')`); err != nil {
 		t.Fatal(err)
 	}
-	if version, err := Up(ctx, db); err != nil || version != 7 {
+	if version, err := Up(ctx, db); err != nil || version != 8 {
 		t.Fatalf("upgrade: %d %v", version, err)
 	}
 	var count int
@@ -428,7 +432,7 @@ func TestProjectRollbackRevokesContactGrantsButKeepsReviewHistory(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, version := range []int{7, 6} {
+	for _, version := range []int{8, 7, 6} {
 		if _, err = provider.Down(ctx); err != nil {
 			t.Fatalf("rollback %d: %v", version, err)
 		}

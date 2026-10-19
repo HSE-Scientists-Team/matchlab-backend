@@ -405,6 +405,11 @@ func TestAdministrativeLifecycle(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	// Later additive migrations (including ML views) may be reverted first.
+	// The audit-retention assertion specifically targets administration version 7.
+	if _, e = provider.DownTo(ctx, 7); e != nil {
+		t.Fatal("rollback later migrations", e)
+	}
 	if _, e = provider.Down(ctx); e == nil {
 		t.Fatal("rollback erased administrative audit")
 	}
