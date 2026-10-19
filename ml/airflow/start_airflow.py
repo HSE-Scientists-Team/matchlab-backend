@@ -10,8 +10,9 @@ import os
 
 
 def main():
-    from matchlab_ml.provision import wait_database
-    wait_database(os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"].replace("postgresql+psycopg2://", "postgresql://"))
+    if os.environ.get("ML_WAIT_DATABASE") == "true":
+        from matchlab_ml.provision import wait_database
+        wait_database(os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"].replace("postgresql+psycopg2://", "postgresql://"))
     password = os.environ.pop("ML_AIRFLOW_ADMIN_PASSWORD")
     path = os.environ["AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE"]
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
