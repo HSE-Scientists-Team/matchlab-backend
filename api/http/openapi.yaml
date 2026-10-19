@@ -53,7 +53,7 @@ paths:
         - in: query
           name: status
           schema:
-            type: string
+            $ref: '#/components/schemas/AchievementStatusOptionalFilter'
         - in: query
           name: user_id
           schema:
@@ -61,7 +61,7 @@ paths:
         - in: query
           name: kind
           schema:
-            type: string
+            $ref: '#/components/schemas/AchievementKindOptionalFilter'
         - in: query
           name: created_from_unix
           schema:
@@ -522,7 +522,7 @@ paths:
         - in: query
           name: result
           schema:
-            type: string
+            $ref: '#/components/schemas/AuditResultOptionalFilter'
       responses:
         "200":
           content:
@@ -697,7 +697,7 @@ paths:
         - in: query
           name: status
           schema:
-            type: string
+            $ref: '#/components/schemas/ActiveStatusFilterOptionalFilter'
       responses:
         "200":
           content:
@@ -1228,7 +1228,7 @@ paths:
         - in: query
           name: status
           schema:
-            type: string
+            $ref: '#/components/schemas/ProjectStatusOptionalFilter'
       responses:
         "200":
           content:
@@ -1644,7 +1644,7 @@ paths:
         - in: query
           name: status
           schema:
-            type: string
+            $ref: '#/components/schemas/ActiveStatusFilterOptionalFilter'
       responses:
         "200":
           content:
@@ -1728,7 +1728,7 @@ paths:
                 password:
                   type: string
                 role:
-                  type: string
+                  $ref: '#/components/schemas/StaffRole'
               required:
                 - email
                 - display_name
@@ -1905,7 +1905,7 @@ paths:
                 reason:
                   type: string
                 role:
-                  type: string
+                  $ref: '#/components/schemas/StaffRole'
               required:
                 - display_name
                 - role
@@ -2253,7 +2253,7 @@ paths:
         - in: query
           name: status
           schema:
-            type: string
+            $ref: '#/components/schemas/TicketStatusFilterOptionalFilter'
         - in: query
           name: user_id
           schema:
@@ -2448,7 +2448,7 @@ paths:
               additionalProperties: false
               properties:
                 action:
-                  type: string
+                  $ref: '#/components/schemas/TicketAction'
                 assigned_admin_id:
                   type: string
                 comment:
@@ -2812,7 +2812,7 @@ paths:
         - in: query
           name: status
           schema:
-            type: string
+            $ref: '#/components/schemas/AccountStatusOptionalFilter'
         - in: query
           name: user_id
           schema:
@@ -3083,7 +3083,7 @@ paths:
                 reason:
                   type: string
                 status:
-                  type: string
+                  $ref: '#/components/schemas/AccountStatusChange'
               required:
                 - status
                 - reason
@@ -3245,7 +3245,7 @@ paths:
       - name: type
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectTypeOptionalFilter'
       - name: field
         in: query
         schema:
@@ -3259,15 +3259,15 @@ paths:
       - name: duration
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectDurationFilterOptionalFilter'
       - name: status
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectStatusOptionalFilter'
       - name: mine
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectMineFilterOptionalFilter'
       - name: profile_user_id
         in: query
         schema:
@@ -3677,7 +3677,7 @@ paths:
       - name: status
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectJoinStatusOptionalFilter'
   /api/v1/projects/{id}/members/{user_id}:
     delete:
       tags:
@@ -3810,7 +3810,7 @@ paths:
       - name: status
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectJoinStatusOptionalFilter'
   /api/v1/project-joins/{id}/decision:
     post:
       tags:
@@ -3944,7 +3944,7 @@ paths:
       - name: type
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectTypeOptionalFilter'
       - name: field
         in: query
         schema:
@@ -3958,15 +3958,15 @@ paths:
       - name: duration
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectDurationFilterOptionalFilter'
       - name: status
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectStatusOptionalFilter'
       - name: mine
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectMineFilterOptionalFilter'
       - name: profile_user_id
         in: query
         schema:
@@ -4028,7 +4028,7 @@ paths:
       - name: project_type
         in: query
         schema:
-          type: string
+          $ref: '#/components/schemas/ProjectTypeOptionalFilter'
       - name: skill
         in: query
         schema:
@@ -4270,7 +4270,7 @@ paths:
           schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
         - name: kind
           in: query
-          schema: {type: string, enum: [education, certificate, scientific, project]}
+          schema: {$ref: '#/components/schemas/AchievementKindOptionalFilter'}
       responses:
         '200':
           description: Успешно
@@ -4329,7 +4329,7 @@ paths:
           schema: {type: integer, minimum: 0, maximum: 10000, default: 0}
         - name: kind
           in: query
-          schema: {type: string, enum: [education, certificate, scientific, project]}
+          schema: {$ref: '#/components/schemas/AchievementKindOptionalFilter'}
       responses:
         '200':
           description: Успешно
@@ -5437,6 +5437,169 @@ components:
       pattern: '^[0-9]+$'
       description: int64 передаётся десятичной строкой согласно ProtoJSON; время — Unix seconds
     # BEGIN GENERATED ADMIN SCHEMAS
+    AccountStatus:
+      description: |
+        Состояние публичной учётной записи.
+
+        - `active` — Аккаунт активен; подтверждение почты проверяется отдельно.
+        - `blocked` — Заблокирован администратором.
+        - `deleted` — Аккаунт удалён.
+      enum:
+        - active
+        - blocked
+        - deleted
+      type: string
+      x-enum-descriptions:
+        - Аккаунт активен; подтверждение почты проверяется отдельно.
+        - Заблокирован администратором.
+        - Аккаунт удалён.
+    AccountStatusChange:
+      description: |
+        Доступные действия блокировки и разблокировки. Удаление этим методом не выполняется.
+
+        - `active` — Разблокировать пользователя.
+        - `blocked` — Заблокировать пользователя.
+      enum:
+        - active
+        - blocked
+      type: string
+      x-enum-descriptions:
+        - Разблокировать пользователя.
+        - Заблокировать пользователя.
+    AccountStatusOptionalFilter:
+      description: |-
+        Состояние публичной учётной записи.
+
+        - `active` — Аккаунт активен; подтверждение почты проверяется отдельно.
+        - `blocked` — Заблокирован администратором.
+        - `deleted` — Аккаунт удалён.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - active
+        - blocked
+        - deleted
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Аккаунт активен; подтверждение почты проверяется отдельно.
+        - Заблокирован администратором.
+        - Аккаунт удалён.
+    AchievementKind:
+      description: |
+        Категория достижения.
+
+        - `education` — Образование.
+        - `certificate` — Сертификат.
+        - `scientific` — Научное достижение.
+        - `project` — Проектное достижение.
+      enum:
+        - education
+        - certificate
+        - scientific
+        - project
+      type: string
+      x-enum-descriptions:
+        - Образование.
+        - Сертификат.
+        - Научное достижение.
+        - Проектное достижение.
+    AchievementKindOptionalFilter:
+      description: |-
+        Категория достижения.
+
+        - `education` — Образование.
+        - `certificate` — Сертификат.
+        - `scientific` — Научное достижение.
+        - `project` — Проектное достижение.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - education
+        - certificate
+        - scientific
+        - project
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Образование.
+        - Сертификат.
+        - Научное достижение.
+        - Проектное достижение.
+    AchievementStatus:
+      description: |
+        Состояние проверки достижения.
+
+        - `unverified` — Достижение ещё не отправлено на проверку либо изменено после предыдущей проверки.
+        - `pending_review` — Отправлено и ожидает решения модератора.
+        - `verified` — Подтверждено модератором.
+        - `needs_evidence` — Возвращено для уточнения или дополнительных подтверждений; причина в moderation_comment.
+      enum:
+        - unverified
+        - pending_review
+        - verified
+        - needs_evidence
+      type: string
+      x-enum-descriptions:
+        - Достижение ещё не отправлено на проверку либо изменено после предыдущей проверки.
+        - Отправлено и ожидает решения модератора.
+        - Подтверждено модератором.
+        - Возвращено для уточнения или дополнительных подтверждений; причина в moderation_comment.
+    AchievementStatusOptionalFilter:
+      description: |-
+        Состояние проверки достижения.
+
+        - `unverified` — Достижение ещё не отправлено на проверку либо изменено после предыдущей проверки.
+        - `pending_review` — Отправлено и ожидает решения модератора.
+        - `verified` — Подтверждено модератором.
+        - `needs_evidence` — Возвращено для уточнения или дополнительных подтверждений; причина в moderation_comment.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - unverified
+        - pending_review
+        - verified
+        - needs_evidence
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Достижение ещё не отправлено на проверку либо изменено после предыдущей проверки.
+        - Отправлено и ожидает решения модератора.
+        - Подтверждено модератором.
+        - Возвращено для уточнения или дополнительных подтверждений; причина в moderation_comment.
+    ActiveStatusFilter:
+      description: |
+        Фильтр активности сотрудников или правил доменов.
+
+        - `active` — Только активные.
+        - `inactive` — Только неактивные.
+      enum:
+        - active
+        - inactive
+      type: string
+      x-enum-descriptions:
+        - Только активные.
+        - Только неактивные.
+    ActiveStatusFilterOptionalFilter:
+      description: |-
+        Фильтр активности сотрудников или правил доменов.
+
+        - `active` — Только активные.
+        - `inactive` — Только неактивные.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - active
+        - inactive
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Только активные.
+        - Только неактивные.
     Admin_matchlab_admin_v1_AdminStatistics:
       additionalProperties: false
       properties:
@@ -5513,7 +5676,7 @@ components:
           format: int32
           type: integer
         role:
-          type: string
+          $ref: '#/components/schemas/StaffRole'
       type: object
     Admin_matchlab_admin_v1_StaffInput:
       additionalProperties: false
@@ -5525,7 +5688,7 @@ components:
         password:
           type: string
         role:
-          type: string
+          $ref: '#/components/schemas/StaffRole'
       type: object
     Admin_matchlab_admin_v1_StaffList:
       additionalProperties: false
@@ -5554,7 +5717,7 @@ components:
         reason:
           type: string
         role:
-          type: string
+          $ref: '#/components/schemas/StaffRole'
       type: object
     Admin_matchlab_management_v1_Counter:
       additionalProperties: false
@@ -5598,6 +5761,7 @@ components:
       additionalProperties: false
       properties:
         action:
+          description: Имя операции в истории конкретного ресурса или общем аудите. Набор отличается от команд TicketAction; например, domain.save или session.login.
           type: string
         actor_admin_id:
           type: string
@@ -5614,15 +5778,17 @@ components:
         previous_assigned_admin_id:
           type: string
         previous_status:
+          description: Состояние до операции в том же формате, что status; может быть пустым, например при создании ресурса.
           type: string
         resource_id:
           type: string
         result:
-          type: string
+          $ref: '#/components/schemas/AuditResult'
         revision:
           format: int32
           type: integer
         status:
+          description: Состояние после операции; формат зависит от ресурса. История доменов может содержать домен и флаг активности; общий аудит может оставлять поле пустым.
           type: string
       type: object
     Admin_matchlab_management_v1_EventList:
@@ -5679,12 +5845,14 @@ components:
           pattern: ^-?[0-9]+$
           type: string
         kind:
+          description: 'Для очереди достижений: education, certificate, scientific, project; см. enum query-параметра kind.'
           type: string
         page:
           $ref: '#/components/schemas/Admin_matchlab_management_v1_Page'
         result:
           type: string
         status:
+          description: Значения зависят от метода; см. enum query-параметра status конкретного HTTP-маршрута.
           type: string
         target_project_id:
           type: string
@@ -5733,7 +5901,7 @@ components:
         role_title:
           type: string
         status:
-          type: string
+          $ref: '#/components/schemas/ProjectMemberStatus'
         user_id:
           type: string
       type: object
@@ -5834,7 +6002,7 @@ components:
             $ref: '#/components/schemas/Admin_matchlab_project_v1_Role'
           type: array
         status:
-          type: string
+          $ref: '#/components/schemas/ProjectStatus'
       type: object
     Admin_matchlab_project_v1_ProjectID:
       additionalProperties: false
@@ -5871,7 +6039,7 @@ components:
         title:
           type: string
         type:
-          type: string
+          $ref: '#/components/schemas/ProjectType'
       type: object
     Admin_matchlab_project_v1_ProjectList:
       additionalProperties: false
@@ -5964,7 +6132,7 @@ components:
           format: int32
           type: integer
         status:
-          type: string
+          $ref: '#/components/schemas/TicketStatus'
         subject:
           type: string
         target_project_id:
@@ -5980,7 +6148,7 @@ components:
       additionalProperties: false
       properties:
         action:
-          type: string
+          $ref: '#/components/schemas/TicketAction'
         assigned_admin_id:
           type: string
         comment:
@@ -6031,7 +6199,7 @@ components:
           format: int32
           type: integer
         status:
-          type: string
+          $ref: '#/components/schemas/AchievementStatus'
         user_id:
           type: string
       type: object
@@ -6096,7 +6264,7 @@ components:
         institution:
           type: string
         kind:
-          type: string
+          $ref: '#/components/schemas/AchievementKind'
         title:
           type: string
         url:
@@ -6199,7 +6367,7 @@ components:
           format: int32
           type: integer
         status:
-          type: string
+          $ref: '#/components/schemas/AccountStatus'
         status_changed_at_unix:
           description: 64-bit integer encoded as a string by ProtoJSON.
           pattern: ^-?[0-9]+$
@@ -6232,7 +6400,7 @@ components:
         reason:
           type: string
         status:
-          type: string
+          $ref: '#/components/schemas/AccountStatusChange'
       type: object
     Admin_matchlab_user_v1_VerificationDecision:
       additionalProperties: false
@@ -6247,6 +6415,444 @@ components:
         id:
           type: string
       type: object
+    AuditResult:
+      description: |
+        Результат административной операции.
+
+        - `started` — Операция начата, итог ещё не зафиксирован.
+        - `succeeded` — Операция успешно завершена.
+        - `failed` — Зафиксирована ошибка выполнения.
+        - `unknown` — Ответ зависимости потерян или истёк тайм-аут; результат нужно уточнить по состоянию и истории перед повтором.
+      enum:
+        - started
+        - succeeded
+        - failed
+        - unknown
+      type: string
+      x-enum-descriptions:
+        - Операция начата, итог ещё не зафиксирован.
+        - Операция успешно завершена.
+        - Зафиксирована ошибка выполнения.
+        - Ответ зависимости потерян или истёк тайм-аут; результат нужно уточнить по состоянию и истории перед повтором.
+    AuditResultOptionalFilter:
+      description: |-
+        Результат административной операции.
+
+        - `started` — Операция начата, итог ещё не зафиксирован.
+        - `succeeded` — Операция успешно завершена.
+        - `failed` — Зафиксирована ошибка выполнения.
+        - `unknown` — Ответ зависимости потерян или истёк тайм-аут; результат нужно уточнить по состоянию и истории перед повтором.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - started
+        - succeeded
+        - failed
+        - unknown
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Операция начата, итог ещё не зафиксирован.
+        - Операция успешно завершена.
+        - Зафиксирована ошибка выполнения.
+        - Ответ зависимости потерян или истёк тайм-аут; результат нужно уточнить по состоянию и истории перед повтором.
+    CreatedComplaintStatus:
+      description: Только что созданная жалоба открыта и ожидает обработки (`open`).
+      enum:
+        - open
+      type: string
+    EmailVerificationStatus:
+      description: |
+        Состояние подтверждения электронной почты.
+
+        - `pending` — Ожидается подтверждение адреса.
+        - `verified` — Адрес подтверждён.
+      enum:
+        - pending
+        - verified
+      type: string
+      x-enum-descriptions:
+        - Ожидается подтверждение адреса.
+        - Адрес подтверждён.
+    MediaFileStatus:
+      description: |
+        Состояние файла в Media.
+
+        - `pending` — Ожидает загрузки и подтверждения.
+        - `ready` — Загрузка подтверждена, файл доступен.
+        - `deleted` — Файл удалён.
+        - `failed` — Загрузка или проверка завершилась ошибкой.
+      enum:
+        - pending
+        - ready
+        - deleted
+        - failed
+      type: string
+      x-enum-descriptions:
+        - Ожидает загрузки и подтверждения.
+        - Загрузка подтверждена, файл доступен.
+        - Файл удалён.
+        - Загрузка или проверка завершилась ошибкой.
+    MediaMultipartStatus:
+      description: |
+        Состояние составной загрузки.
+
+        - `uploading` — Загружаются части.
+        - `completing` — Выполняется сборка и проверка объекта.
+        - `completed` — Составная загрузка завершена.
+        - `aborted` — Загрузка отменена.
+      enum:
+        - uploading
+        - completing
+        - completed
+        - aborted
+      type: string
+      x-enum-descriptions:
+        - Загружаются части.
+        - Выполняется сборка и проверка объекта.
+        - Составная загрузка завершена.
+        - Загрузка отменена.
+    ProjectDurationFilter:
+      description: |
+        Длительность между planned_start и planned_end в днях.
+
+        - `up_to_3m` — Не более 92 дней.
+        - `3_to_6m` — Больше 92 и не более 183 дней.
+        - `over_6m` — Больше 183 дней.
+      enum:
+        - up_to_3m
+        - 3_to_6m
+        - over_6m
+      type: string
+      x-enum-descriptions:
+        - Не более 92 дней.
+        - Больше 92 и не более 183 дней.
+        - Больше 183 дней.
+    ProjectDurationFilterOptionalFilter:
+      description: |-
+        Длительность между planned_start и planned_end в днях.
+
+        - `up_to_3m` — Не более 92 дней.
+        - `3_to_6m` — Больше 92 и не более 183 дней.
+        - `over_6m` — Больше 183 дней.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - up_to_3m
+        - 3_to_6m
+        - over_6m
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Не более 92 дней.
+        - Больше 92 и не более 183 дней.
+        - Больше 183 дней.
+    ProjectJoinStatus:
+      description: |
+        Состояние заявки или приглашения.
+
+        - `pending` — Ожидает решения адресата.
+        - `accepted` — Принято, пользователь добавлен в команду.
+        - `rejected` — Отклонено адресатом.
+        - `cancelled` — Отменено инициатором или автоматически после изменения проекта, роли или принятия другой заявки.
+      enum:
+        - pending
+        - accepted
+        - rejected
+        - cancelled
+      type: string
+      x-enum-descriptions:
+        - Ожидает решения адресата.
+        - Принято, пользователь добавлен в команду.
+        - Отклонено адресатом.
+        - Отменено инициатором или автоматически после изменения проекта, роли или принятия другой заявки.
+    ProjectJoinStatusOptionalFilter:
+      description: |-
+        Состояние заявки или приглашения.
+
+        - `pending` — Ожидает решения адресата.
+        - `accepted` — Принято, пользователь добавлен в команду.
+        - `rejected` — Отклонено адресатом.
+        - `cancelled` — Отменено инициатором или автоматически после изменения проекта, роли или принятия другой заявки.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - pending
+        - accepted
+        - rejected
+        - cancelled
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Ожидает решения адресата.
+        - Принято, пользователь добавлен в команду.
+        - Отклонено адресатом.
+        - Отменено инициатором или автоматически после изменения проекта, роли или принятия другой заявки.
+    ProjectJoinType:
+      description: |
+        Кто инициировал вступление в команду.
+
+        - `application` — Пользователь подал заявку на роль.
+        - `invitation` — Владелец проекта пригласил пользователя на роль.
+      enum:
+        - application
+        - invitation
+      type: string
+      x-enum-descriptions:
+        - Пользователь подал заявку на роль.
+        - Владелец проекта пригласил пользователя на роль.
+    ProjectMemberStatus:
+      description: |
+        Состояние участия человека в проекте; не заменяет статус самого проекта.
+
+        - `active` — Состоит в команде.
+        - `left` — Самостоятельно вышел из команды.
+        - `removed` — Исключён владельцем проекта.
+      enum:
+        - active
+        - left
+        - removed
+      type: string
+      x-enum-descriptions:
+        - Состоит в команде.
+        - Самостоятельно вышел из команды.
+        - Исключён владельцем проекта.
+    ProjectMineFilter:
+      description: |
+        Отношение текущего пользователя к проекту. Непустой фильтр требует авторизации.
+
+        - `owner` — Только проекты, которыми пользователь владеет.
+        - `participant` — Только проекты с активным участием пользователя, кроме собственных.
+      enum:
+        - owner
+        - participant
+      type: string
+      x-enum-descriptions:
+        - Только проекты, которыми пользователь владеет.
+        - Только проекты с активным участием пользователя, кроме собственных.
+    ProjectMineFilterOptionalFilter:
+      description: |-
+        Отношение текущего пользователя к проекту. Непустой фильтр требует авторизации.
+
+        - `owner` — Только проекты, которыми пользователь владеет.
+        - `participant` — Только проекты с активным участием пользователя, кроме собственных.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - owner
+        - participant
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Только проекты, которыми пользователь владеет.
+        - Только проекты с активным участием пользователя, кроме собственных.
+    ProjectStatus:
+      description: |
+        Состояние жизненного цикла проекта. Скрытие модератором задаётся отдельно полем moderation_hidden.
+
+        - `recruiting` — Опубликован, идёт набор участников.
+        - `unpublished` — Снят с публикации; доступен владельцу и участникам.
+        - `active` — Проект выполняется, набор завершён.
+        - `completed` — Проект завершён.
+        - `cancelled` — Проект отменён.
+      enum:
+        - recruiting
+        - unpublished
+        - active
+        - completed
+        - cancelled
+      type: string
+      x-enum-descriptions:
+        - Опубликован, идёт набор участников.
+        - Снят с публикации; доступен владельцу и участникам.
+        - Проект выполняется, набор завершён.
+        - Проект завершён.
+        - Проект отменён.
+    ProjectStatusOptionalFilter:
+      description: |-
+        Состояние жизненного цикла проекта. Скрытие модератором задаётся отдельно полем moderation_hidden.
+
+        - `recruiting` — Опубликован, идёт набор участников.
+        - `unpublished` — Снят с публикации; доступен владельцу и участникам.
+        - `active` — Проект выполняется, набор завершён.
+        - `completed` — Проект завершён.
+        - `cancelled` — Проект отменён.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - recruiting
+        - unpublished
+        - active
+        - completed
+        - cancelled
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Опубликован, идёт набор участников.
+        - Снят с публикации; доступен владельцу и участникам.
+        - Проект выполняется, набор завершён.
+        - Проект завершён.
+        - Проект отменён.
+    ProjectTransitionAction:
+      description: |
+        Команда изменения состояния проекта. Недопустимый переход возвращает 409.
+
+        - `publish` — unpublished → recruiting: опубликовать проект.
+        - `unpublish` — recruiting → unpublished: снять с публикации.
+        - `start` — recruiting → active: начать выполнение.
+        - `complete` — active → completed: завершить проект.
+        - `cancel` — recruiting, unpublished или active → cancelled: отменить проект.
+      enum:
+        - publish
+        - unpublish
+        - start
+        - complete
+        - cancel
+      type: string
+      x-enum-descriptions:
+        - 'unpublished → recruiting: опубликовать проект.'
+        - 'recruiting → unpublished: снять с публикации.'
+        - 'recruiting → active: начать выполнение.'
+        - 'active → completed: завершить проект.'
+        - 'recruiting, unpublished или active → cancelled: отменить проект.'
+    ProjectType:
+      description: |
+        Тип проекта.
+
+        - `scientific` — Научный проект.
+        - `practical` — Практический проект.
+      enum:
+        - scientific
+        - practical
+      type: string
+      x-enum-descriptions:
+        - Научный проект.
+        - Практический проект.
+    ProjectTypeOptionalFilter:
+      description: |-
+        Тип проекта.
+
+        - `scientific` — Научный проект.
+        - `practical` — Практический проект.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - scientific
+        - practical
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Научный проект.
+        - Практический проект.
+    RegistrationStatus:
+      description: |
+        Состояние заявки на регистрацию.
+
+        - `pending` — Письмо отправлено; требуется перейти по ссылке, подтвердить адрес и затем войти.
+      enum:
+        - pending
+      type: string
+      x-enum-descriptions:
+        - Письмо отправлено; требуется перейти по ссылке, подтвердить адрес и затем войти.
+    StaffRole:
+      description: |
+        Роль отдельной служебной учётной записи; не является ролью участника проекта.
+
+        - `administrator` — Полный доступ, включая сотрудников и правила почтовых доменов.
+        - `moderator` — Модерация жалоб, достижений, пользователей и проектов; без управления сотрудниками и доменами.
+      enum:
+        - administrator
+        - moderator
+      type: string
+      x-enum-descriptions:
+        - Полный доступ, включая сотрудников и правила почтовых доменов.
+        - Модерация жалоб, достижений, пользователей и проектов; без управления сотрудниками и доменами.
+    TicketAction:
+      description: |
+        Действие модератора с жалобой; требуется актуальный expected_revision.
+
+        - `assign` — Назначить ответственного: требуется assigned_admin_id, жалоба должна быть open.
+        - `unassign` — Снять ответственного с открытой жалобы.
+        - `resolve` — Удовлетворить открытую жалобу; обязателен comment.
+        - `decline` — Отклонить открытую жалобу; обязателен comment.
+        - `reopen` — Вернуть закрытую жалобу в open; обязателен comment.
+      enum:
+        - assign
+        - unassign
+        - resolve
+        - decline
+        - reopen
+      type: string
+      x-enum-descriptions:
+        - 'Назначить ответственного: требуется assigned_admin_id, жалоба должна быть open.'
+        - Снять ответственного с открытой жалобы.
+        - Удовлетворить открытую жалобу; обязателен comment.
+        - Отклонить открытую жалобу; обязателен comment.
+        - Вернуть закрытую жалобу в open; обязателен comment.
+    TicketStatus:
+      description: |
+        Состояние жалобы.
+
+        - `open` — Открыта и ожидает обработки.
+        - `resolved` — Рассмотрена и удовлетворена.
+        - `declined` — Рассмотрена и отклонена.
+      enum:
+        - open
+        - resolved
+        - declined
+      type: string
+      x-enum-descriptions:
+        - Открыта и ожидает обработки.
+        - Рассмотрена и удовлетворена.
+        - Рассмотрена и отклонена.
+    TicketStatusFilter:
+      description: |
+        Фильтр жалоб. closed используется только в фильтре, а не в статусе ответа.
+
+        - `open` — Открытые жалобы.
+        - `resolved` — Удовлетворённые жалобы.
+        - `declined` — Отклонённые жалобы.
+        - `closed` — Все закрытые жалобы: resolved и declined.
+      enum:
+        - open
+        - resolved
+        - declined
+        - closed
+      type: string
+      x-enum-descriptions:
+        - Открытые жалобы.
+        - Удовлетворённые жалобы.
+        - Отклонённые жалобы.
+        - 'Все закрытые жалобы: resolved и declined.'
+    TicketStatusFilterOptionalFilter:
+      description: |-
+        Фильтр жалоб. closed используется только в фильтре, а не в статусе ответа.
+
+        - `open` — Открытые жалобы.
+        - `resolved` — Удовлетворённые жалобы.
+        - `declined` — Отклонённые жалобы.
+        - `closed` — Все закрытые жалобы: resolved и declined.
+
+        Параметр можно не передавать. Пустая строка также отключает этот фильтр.
+      enum:
+        - ""
+        - open
+        - resolved
+        - declined
+        - closed
+      type: string
+      x-enum-descriptions:
+        - Без фильтра.
+        - Открытые жалобы.
+        - Удовлетворённые жалобы.
+        - Отклонённые жалобы.
+        - 'Все закрытые жалобы: resolved и declined.'
     # END GENERATED ADMIN SCHEMAS
     ProjectInitialRole:
       type: object
@@ -6275,7 +6881,7 @@ components:
         title:
           type: string
         type:
-          type: string
+          $ref: '#/components/schemas/ProjectType'
         field:
           type: string
         problem:
@@ -6354,7 +6960,7 @@ components:
         role_title:
           type: string
         status:
-          type: string
+          $ref: '#/components/schemas/ProjectMemberStatus'
     Project:
       type: object
       additionalProperties: false
@@ -6366,7 +6972,7 @@ components:
         details:
           $ref: '#/components/schemas/ProjectInput'
         status:
-          type: string
+          $ref: '#/components/schemas/ProjectStatus'
         revision:
           type: integer
           format: int32
@@ -6407,7 +7013,7 @@ components:
       additionalProperties: false
       properties:
         action:
-          type: string
+          $ref: '#/components/schemas/ProjectTransitionAction'
         expected_revision:
           type: integer
           format: int32
@@ -6439,9 +7045,9 @@ components:
         candidate_user_id:
           type: string
         type:
-          type: string
+          $ref: '#/components/schemas/ProjectJoinType'
         status:
-          type: string
+          $ref: '#/components/schemas/ProjectJoinStatus'
         message:
           type: string
         created_at_unix:
@@ -6609,7 +7215,7 @@ components:
         project_types:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/ProjectType'
         interests:
           type: array
           items:
@@ -6666,7 +7272,7 @@ components:
         id:
           type: string
         kind:
-          type: string
+          $ref: '#/components/schemas/AchievementKind'
         title:
           type: string
         description:
@@ -6694,7 +7300,7 @@ components:
         details:
           $ref: '#/components/schemas/UserAchievementInput'
         status:
-          type: string
+          $ref: '#/components/schemas/AchievementStatus'
         revision:
           type: integer
           format: int32
@@ -6828,8 +7434,7 @@ components:
           type: string
           format: uuid
         status:
-          type: string
-          enum: [open]
+          $ref: '#/components/schemas/CreatedComplaintStatus'
         created_at:
           type: string
           format: date-time
@@ -6838,7 +7443,7 @@ components:
       required: [file, status, expected_size_bytes, part_size_bytes, part_count, expires_at_unix, uploaded_bytes, parts]
       properties:
         file: {$ref: '#/components/schemas/MediaFile'}
-        status: {type: string, enum: [uploading, completing, completed, aborted]}
+        status: {$ref: '#/components/schemas/MediaMultipartStatus'}
         expected_size_bytes: {type: integer, format: int64, minimum: 1}
         part_size_bytes: {type: integer, format: int64, minimum: 5242880, maximum: 5368709120}
         part_count: {type: integer, format: int32, minimum: 1, maximum: 10000}
@@ -6860,7 +7465,7 @@ components:
         part_number: {type: integer, format: int32}
         size_bytes: {type: integer, format: int64}
         upload_url: {type: string, format: uri}
-        method: {type: string, enum: [PUT]}
+        method: {type: string, enum: [PUT], description: "PUT — загрузите файл или часть по upload_url с выданными headers."}
         headers:
           type: object
           additionalProperties: {type: string}
@@ -6900,8 +7505,7 @@ components:
           format: int64
           description: Фактический размер; до подтверждения поле отсутствует.
         status:
-          type: string
-          enum: [pending, ready, deleted, failed]
+          $ref: '#/components/schemas/MediaFileStatus'
         created_at_unix: {type: integer, format: int64}
         uploaded_at_unix:
           type: integer
@@ -6921,7 +7525,7 @@ components:
         file:
           $ref: '#/components/schemas/MediaFile'
         upload_url: {type: string, format: uri}
-        method: {type: string, enum: [PUT]}
+        method: {type: string, enum: [PUT], description: "PUT — загрузите файл или часть по upload_url с выданными headers."}
         headers:
           type: object
           additionalProperties: {type: string}
@@ -6959,8 +7563,7 @@ components:
       required: [status]
       properties:
         status:
-          type: string
-          enum: [pending]
+          $ref: '#/components/schemas/RegistrationStatus'
     LoginResult:
       type: object
       required: [user_id, access_token]
@@ -6983,8 +7586,7 @@ components:
       required: [status]
       properties:
         status:
-          type: string
-          enum: [pending, verified]
+          $ref: '#/components/schemas/EmailVerificationStatus'
         email:
           type: string
           format: email
