@@ -6268,6 +6268,7 @@ components:
         title:
           type: string
         url:
+          description: 'Необязательная ссылка HTTP/HTTPS на публикацию, сертификат или страницу проекта; пустая строка означает отсутствие ссылки. Маршруты /verify-email и /api/v1/auth/email/confirm не допускаются: они подтверждают почту, а не достижение. Для отправки на проверку нужна допустимая ссылка или приватный подтверждающий файл.'
           type: string
       type: object
     Admin_matchlab_user_v1_DomainInput:
@@ -7284,6 +7285,8 @@ components:
           format: int32
         url:
           type: string
+          description: >-
+            Необязательная ссылка HTTP/HTTPS на публикацию, сертификат или страницу проекта; пустая строка означает отсутствие ссылки. Маршруты /verify-email и /api/v1/auth/email/confirm не допускаются: они подтверждают почту, а не достижение. Для отправки на проверку нужна допустимая ссылка или приватный подтверждающий файл.
         evidence_file_id:
           type: string
         expected_revision:

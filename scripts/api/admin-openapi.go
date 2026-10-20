@@ -128,6 +128,7 @@ func value(f protoreflect.FieldDescriptor) map[string]any {
 	// Shared protobuf messages serve several resources. Their field domains
 	// depend on the route, so document that rather than inventing a global enum.
 	descriptions := map[protoreflect.FullName]string{
+		"matchlab.user.v1.AchievementInput.url":        "Необязательная ссылка HTTP/HTTPS на публикацию, сертификат или страницу проекта; пустая строка означает отсутствие ссылки. Маршруты /verify-email и /api/v1/auth/email/confirm не допускаются: они подтверждают почту, а не достижение. Для отправки на проверку нужна допустимая ссылка или приватный подтверждающий файл.",
 		"matchlab.management.v1.Query.status":          "Значения зависят от метода; см. enum query-параметра status конкретного HTTP-маршрута.",
 		"matchlab.management.v1.Query.kind":            "Для очереди достижений: education, certificate, scientific, project; см. enum query-параметра kind.",
 		"matchlab.management.v1.Event.action":          "Имя операции в истории конкретного ресурса или общем аудите. Набор отличается от команд TicketAction; например, domain.save или session.login.",

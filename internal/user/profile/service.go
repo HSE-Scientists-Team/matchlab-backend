@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	"net/mail"
 	"net/url"
+	"path"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -134,7 +135,16 @@ func validLink(value string) bool {
 		return true
 	}
 	u, err := url.Parse(value)
-	return err == nil && len(value) <= 2048 && (u.Scheme == "https" || u.Scheme == "http") && u.Hostname() != "" && u.User == nil
+	if err != nil || len(value) > 2048 || (u.Scheme != "https" && u.Scheme != "http") || u.Hostname() == "" || u.User != nil {
+		return false
+	}
+	// Authentication actions are not achievement sources. Check the decoded,
+	// normalized path so escaped characters and trailing slashes do not bypass it.
+	switch strings.ToLower(path.Clean(u.Path)) {
+	case "/verify-email", "/api/v1/auth/email/confirm":
+		return false
+	}
+	return true
 }
 func validateProfile(p *pb.ProfileInput) error {
 	p.DisplayName = strings.TrimSpace(p.DisplayName)
@@ -340,6 +350,18 @@ func (s *Service) DeleteAchievement(ctx context.Context, p *pb.AchievementID) (*
 	}
 	return &pb.Empty{}, rpcError(s.Repo.DeleteAchievement(ctx, p.Id, id))
 }
+
+// Revalidate persisted sources as well: legacy records may predate URL rules.
+func validateAchievementSubmission(p *pb.AchievementInput) error {
+	if !validLink(p.Url) {
+		return status.Error(codes.FailedPrecondition, "укажите источник достижения вместо ссылки авторизации или подтверждения почты")
+	}
+	if p.EvidenceFileId == "" && p.Url == "" {
+		return status.Error(codes.FailedPrecondition, "требуется ссылка или подтверждающий документ")
+	}
+	return nil
+}
+
 func (s *Service) SubmitAchievement(ctx context.Context, p *pb.AchievementID) (*pb.Achievement, error) {
 	id, err := s.actor(ctx, true, false)
 	if err != nil {
@@ -349,8 +371,8 @@ func (s *Service) SubmitAchievement(ctx context.Context, p *pb.AchievementID) (*
 	if err != nil {
 		return nil, err
 	}
-	if a.Details.EvidenceFileId == "" && a.Details.Url == "" {
-		return nil, status.Error(codes.FailedPrecondition, "требуется ссылка или подтверждающий документ")
+	if err = validateAchievementSubmission(a.Details); err != nil {
+		return nil, err
 	}
 	if err = s.file(ctx, id, a.Details.EvidenceFileId, false); err != nil {
 		return nil, err
