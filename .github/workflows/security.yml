@@ -1,0 +1,52 @@
+name: Trivy security scan
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: trivy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Scan dependencies and configuration
+        id: trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.0
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          skip-dirs: .git,.local,node_modules,dist,.cache
+          format: sarif
+          output: trivy-source.sarif
+          exit-code: '0'
+          ignore-unfixed: false
+          timeout: 10m0s
+      - name: Upload security findings
+        if: ${{ !cancelled() && steps.trivy.outcome == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        uses: github/codeql-action/upload-sarif@d0bae162f31f17dd92c46ccdc4dfee5710f8dc67 # v3
+        with:
+          sarif_file: trivy-source.sarif
+          category: trivy-source
+      - name: Save scan report
+        if: ${{ !cancelled() && steps.trivy.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-source
+          path: trivy-source.sarif
+          retention-days: 14
+          if-no-files-found: error

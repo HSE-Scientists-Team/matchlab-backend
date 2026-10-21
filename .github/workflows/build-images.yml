@@ -60,6 +60,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      security-events: write
     strategy:
       fail-fast: false
       matrix:
@@ -101,6 +102,33 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Scan published image by digest
+        id: trivy-image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: v0.76.0
+          scan-type: image
+          image-ref: ghcr.io/${{ needs.prepare.outputs.repository }}/${{ matrix.service }}@${{ steps.image.outputs.digest }}
+          scanners: vuln
+          format: sarif
+          output: ${{ runner.temp }}/trivy-image.sarif
+          exit-code: '0'
+          ignore-unfixed: false
+          timeout: 10m0s
+      - name: Upload image security findings
+        if: ${{ !cancelled() && steps.trivy-image.outcome == 'success' }}
+        uses: github/codeql-action/upload-sarif@d0bae162f31f17dd92c46ccdc4dfee5710f8dc67 # v3
+        with:
+          sarif_file: ${{ runner.temp }}/trivy-image.sarif
+          category: trivy-image-${{ matrix.service }}
+      - name: Save image scan report
+        if: ${{ !cancelled() && steps.trivy-image.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-image-${{ matrix.service }}
+          path: ${{ runner.temp }}/trivy-image.sarif
+          retention-days: 14
+          if-no-files-found: error
       - name: Проверить приватность GHCR-пакета
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
