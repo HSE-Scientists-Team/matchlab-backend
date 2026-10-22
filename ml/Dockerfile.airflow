@@ -1,4 +1,5 @@
 FROM apache/airflow:3.3.2-python3.12
+USER airflow
 COPY --chown=airflow:root ml/ /opt/matchlab/ml/
 RUN pip install --no-cache-dir 'apache-airflow==3.3.2' '/opt/matchlab/ml[tracking]' && pip check
 

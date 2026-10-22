@@ -19,8 +19,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
+	mobynetwork "github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -61,7 +61,7 @@ func TestMediaContainer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		mapped, err := container.MappedPort(ctx, nat.Port(port))
+		mapped, err := container.MappedPort(ctx, port)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -72,7 +72,7 @@ func TestMediaContainer(t *testing.T) {
 		Env:          map[string]string{"POSTGRES_DB": "matchlab", "POSTGRES_USER": "matchlab", "POSTGRES_PASSWORD": "integration-only"},
 		ExposedPorts: []string{"5432/tcp"}, Networks: []string{testNetwork.Name},
 		NetworkAliases: map[string][]string{testNetwork.Name: {"postgres"}},
-		WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port nat.Port) string {
+		WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port mobynetwork.Port) string {
 			return fmt.Sprintf("postgres://matchlab:integration-only@%s/matchlab?sslmode=disable", net.JoinHostPort(host, port.Port()))
 		}).WithStartupTimeout(90 * time.Second),
 	})

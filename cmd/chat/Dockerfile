@@ -10,4 +10,5 @@ RUN CGO_ENABLED=0 go build -ldflags "-X github.com/HSE-Scientists-Team/matchlab-
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /etc/app
 COPY --from=build /chat /chat
+USER 65532:65532
 ENTRYPOINT ["/chat"]

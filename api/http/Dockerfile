@@ -12,3 +12,6 @@ ENV GATEWAY_URL=http://gateway:8080
 COPY --from=scalar-bundle /scalar/package/dist/browser/standalone.js /usr/share/nginx/html/scalar.js
 COPY api/http/index.html api/http/openapi.yaml /usr/share/nginx/html/
 COPY api/http/nginx.conf /etc/nginx/templates/default.conf.template
+
+# Keep the unprivileged nginx identity explicit for runtime and static checks.
+USER 101:101

@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/smtp"
-	"strconv"
 	"testing"
 	"time"
 
@@ -41,7 +40,7 @@ func TestSenderDeliversToMailpit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := waitForSMTPGreeting(ctx, net.JoinHostPort(host, strconv.Itoa(smtpPort.Int()))); err != nil {
+	if err := waitForSMTPGreeting(ctx, net.JoinHostPort(host, smtpPort.Port())); err != nil {
 		t.Fatal(err)
 	}
 	apiPort, err := container.MappedPort(ctx, "8025/tcp")
@@ -49,7 +48,7 @@ func TestSenderDeliversToMailpit(t *testing.T) {
 		t.Fatal(err)
 	}
 	sender := NewSender(Config{
-		Host: host, Port: smtpPort.Int(), From: "no-reply@example.org",
+		Host: host, Port: int(smtpPort.Num()), From: "no-reply@example.org",
 		VerificationURL: "https://example.org/verify", RequireStartTLS: false,
 	})
 	if err := sender.SendVerification(ctx, "person@example.org", "test-verification-token", time.Now().Add(30*time.Minute)); err != nil {

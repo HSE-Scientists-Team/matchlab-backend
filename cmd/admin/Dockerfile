@@ -14,4 +14,5 @@ FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /etc/app
 COPY --from=build /admin /admin
 COPY --from=build /admin-bootstrap /admin-bootstrap
+USER 65532:65532
 ENTRYPOINT ["/admin"]
