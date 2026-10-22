@@ -35,3 +35,38 @@ jobs:
         with:
           name: internal-coverage
           path: coverage/coverage.out
+
+  container-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api-docs, airflow, mlflow]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Dockerfile
+        id: dockerfile
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          case "$SERVICE" in
+            api-docs) path=api/http/Dockerfile ;;
+            airflow) path=ml/Dockerfile.airflow ;;
+            mlflow) path=ml/Dockerfile.mlflow ;;
+          esac
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ steps.dockerfile.outputs.path }}
+          load: true
+          push: false
+          tags: matchlab-runtime-test:local
+          cache-from: type=gha,scope=runtime-${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=runtime-${{ matrix.service }}
+      - name: Verify non-root runtime and writable state
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: python3 scripts/ci/test-container-runtime.py "$SERVICE" matchlab-runtime-test:local

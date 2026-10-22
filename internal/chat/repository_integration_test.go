@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
-	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	mobynetwork "github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"net"
@@ -23,7 +23,7 @@ func chatDB(t *testing.T) (context.Context, *sql.DB) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	t.Cleanup(cancel)
-	dsn := func(host string, port nat.Port) string {
+	dsn := func(host string, port mobynetwork.Port) string {
 		return fmt.Sprintf("postgres://postgres:test-only@%s/matchlab?sslmode=disable", net.JoinHostPort(host, port.Port()))
 	}
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{ContainerRequest: testcontainers.ContainerRequest{Image: "postgres:17-alpine", Env: map[string]string{"POSTGRES_PASSWORD": "test-only", "POSTGRES_DB": "matchlab"}, ExposedPorts: []string{"5432/tcp"}, WaitingFor: wait.ForSQL("5432/tcp", "pgx", dsn)}, Started: true})

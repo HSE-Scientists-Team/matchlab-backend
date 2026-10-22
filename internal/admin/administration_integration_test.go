@@ -23,10 +23,10 @@ import (
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/user/profile"
 	userrepository "github.com/HSE-Scientists-Team/matchlab-backend/internal/user/repository"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
-	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	mobynetwork "github.com/moby/moby/api/types/network"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -70,7 +70,7 @@ func rpcFixture(t *testing.T, server *grpc.Server) *grpc.ClientConn {
 func TestAdministrativeLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
-	c, e := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{ContainerRequest: testcontainers.ContainerRequest{Image: "postgres:17-alpine", Env: map[string]string{"POSTGRES_PASSWORD": "test-only", "POSTGRES_DB": "matchlab"}, ExposedPorts: []string{"5432/tcp"}, WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(h string, p nat.Port) string {
+	c, e := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{ContainerRequest: testcontainers.ContainerRequest{Image: "postgres:17-alpine", Env: map[string]string{"POSTGRES_PASSWORD": "test-only", "POSTGRES_DB": "matchlab"}, ExposedPorts: []string{"5432/tcp"}, WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(h string, p mobynetwork.Port) string {
 		return fmt.Sprintf("postgres://postgres:test-only@%s:%s/matchlab?sslmode=disable", h, p.Port())
 	})}, Started: true})
 	if c != nil {

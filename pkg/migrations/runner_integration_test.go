@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/postgres"
-	"github.com/docker/go-connections/nat"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	mobynetwork "github.com/moby/moby/api/types/network"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -31,8 +31,8 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 			Image:        "postgres:17-alpine",
 			Env:          map[string]string{"POSTGRES_DB": "matchlab", "POSTGRES_USER": "matchlab", "POSTGRES_PASSWORD": "integration-only"},
 			ExposedPorts: []string{"5432/tcp"},
-			WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port nat.Port) string {
-				return (postgres.Config{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}).URL()
+			WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port mobynetwork.Port) string {
+				return (postgres.Config{Host: host, Port: int(port.Num()), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}).URL()
 			}).WithStartupTimeout(90 * time.Second),
 		}, Started: true,
 	})
@@ -50,7 +50,7 @@ func newMigrationDatabase(t *testing.T) (context.Context, *sql.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := postgres.Config{Host: host, Port: port.Int(), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}
+	cfg := postgres.Config{Host: host, Port: int(port.Num()), Database: "matchlab", User: "matchlab", Password: "integration-only", SSLMode: "disable"}
 	db, err := sql.Open("pgx", cfg.URL())
 	if err != nil {
 		t.Fatal(err)

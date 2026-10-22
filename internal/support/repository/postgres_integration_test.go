@@ -12,9 +12,9 @@ import (
 
 	"github.com/HSE-Scientists-Team/matchlab-backend/internal/support/domain"
 	"github.com/HSE-Scientists-Team/matchlab-backend/pkg/migrations"
-	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	mobynetwork "github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -29,7 +29,7 @@ func TestPostgresComplaints(t *testing.T) {
 				"POSTGRES_DB": "matchlab", "POSTGRES_USER": "matchlab", "POSTGRES_PASSWORD": "integration-only",
 			},
 			ExposedPorts: []string{"5432/tcp"},
-			WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port nat.Port) string {
+			WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port mobynetwork.Port) string {
 				return fmt.Sprintf("postgres://matchlab:integration-only@%s/matchlab?sslmode=disable", net.JoinHostPort(host, port.Port()))
 			}).WithStartupTimeout(90 * time.Second),
 		},
